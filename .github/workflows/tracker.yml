@@ -28,6 +28,20 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
+      - name: Diagnóstico V8 — estrutura do scraper
+        run: |
+          python - <<'PY'
+          import ast,re
+          from pathlib import Path
+          s=Path('scraper.py').read_text(encoding='utf-8')
+          tree=ast.parse(s)
+          funcs=[n.name for n in ast.walk(tree) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))]
+          print('FUNCOES:', ', '.join(funcs))
+          for key in ('candidates','candidate','fetch','blocked','main','scrape','discover','sitemap','lojas','results'):
+              hits=[i+1 for i,l in enumerate(s.splitlines()) if key.lower() in l.lower()]
+              if hits: print(f'{key}: {hits[:20]}')
+          PY
+
       - name: Normalizar V8 antes dos testes
         run: |
           python - <<'PY'
