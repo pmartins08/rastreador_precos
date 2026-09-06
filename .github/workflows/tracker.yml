@@ -28,45 +28,6 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
-      - name: Diagnóstico V8 — estrutura do scraper
-        run: |
-          python - <<'PY'
-          import ast,re
-          from pathlib import Path
-          s=Path('scraper.py').read_text(encoding='utf-8')
-          tree=ast.parse(s)
-          funcs=[n.name for n in ast.walk(tree) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))]
-          print('FUNCOES:', ', '.join(funcs))
-          for key in ('candidates','candidate','fetch','blocked','main','scrape','discover','sitemap','lojas','results'):
-              hits=[i+1 for i,l in enumerate(s.splitlines()) if key.lower() in l.lower()]
-              if hits: print(f'{key}: {hits[:20]}')
-          PY
-
-      - name: Normalizar V8 antes dos testes
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('scraper.py')
-          s = p.read_text(encoding='utf-8')
-
-          old_block = """def blocked(r):\n if r.status_code in {401,403,429,503}:return True,f'HTTP {r.status_code}'\n try:t=norm((BeautifulSoup(r.text,'html.parser').title.get_text(' ',strip=True) if BeautifulSoup(r.text,'html.parser').title else '')+' '+r.text[:60000])\n except:t=''\n return next(((True,x) for x in BLOCK if x in t),(False,None))\n"""
-          new_block = """def blocked(r):\n if r.status_code in {401,403,429}:return True,f'HTTP {r.status_code}'\n try:\n  soup=BeautifulSoup(r.text,'html.parser')\n  title=norm(soup.title.get_text(' ',strip=True) if soup.title else '')\n  for n in soup(['script','style','noscript']):n.decompose()\n  visible=norm(' '.join(soup.stripped_strings))[:20000]\n  challenge=(\n   'cf-chl-' in title or 'cf-chl-' in visible or\n   'just a moment' in title or 'checking your browser' in visible or\n   'verify you are human' in visible or 'access denied' in visible or\n   'robot check' in visible or 'are you a robot' in visible or\n   'captcha' in title\n  )\n  return (True,'challenge') if challenge else (False,None)\n except Exception:return False,None\n"""
-          if old_block in s:
-              s=s.replace(old_block,new_block,1)
-
-          old_vram="m=re.search(r'(\\d{1,2})\\s*gb',t) if not re.search(r'vram|memoria grafica|graphics memory|video memory',t) else None;o['vram_gb']=int(m.group(1)) if m else None;"
-          new_vram="m=re.search(r'(\\d{1,2})\\s*gb\\s*gddr\\d+',t);o['vram_gb']=int(m.group(1)) if m else None;"
-          if old_vram in s:
-              s=s.replace(old_vram,new_vram,1)
-
-          old_store="[print(f\"🏪 {k}: encontrados={v['encontrados']} candidatos={v['candidatos']} aceites={v['aceites']} rejeitados={v['rejeitados']} bloqueada={v['bloqueada']}\") for k,v in lojas.items()];"
-          new_store="[print(f\"🏪 {k}: encontrados={v['encontrados']} candidatos={v['candidatos']} aceites={v['aceites']} rejeitados={v['rejeitados']} bloqueada={v['bloqueada']} erro={results.get(k,{}).get('erro')}\") for k,v in lojas.items()];"
-          if old_store in s:
-              s=s.replace(old_store,new_store,1)
-
-          p.write_text(s,encoding='utf-8')
-          PY
-
       - name: Smoke tests — V8
         env:
           SMOKE_TEST: '1'
@@ -82,12 +43,16 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scraper.py
 
-      - name: Guardar Histórico e correções V8
+      - name: Guardar Histórico V8
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/history.json scraper.py
-          git commit -m "chore: atualizar historico e normalizacao V8 [skip ci]" || exit 0
+          git add data/history.json
+          if git diff --cached --quiet; then
+            echo "Sem alterações no histórico."
+            exit 0
+          fi
+          git commit -m "chore: atualizar historico V8 [skip ci]"
           git fetch origin main
           git rebase origin/main
           git push
