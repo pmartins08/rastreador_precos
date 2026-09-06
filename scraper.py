@@ -378,9 +378,10 @@ def apply_pair(o: dict, key: str, value: str, source: str) -> None:
             o["ecra_brightness_nits"] = int(m.group(1))
     elif key == "keyboard":
         kt = norm(value)
+        pt_exact = {"pt", "pt-pt", "portugues", "portuguese", "portugal", "portugues portugal", "portuguese portugal"}
         o["teclado_pt"] = (
             "nao_pt" if any(x in kt for x in KNPT)
-            else "confirmado" if any(x in kt for x in KPT)
+            else "confirmado" if kt in pt_exact or bool(re.search(r"\b(?:pt|pt-pt)\b", kt))
             else o["teclado_pt"]
         )
     o["evidencias"][key] = value
@@ -408,6 +409,14 @@ def extract(title: str, soup: BeautifulSoup) -> dict:
         if o.get(k) in (None, "desconhecida", "desconhecido") and fallback.get(k) not in (None, "desconhecida", "desconhecido"):
             o[k] = fallback[k]
             o["fontes"][k] = "titulo_texto_fallback"
+    if o.get("teclado_pt") == "desconhecido":
+        nt = norm(page_text)
+        if re.search(r"teclado.{0,80}\b(?:pt|pt-pt|portugues|portuguese|portugal)\b", nt):
+            o["teclado_pt"] = "confirmado"
+            o["fontes"]["teclado_pt"] = "contexto_texto"
+        elif re.search(r"teclado.{0,80}\b(?:espanhol|spanish|frances|french|alemao|german|ingles|english|azerty|qwertz)\b", nt):
+            o["teclado_pt"] = "nao_pt"
+            o["fontes"]["teclado_pt"] = "contexto_texto"
     return o
 
 def quality(s: dict) -> tuple[float, str]:
@@ -853,6 +862,7 @@ def main() -> None:
             continue
         s = item.get("specs") or specs(item["titulo"])
         if require_pt and s.get("teclado_pt") == "desconhecido":
+            loja_stats[loja]["rejeitados"] += 1
             continue
         av = score(s, item["preco"], weights, settings)
         if av.get("status") != "ACEITE":
