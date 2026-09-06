@@ -189,8 +189,14 @@ def calcular_scores(specs: dict, preco: float) -> dict:
 # ==========================================
 
 def carregar_json(path: Path) -> dict:
-    if not path.exists(): return {}
-    with path.open("r", encoding="utf-8") as f: return json.load(f)
+    if not path.exists(): 
+        return {}
+    try:
+        with path.open("r", encoding="utf-8") as f: 
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"⚠️ Erro ao ler {path.name} ({e}). A ignorar e criar um novo histórico limpo.")
+        return {}
 
 def guardar_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
