@@ -820,11 +820,15 @@ def main() -> None:
             if not isinstance(_entry, dict):
                 continue
             _spec = _entry.get("specs")
-            if isinstance(_spec, dict):
-                # Migração do bug antigo: RAM nunca deve aparecer como VRAM.
-                if not _spec.get("gpu_modelo") or _spec.get("gpu_tipo") != "dedicada":
-                    _spec["vram_gb"] = None
+            if not isinstance(_spec, dict):
+                continue
+            _ev = _spec.get("evidencias") or {}
+            _raw_vram = str(_ev.get("vram", ""))
+            # Só aceitamos VRAM histórica se houver GDDR explícito na evidência original.
+            if not re.search(r"\b\d{1,2}\s*gb\s*gddr\d+\b", norm(_raw_vram)):
+                _spec["vram_gb"] = None
     history["schema_version"] = 8
+    history.setdefault("alert_state", {})
     all_items: list[dict] = []; loja_stats: dict[str, dict] = {}; errors: dict[str, str | None] = {}
 
     for cat in config.get("category_urls", []):
@@ -904,28 +908,34 @@ def main() -> None:
         previous_value = float(prev.get("value_score", 0)) if prev else 0.0
         previous_tier = prev.get("tier") if prev else None
         tier_order = {"BRONZE": 1, "PRATA": 2, "OURO": 3, "DIAMANTE": 4}
+        alert_key = f"{loja}::{item['url']}"
+        alert_state = history.setdefault("alert_state", {})
+        prior_alert = alert_state.get(alert_key)
         entry = {"timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "price": item["preco"], "stock": item.get("stock"), "score_final": av["score_final"], "score_ranking": av["score_ranking"], "value_score": av["value_score"], "tier": tier, "specs": s, "url": item["url"]}
         entries.append(entry)
         if len(entries) > 30: del entries[:-30]
         if tier and av["value_score"] >= min_value and item.get("stock") is not False:
             drop_eur = float(settings.get("alerta_queda_preco_eur", 5))
-            price_drop = previous_price is not None and item["preco"] <= previous_price - drop_eur
+            baseline_price = float(prior_alert.get("price")) if prior_alert and prior_alert.get("price") is not None else previous_price
+            baseline_tier = prior_alert.get("tier") if prior_alert else previous_tier
+            price_drop = baseline_price is not None and item["preco"] <= baseline_price - drop_eur
             became_opportunity = previous_value < min_value
-            tier_upgrade = bool(previous_tier and tier_order.get(tier, 0) > tier_order.get(previous_tier, 0))
-            first_qualifying = prev is None
-            should_alert = first_qualifying or became_opportunity or tier_upgrade or price_drop
+            tier_upgrade = bool(baseline_tier and tier_order.get(tier, 0) > tier_order.get(baseline_tier, 0))
+            first_alert = prior_alert is None
+            should_alert = first_alert or became_opportunity or tier_upgrade or price_drop
             if should_alert:
                 alerts += 1
-                if first_qualifying:
-                    reason = "nova oportunidade"
+                if first_alert:
+                    reason = "nova oportunidade / inicialização do alerta"
                 elif price_drop:
-                    reason = f"queda de {previous_price - item['preco']:.2f}€"
+                    reason = f"queda de {baseline_price - item['preco']:.2f}€"
                 elif tier_upgrade:
-                    reason = f"subida de {previous_tier} para {tier}"
+                    reason = f"subida de {baseline_tier} para {tier}"
                 else:
                     reason = "entrou no limiar de alerta"
                 msg = f"{item['titulo']}\nPreço: {item['preco']:.2f}€\nValue: {av['value_score']:.1f} | Rank: {av['score_ranking']:.1f}\nTier: {tier}\nMotivo: {reason}\n{item['url']}"
                 enviar_alerta(f"{tier}: {item['titulo']}", msg, "high" if tier in {"DIAMANTE", "OURO"} else "default")
+                alert_state[alert_key] = {"timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "price": item["preco"], "value_score": av["value_score"], "tier": tier}
 
     save(HISTORY_PATH, history)
     top = sorted(((entries[-1], k) for k, entries in history["offers"].items() if entries), key=lambda x: x[0].get("value_score", 0), reverse=True)[:8]
