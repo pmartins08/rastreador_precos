@@ -1,10 +1,8 @@
-import asyncio
-from playwright.async_api import async_playwright
 import requests
 import re
 
-# Substitui pelo nome do teu tópico na app ntfy!
 NTFY_TOPIC = "alertas_portateis_feup_123" 
+SCRAPER_API_KEY = "ee8b2011dbaf963c6ca4bfe22a819c28"
 
 PORTATEIS = [
     {
@@ -34,62 +32,37 @@ def enviar_alerta(mensagem):
         requests.post(
             f"https://ntfy.sh/{NTFY_TOPIC}", 
             data=mensagem.encode('utf-8'),
-            headers={"Title": "🚨 Portátil ASUS - Alerta", "Tags": "computer,moneybag", "Priority": "high"},
-            timeout=10
+            headers={"Title": "🚨 Alerta Portáteis FEUP", "Tags": "computer,moneybag", "Priority": "high"}
         )
     except Exception as e:
-        print(f"Erro ao enviar notificação: {e}")
+        print(f"Erro na notificação: {e}")
 
-async def obter_preco(page, url):
+def obter_preco(url):
+    params = {'api_key': SCRAPER_API_KEY, 'url': url, 'render': 'true', 'country_code': 'pt'}
     try:
-        # networkidle espera que a página pare totalmente de carregar elementos anti-bot
-        await page.goto(url, wait_until="networkidle", timeout=50000)
-        # Espera adicional para os pop-ups de cookies passarem
-        await page.wait_for_timeout(5000) 
-        
-        html = await page.content()
-        padrao_moeda = re.compile(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2}))\s*€|(\d{1,3}(?:,\d{3})*(?:\.\d{2}))\s*€')
-        numeros = padrao_moeda.findall(html)
-        
+        resp = requests.get('https://api.scraperapi.com/', params=params, timeout=120)
+        numeros = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2}))\s*€|(\d{1,3}(?:,\d{3})*(?:\.\d{2}))\s*€', resp.text)
         if numeros:
             for match in numeros:
                 n = match[0] if match[0] else match[1]
-                valor_limpo = float(n.replace('.', '').replace(',', '.'))
-                if 800 <= valor_limpo <= 2500: 
-                    return valor_limpo
+                valor = float(n.replace('.', '').replace(',', '.'))
+                # Filtro de segurança adaptado ao orçamento exigido pelo estudo
+                if 800 <= valor <= 2500: 
+                    return valor
     except Exception as e:
-        pass
+        print(f"Falha na ligação: {e}")
     return None
 
-async def main():
-    async with async_playwright() as p:
-        # Argumentos especiais para enganar sistemas Cloudflare/Datadome
-        browser = await p.chromium.launch(
-            headless=True,
-            args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
-        )
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            viewport={"width": 1920, "height": 1080}
-        )
-        
-        # Elimina a assinatura padrão de robô do Playwright
-        await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        page = await context.new_page()
-        
-        for p_info in PORTATEIS:
-            print(f"\n🔍 A verificar: {p_info['nome']}...")
-            preco = await obter_preco(page, p_info["url"])
-            
-            if preco:
-                print(f"   => Preço atual lido: {preco}€ (Orçamento: {p_info['alvo']}€)")
-                if preco <= p_info["alvo"]:
-                    msg = f"O modelo {p_info['nome']} baixou para {preco}€!\n\nCompra aqui: {p_info['url']}"
-                    enviar_alerta(msg)
-            else:
-                print("   => ❌ Não foi possível identificar um preço de portátil válido nesta página hoje.")
-                
-        await browser.close()
+def main():
+    for p in PORTATEIS:
+        print(f"\n🔍 A extrair com ScraperAPI: {p['nome']}...")
+        preco = obter_preco(p["url"])
+        if preco:
+            print(f"   => Preço lido: {preco}€ (Alvo: {p['alvo']}€)")
+            if preco <= p["alvo"]:
+                enviar_alerta(f"{p['nome']} desceu para {preco}€!\nLink: {p['url']}")
+        else:
+            print("   => ❌ Bloqueado ou preço invisível.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
