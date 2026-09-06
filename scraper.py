@@ -318,6 +318,8 @@ def apply_pair(o: dict, key: str, value: str, source: str) -> None:
             o["gpu_modelos_detectados"] = detected
             o["gpu_modelo"] = gm
             o["gpu_tipo"] = gt
+        elif gt == "integrada":
+            o["gpu_tipo"] = "integrada"
     elif key == "igpu":
         if not o.get("gpu_modelo"):
             o["gpu_tipo"] = "integrada"
