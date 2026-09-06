@@ -1,0 +1,27 @@
+name: Tracker de Portáteis
+
+on:
+  schedule:
+    # Corre de 12 em 12 horas (às 00:00 e 12:00 UTC)
+    - cron: '0 */12 * * *'
+  workflow_dispatch: # Permite-te clicar num botão para correr manualmente
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Dependências e Navegador
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps firefox
+
+      - name: Executar o Rastreador
+        run: python scraper.py
