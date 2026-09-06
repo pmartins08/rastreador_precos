@@ -74,4 +74,6 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add data/history.json scraper.py
           git commit -m "chore: atualizar historico e normalizacao V8 [skip ci]" || exit 0
+          git fetch origin main
+          git rebase origin/main
           git push
