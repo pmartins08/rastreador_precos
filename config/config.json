@@ -2,12 +2,30 @@
   "settings": {
     "budget_soft": 1300.0,
     "budget_hard": 1500.0,
-    "min_value_score_alerta": 45.0,
+    "min_value_score_alerta": 70.0,
     "max_produtos_por_categoria": 30,
+    "max_lojas_paralelas": 6,
+    "max_verificacoes_teclado": 12,
     "require_pt_keyboard": true,
-    "bronze_value_min": 45.0,
-    "prata_value_min": 70.0,
-    "ouro_value_min": 100.0
+    "bronze_value_min": 70.0,
+    "prata_value_min": 90.0,
+    "ouro_value_min": 110.0,
+    "diamante_value_min": 130.0,
+    "preco_minimo_global": 250.0,
+    "gpu_preco_min": {
+      "rtx 5090": 1600,
+      "rtx 5080": 1250,
+      "rtx 5070 ti": 1000,
+      "rtx 5070": 850,
+      "rtx 5060 ti": 700,
+      "rtx 5060": 600,
+      "rtx 5050": 500,
+      "rtx 4090": 1400,
+      "rtx 4080": 1200,
+      "rtx 4070": 850,
+      "rtx 4060": 650,
+      "rtx 4050": 500
+    }
   },
   "weights": {
     "gpu_base": {
@@ -33,37 +51,45 @@
   "category_urls": [
     {
       "loja": "PCDiga",
-      "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis",
-      "product_path_hints": ["/computadores-portateis/", "/produto/", "/product/"]
+      "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
+      "timeout_ms": 12000,
+      "parent_climb": 7,
+      "product_path_hints": ["/produto/", "/product/", "/computadores-laptop/", "/computadores/", "/portatil/"]
     },
     {
       "loja": "PcComponentes",
       "url": "https://www.pccomponentes.pt/portateis",
+      "timeout_ms": 12000,
+      "parent_climb": 7,
       "product_path_hints": ["/portateis/", "/produto/", "/product/"]
     },
     {
       "loja": "Globaldata",
       "url": "https://www.globaldata.pt/computadores/computadores-portateis",
+      "timeout_ms": 12000,
+      "parent_climb": 7,
       "product_path_hints": ["/produto/", "/product/", "/computadores-portateis/", "/portatil/"]
     },
     {
       "loja": "Radio Popular",
       "url": "https://www.radiopopular.pt/pesquisa/laptop",
+      "timeout_ms": 12000,
+      "parent_climb": 7,
       "product_path_hints": ["/produto/", "/product/", "/portatil/", "/laptop/"]
     },
     {
       "loja": "CHIP7",
       "url": "https://chip7.pt/computadores/portateis",
-      "scroll_wait_ms": 2500,
-      "scroll_passes": 4,
+      "timeout_ms": 9000,
+      "parent_climb": 7,
       "product_path_hints": ["/produto/", "/product/", "/portateis/"]
     },
     {
       "loja": "FNAC",
       "url": "https://www.fnac.pt/Portateis-Windows/n1334091",
-      "scroll_wait_ms": 1800,
-      "scroll_passes": 3,
-      "product_path_hints": ["/a", "/produto/", "/computador-portatil", "/portatil"]
+      "timeout_ms": 12000,
+      "parent_climb": 7,
+      "product_path_hints": ["/a/", "/a-", "/produto/", "/computador-portatil", "/portatil"]
     }
   ]
 }
