@@ -4,7 +4,10 @@
     "budget_hard": 1500.0,
     "min_value_score_alerta": 45.0,
     "max_produtos_por_categoria": 30,
-    "require_pt_keyboard": true
+    "require_pt_keyboard": true,
+    "bronze_value_min": 45.0,
+    "prata_value_min": 70.0,
+    "ouro_value_min": 100.0
   },
   "weights": {
     "gpu_base": {
@@ -30,7 +33,7 @@
   "category_urls": [
     {
       "loja": "PCDiga",
-      "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
+      "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis",
       "product_path_hints": ["/computadores-portateis/", "/produto/", "/product/"]
     },
     {
@@ -54,6 +57,13 @@
       "scroll_wait_ms": 2500,
       "scroll_passes": 4,
       "product_path_hints": ["/produto/", "/product/", "/portateis/"]
+    },
+    {
+      "loja": "FNAC",
+      "url": "https://www.fnac.pt/Portateis-Windows/n1334091",
+      "scroll_wait_ms": 1800,
+      "scroll_passes": 3,
+      "product_path_hints": ["/a", "/produto/", "/computador-portatil", "/portatil"]
     }
   ]
 }
