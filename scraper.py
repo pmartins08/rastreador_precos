@@ -813,6 +813,18 @@ def main() -> None:
     max_sitemap = min(80, max(20, max_cat * 2)); require_pt = bool(settings.get("require_pt_keyboard", True))
     budget_hard = float(settings.get("budget_hard", 1500)); min_value = float(settings.get("min_value_score_alerta", 70))
     history = load(HISTORY_PATH); history.setdefault("offers", {})
+    for _entries in history["offers"].values():
+        if not isinstance(_entries, list):
+            continue
+        for _entry in _entries:
+            if not isinstance(_entry, dict):
+                continue
+            _spec = _entry.get("specs")
+            if isinstance(_spec, dict):
+                # Migração do bug antigo: RAM nunca deve aparecer como VRAM.
+                if not _spec.get("gpu_modelo") or _spec.get("gpu_tipo") != "dedicada":
+                    _spec["vram_gb"] = None
+    history["schema_version"] = 8
     all_items: list[dict] = []; loja_stats: dict[str, dict] = {}; errors: dict[str, str | None] = {}
 
     for cat in config.get("category_urls", []):
@@ -880,16 +892,39 @@ def main() -> None:
         loja_stats[loja]["aceites"] += 1
         tier = tier_from_value(av["value_score"], settings)
         if tier: tiers[tier] += 1
-        key = f"{loja}::{item['titulo']}"; entries = history["offers"].setdefault(key, []); prev = entries[-1] if entries else None
+        key = f"{loja}::{item['titulo']}"; entries = history["offers"].setdefault(key, [])
+        prev = entries[-1] if entries else None
+        # URL é a identidade mais estável: recupera histórico mesmo que o título tenha mudado.
+        if prev is None:
+            for _old_entries in history["offers"].values():
+                if _old_entries and isinstance(_old_entries[-1], dict) and _old_entries[-1].get("url") == item["url"]:
+                    prev = _old_entries[-1]
+                    break
+        previous_price = prev.get("price") if prev else None
+        previous_value = float(prev.get("value_score", 0)) if prev else 0.0
+        previous_tier = prev.get("tier") if prev else None
+        tier_order = {"BRONZE": 1, "PRATA": 2, "OURO": 3, "DIAMANTE": 4}
         entry = {"timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "price": item["preco"], "stock": item.get("stock"), "score_final": av["score_final"], "score_ranking": av["score_ranking"], "value_score": av["value_score"], "tier": tier, "specs": s, "url": item["url"]}
         entries.append(entry)
         if len(entries) > 30: del entries[:-30]
-        if tier and av["value_score"] >= min_value:
-            previous_price = prev.get("price") if prev else None
-            price_drop = previous_price is not None and item["preco"] <= previous_price - float(settings.get("alerta_queda_preco_eur", 5))
-            if previous_price is None or price_drop:
+        if tier and av["value_score"] >= min_value and item.get("stock") is not False:
+            drop_eur = float(settings.get("alerta_queda_preco_eur", 5))
+            price_drop = previous_price is not None and item["preco"] <= previous_price - drop_eur
+            became_opportunity = previous_value < min_value
+            tier_upgrade = bool(previous_tier and tier_order.get(tier, 0) > tier_order.get(previous_tier, 0))
+            first_qualifying = prev is None
+            should_alert = first_qualifying or became_opportunity or tier_upgrade or price_drop
+            if should_alert:
                 alerts += 1
-                msg = f"{item['titulo']}\nPreço: {item['preco']:.2f}€\nValue: {av['value_score']:.1f} | Rank: {av['score_ranking']:.1f}\nTier: {tier}\n{item['url']}"
+                if first_qualifying:
+                    reason = "nova oportunidade"
+                elif price_drop:
+                    reason = f"queda de {previous_price - item['preco']:.2f}€"
+                elif tier_upgrade:
+                    reason = f"subida de {previous_tier} para {tier}"
+                else:
+                    reason = "entrou no limiar de alerta"
+                msg = f"{item['titulo']}\nPreço: {item['preco']:.2f}€\nValue: {av['value_score']:.1f} | Rank: {av['score_ranking']:.1f}\nTier: {tier}\nMotivo: {reason}\n{item['url']}"
                 enviar_alerta(f"{tier}: {item['titulo']}", msg, "high" if tier in {"DIAMANTE", "OURO"} else "default")
 
     save(HISTORY_PATH, history)
