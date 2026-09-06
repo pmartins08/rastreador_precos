@@ -25,7 +25,6 @@ TERMOS_EXCLUSAO = [
     "recondicionado", "refurbished", "usado", "outlet", "grade a", "grade b",
     "grade c", "seminovo", "open box",
 ]
-
 MARCAS_ACEITES = {
     "asus": ["rog", "tuf", "vivobook", "zenbook", "expertbook", "proart"],
     "lenovo": ["legion", "loq", "ideapad", "thinkpad", "thinkbook", "yoga"],
@@ -34,7 +33,6 @@ MARCAS_ACEITES = {
     "msi": ["raider", "vector", "stealth", "crosshair", "katana", "prestige", "creator"],
     "dell": ["alienware", "g-series", "g15", "g16", "xps", "inspiron", "latitude"],
 }
-
 TECLADO_PT = [
     "teclado portugues", "teclado pt", "teclado pt-pt", "keyboard portugues",
     "keyboard pt", "keyboard pt-pt", "layout pt", "layout pt-pt",
@@ -51,7 +49,6 @@ TECLADO_NAO_PT = [
     "belgian keyboard", "belgian layout", "swiss keyboard", "swiss layout",
     "azerty", "qwertz",
 ]
-
 STOCK_NAO = [
     "esgotado", "fora de stock", "out of stock", "indisponivel",
     "temporariamente indisponivel", "sem stock", "sem estoque", "unavailable",
@@ -62,14 +59,12 @@ STOCK_SIM = [
     "available", "in stock", "order now", "adicionar ao carrinho",
     "adiciona ao carrinho", "add to cart", "em stock online",
 ]
-
 CPU_PATTERNS = [
     r"core\s+ultra\s+[3579]\s+\d{3,4}[a-z]*",
     r"core\s+[3579]\s+\d{3,4}[a-z]*",
     r"i[3579]-\d{4,5}[a-z]*",
     r"ryzen(?:\s+ai)?\s+[3579]\s+\d{3,4}[a-z]*",
 ]
-
 GPU_MODELOS = [
     "rtx 5090", "rtx 5080", "rtx 5070 ti", "rtx 5070",
     "rtx 5060 ti", "rtx 5060", "rtx 5050",
@@ -202,29 +197,21 @@ def extrair_specs_avancadas(texto_bruto: str) -> dict:
         "ecra_res": None, "ecra_hz": None, "teclado_pt": "desconhecido",
         "alertas": [], "fontes": {},
     }
-
     s["marca"], s["submarca"] = detetar_marca_submarca(t)
     if s["marca"]:
         s["fontes"]["marca"] = "titulo"
-
     for gpu in GPU_MODELOS:
         if gpu in t:
             s["gpu_modelo"] = gpu
             s["gpu_tipo"] = "dedicada"
             s["fontes"]["gpu"] = "modelo_exato"
             break
-
     if not s["gpu_modelo"]:
-        if any(x in t for x in [
-            "intel iris", "intel arc graphics", "intel graphics", "intel uhd", "intel xe",
-            "radeon graphics", "radeon 610m", "radeon 680m", "radeon 780m", "radeon 840m",
-            "radeon 890m", "qualcomm adreno", "adreno", "qualcomm gpu",
-        ]):
+        if any(x in t for x in ["intel iris", "intel arc graphics", "intel graphics", "intel uhd", "intel xe", "radeon graphics", "radeon 610m", "radeon 680m", "radeon 780m", "radeon 840m", "radeon 890m", "qualcomm adreno", "adreno", "qualcomm gpu"]):
             s["gpu_tipo"] = "integrada"
             s["fontes"]["gpu"] = "integrada"
         else:
             s["alertas"].append("GPU não identificada")
-
     cpu, tier, classe = extrair_cpu(t)
     if cpu:
         s["cpu_str_original"] = cpu
@@ -233,7 +220,6 @@ def extrair_specs_avancadas(texto_bruto: str) -> dict:
         s["fontes"]["cpu"] = "modelo_detetado"
     else:
         s["alertas"].append("CPU não confirmada")
-
     m = re.search(r"(\d{1,3})\s?gb\s?(?:ram|ddr[45](?:x)?|memory|so-dimm)\b", tl)
     if m:
         s["ram_gb"] = int(m.group(1))
@@ -251,15 +237,9 @@ def extrair_specs_avancadas(texto_bruto: str) -> dict:
                 break
         if s["ram_gb"] is None:
             s["alertas"].append("RAM desconhecida")
-
     if any(x in t for x in ["ram expansivel", "so-dimm", "slot ram", "ram upgrade", "upgradable memory", "memoria expansivel"]):
         s["ram_expansivel"] = True
-
-    for capacity, pattern in [
-        (2.0, r"2\s?tb(?:\s?(?:ssd|nvme|pcie))?"),
-        (1.0, r"1\s?tb(?:\s?(?:ssd|nvme|pcie))?"),
-        (0.5, r"512\s?gb(?:\s?(?:ssd|nvme|pcie))?"),
-    ]:
+    for capacity, pattern in [(2.0, r"2\s?tb(?:\s?(?:ssd|nvme|pcie))?"), (1.0, r"1\s?tb(?:\s?(?:ssd|nvme|pcie))?"), (0.5, r"512\s?gb(?:\s?(?:ssd|nvme|pcie))?")]:
         m = re.search(pattern, t)
         if m:
             s["armazenamento_tb"] = capacity
@@ -267,24 +247,20 @@ def extrair_specs_avancadas(texto_bruto: str) -> dict:
             break
     if s["armazenamento_tb"] is None:
         s["alertas"].append("Armazenamento não confirmado")
-
     if any(x in t for x in ["ssd extra", "2x m.2", "2 x m.2", "slot m.2 livre", "segundo ssd", "segundo m.2", "armazenamento expansivel"]):
         s["ssd_expansivel"] = True
-
     m = re.search(r"(\d{2,3})\s?wh\b", t)
     if m:
         s["bateria_wh"] = int(m.group(1))
         s["fontes"]["bateria"] = "texto"
     else:
         s["alertas"].append("Bateria (Wh) desconhecida")
-
     m = re.search(r"(\d[.,]\d+)\s?kg\b", t)
     if m:
         s["peso_kg"] = float(m.group(1).replace(",", "."))
         s["fontes"]["peso"] = "texto"
     else:
         s["alertas"].append("Peso desconhecido")
-
     if any(x in t for x in ["qhd+", "2880x1800", "2560x1600", "wqxga", "2.8k"]):
         s["ecra_res"] = "qhd+"
     elif any(x in t for x in ["qhd", "2560x1440"]):
@@ -295,14 +271,12 @@ def extrair_specs_avancadas(texto_bruto: str) -> dict:
         s["ecra_res"] = "fhd"
     else:
         s["alertas"].append("Resolução do ecrã desconhecida")
-
     m = re.search(r"(\d{2,3})\s?hz\b", t)
     if m:
         s["ecra_hz"] = int(m.group(1))
         s["fontes"]["ecra_hz"] = "texto"
     else:
         s["alertas"].append("Frequência do ecrã desconhecida")
-
     if any(x in t for x in TECLADO_NAO_PT):
         s["teclado_pt"] = "nao_pt"
         s["fontes"]["teclado"] = "texto"
@@ -312,7 +286,6 @@ def extrair_specs_avancadas(texto_bruto: str) -> dict:
         s["fontes"]["teclado"] = "texto"
     else:
         s["alertas"].append("Teclado PT não confirmado")
-
     return s
 
 
@@ -362,7 +335,6 @@ def calcular_scores(s: dict, preco: float, weights: dict, settings: dict) -> dic
         return {"status": "REJEITADO", "alertas": ["8GB RAM confirmado - insuficiente."]}
     if s["peso_kg"] and s["peso_kg"] > 2.8:
         return {"status": "REJEITADO", "alertas": ["Excede limite de peso (>2.8kg)."]}
-
     ram = s["ram_gb"]
     p_ram = 50 if ram is None else 100 if ram >= 32 else 80 if ram >= 16 else 40
     arm = s["armazenamento_tb"]
@@ -379,12 +351,10 @@ def calcular_scores(s: dict, preco: float, weights: dict, settings: dict) -> dic
     p_ram_long = 50 if ram is None else 100 if ram >= 32 else 95 if ram == 16 and s["ram_expansivel"] else 75 if ram == 16 else 40
     exp = s["ssd_expansivel"]
     p_ssd_long = 50 if arm is None else 100 if arm >= 2 or (arm == 1 and exp) else 85 if arm == 1 else 75 if arm == 0.5 and exp else 65 if arm == 0.5 else 50
-
     feup = p_ram * 0.20 + auto * 0.30 + p_ssd * 0.15 + p_res * 0.20 + p_cpu * 0.15
     gaming = p_gpu * 0.65 + p_cpu * 0.20 + p_hz * 0.10 + p_ram * 0.05
     longevidade = p_ram_long * 0.35 + p_ssd_long * 0.25 + auto * 0.20 + p_cpu * 0.20
     final = feup * 0.50 + gaming * 0.25 + longevidade * 0.15 + p_peso * 0.10
-
     conf, qualidade = calcular_qualidade_dados(s)
     ranking = round(max(0, min(100, final * (0.85 + 0.15 * conf))), 1)
     value_score = round(ranking / ((preco / 1000) ** 1.2), 1) if preco > 0 else 0
@@ -392,7 +362,6 @@ def calcular_scores(s: dict, preco: float, weights: dict, settings: dict) -> dic
     alertas = list(dict.fromkeys(s.get("alertas", [])))
     if s["teclado_pt"] == "desconhecido":
         alertas.append("Teclado PT não confirmado — portátil mantido no ranking.")
-
     return {
         "status": "ACEITE", "score_final": round(final, 1), "score_ranking": ranking,
         "value_score": value_score, "oportunidade": tier, "qualidade_dados": qualidade,
@@ -410,7 +379,6 @@ def calcular_scores(s: dict, preco: float, weights: dict, settings: dict) -> dic
 
 def extrair_jsonld_produtos(soup: BeautifulSoup, base_url: str) -> list[dict]:
     produtos = []
-
     def walk(obj):
         if isinstance(obj, list):
             for item in obj:
@@ -432,7 +400,6 @@ def extrair_jsonld_produtos(soup: BeautifulSoup, base_url: str) -> list[dict]:
         for value in obj.values():
             if isinstance(value, (dict, list)):
                 walk(value)
-
     for script in soup.select('script[type="application/ld+json"]'):
         raw = script.string or script.get_text()
         if not raw.strip():
@@ -480,7 +447,6 @@ def escolher_preco(card) -> Optional[float]:
             semantic.append(value)
     if semantic:
         return min(semantic)
-
     current = []
     for node in card.select("[class*='price'], [class*='Price']"):
         classes = normalizar_texto(" ".join(node.get("class", [])))
@@ -495,14 +461,10 @@ def escolher_preco(card) -> Optional[float]:
 
 def extrair_candidatos_html(soup: BeautifulSoup, cfg: dict, base_url: str, limit: int) -> list[dict]:
     hints = cfg.get("product_path_hints", ["/produto/", "/product/", "/portatil/", "/portateis/"])
-    selectors = cfg.get("card_selectors") or [
-        "article", "li[class*='product']", "div[class*='product-card']", "div[class*='productCard']",
-        "div[class*='product-item']", "[data-product-id]", "[data-testid*='product']",
-    ]
+    selectors = cfg.get("card_selectors") or ["article", "li[class*='product']", "div[class*='product-card']", "div[class*='productCard']", "div[class*='product-item']", "[data-product-id]", "[data-testid*='product']"]
     cards = []
     for selector in selectors:
         cards.extend(soup.select(selector))
-
     for anchor in soup.select("a[href]"):
         href = (anchor.get("href") or "").lower()
         if not any(h.lower() in href for h in hints):
@@ -519,7 +481,6 @@ def extrair_candidatos_html(soup: BeautifulSoup, cfg: dict, base_url: str, limit
                 break
         if best is not None:
             cards.append(best)
-
     candidates, seen = [], set()
     for card in cards:
         title = escolher_titulo(card)
@@ -534,7 +495,6 @@ def extrair_candidatos_html(soup: BeautifulSoup, cfg: dict, base_url: str, limit
             continue
         candidates.append({"titulo": title, "preco": price, "url": link, "stock": detetar_stock(card.get_text(" ", strip=True))})
         seen.add(key)
-
     result, seen_titles = [], set()
     for item in candidates:
         if len(result) >= limit:
@@ -554,18 +514,15 @@ def extrair_grelha_categoria(session: requests.Session, cfg: dict, limit: int) -
         response = session.get(url, timeout=timeout, allow_redirects=True)
     except requests.RequestException as exc:
         return {"loja": loja, "url": url, "produtos": [], "bloqueada": False, "erro": str(exc)}
-
     status = response.status_code
     soup = BeautifulSoup(response.text, "html.parser")
     title = soup.title.get_text(" ", strip=True) if soup.title else ""
     body_text = normalizar_texto(soup.get_text(" ", strip=True)[:12000])
     blocked = status in (401, 403, 429, 503) or "just a moment" in title.lower() or "verify you are human" in body_text or "access denied" in body_text or "cf-chl-" in response.text.lower()
-
     print(f"   [Debug {loja}] Status: {status} | Título: '{title[:140]}'")
     if blocked:
         print(f"   ⚠️ {loja} bloqueada/CAPTCHA ({status}).")
         return {"loja": loja, "url": url, "produtos": [], "bloqueada": True, "erro": f"HTTP {status}"}
-
     jsonld = extrair_jsonld_produtos(soup, response.url)
     html_items = extrair_candidatos_html(soup, cfg, response.url, limit)
     merged, seen = [], set()
@@ -659,33 +616,20 @@ def validar_url_produto(item: dict) -> bool:
 def main() -> None:
     started = datetime.now(timezone.utc)
     print("🚀 Rastreador iniciado — requests em paralelo, ranking 0–100, Bronze/Prata/Ouro/Diamante.")
-
     config = carregar_json(CONFIG_PATH)
     history = carregar_json(HISTORY_PATH)
     history.setdefault("offers", {})
     settings = config.get("settings", {})
     weights = config.get("weights", {})
     categories = config.get("category_urls", [])
-
     budget_hard = float(settings.get("budget_hard", 1500))
     max_products = int(settings.get("max_produtos_por_categoria", 30))
     max_workers = min(len(categories), int(settings.get("max_lojas_paralelas", 6)))
     keyboard_candidates = int(settings.get("max_verificacoes_teclado", 12))
-
-    stats = {
-        "lojas": len(categories), "lojas_com_produtos": 0, "lojas_sem_resultados": 0,
-        "bloqueadas": 0, "erros": 0, "encontrados": 0, "analisados": 0,
-        "aceites": 0, "rejeitados": 0, "precos_suspeitos": 0, "alertas": 0,
-        "diamante": 0, "ouro": 0, "prata": 0, "bronze": 0,
-    }
+    stats = {"lojas": len(categories), "lojas_com_produtos": 0, "lojas_sem_resultados": 0, "bloqueadas": 0, "erros": 0, "encontrados": 0, "analisados": 0, "aceites": 0, "rejeitados": 0, "precos_suspeitos": 0, "alertas": 0, "diamante": 0, "ouro": 0, "prata": 0, "bronze": 0}
 
     session = requests.Session()
-    session.headers.update({
-        "User-Agent": USER_AGENT,
-        "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.7",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Cache-Control": "no-cache",
-    })
+    session.headers.update({"User-Agent": USER_AGENT, "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.7", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Cache-Control": "no-cache"})
 
     with ThreadPoolExecutor(max_workers=max_workers or 1) as executor:
         future_map = {executor.submit(extrair_grelha_categoria, session, cfg, max_products): cfg["loja"] for cfg in categories}
@@ -767,16 +711,17 @@ def main() -> None:
             elif tier == "PRATA": stats["prata"] += 1
             elif tier == "BRONZE": stats["bronze"] += 1
 
-            key = f"{loja}::{item['url'] or item['titulo']}"
+            new_key = f"{loja}::{item['url'] or item['titulo']}"
+            legacy_key = f"{loja}::{item['titulo']}"
+            key = new_key if new_key in history["offers"] or legacy_key not in history["offers"] else legacy_key
             entries = history["offers"].setdefault(key, [])
             prev = entries[-1] if entries else None
             record = {
                 "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                "price": item["preco"], "stock": item.get("stock"),
-                "score_final": analysis["score_final"], "score_ranking": analysis["score_ranking"],
-                "value_score": analysis["value_score"], "oportunidade": tier,
-                "qualidade_dados": analysis["qualidade_dados"], "teclado_pt": specs["teclado_pt"],
-                "marca": specs.get("marca"), "submarca": specs.get("submarca"),
+                "price": item["preco"], "stock": item.get("stock"), "score_final": analysis["score_final"],
+                "score_ranking": analysis["score_ranking"], "value_score": analysis["value_score"],
+                "oportunidade": tier, "qualidade_dados": analysis["qualidade_dados"],
+                "teclado_pt": specs["teclado_pt"], "marca": specs.get("marca"), "submarca": specs.get("submarca"),
                 "gpu": specs.get("gpu_modelo"), "cpu": specs.get("cpu_str_original"), "url": item["url"],
             }
             entries.append(record)
