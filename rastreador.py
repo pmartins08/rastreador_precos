@@ -23,7 +23,7 @@ PORTATEIS = [
     {
         "nome": "ASUS TUF F16 FX608JMI (Intel i7 / RTX 5060 / 32GB) - PcComponentes",
         "url": "https://www.pccomponentes.pt/portatil-asus-tuf-gaming-f16-fx608jmi-74b56cs1-16-intel-core-i7-14650hx-32gb-1tb-ssd-rtx-5060-pt",
-        "alvo": 1500.00
+        "alvo": 30000.00
     }
 ]
 
@@ -38,15 +38,28 @@ def enviar_alerta(mensagem):
         print(f"Erro na notificação: {e}")
 
 def obter_preco(url):
-    params = {'api_key': SCRAPER_API_KEY, 'url': url, 'render': 'true', 'country_code': 'pt'}
+    params = {
+        'api_key': SCRAPER_API_KEY, 
+        'url': url, 
+        'render': 'true', 
+        'premium': 'true', 
+        'country_code': 'pt'
+    }
     try:
         resp = requests.get('https://api.scraperapi.com/', params=params, timeout=120)
-        numeros = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2}))\s*€|(\d{1,3}(?:,\d{3})*(?:\.\d{2}))\s*€', resp.text)
+        html = resp.text
+        
+        if "Just a moment..." in html or "Cloudflare" in html or "DataDome" in html:
+            print("   => 🛡️ Intercetado pela segurança da loja (Cloudflare/Datadome).")
+            return None
+
+        texto_limpo = re.sub(r'<[^>]+>', ' ', html).replace('&nbsp;', ' ').replace('&#8364;', '€')
+        numeros = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2}))\s*€|(\d{1,3}(?:,\d{3})*(?:\.\d{2}))\s*€', texto_limpo)
+        
         if numeros:
             for match in numeros:
                 n = match[0] if match[0] else match[1]
                 valor = float(n.replace('.', '').replace(',', '.'))
-                # Filtro de segurança adaptado ao orçamento exigido pelo estudo
                 if 800 <= valor <= 2500: 
                     return valor
     except Exception as e:
@@ -55,7 +68,7 @@ def obter_preco(url):
 
 def main():
     for p in PORTATEIS:
-        print(f"\n🔍 A extrair com ScraperAPI: {p['nome']}...")
+        print(f"\n🔍 A extrair com ScraperAPI (Modo Premium): {p['nome']}...")
         preco = obter_preco(p["url"])
         if preco:
             print(f"   => Preço lido: {preco}€ (Alvo: {p['alvo']}€)")
