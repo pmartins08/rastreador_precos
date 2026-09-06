@@ -30,24 +30,30 @@
   "category_urls": [
     {
       "loja": "PCDiga",
-      "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis"
+      "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis",
+      "product_path_hints": ["/computadores-portateis/", "/produto/", "/product/"]
     },
     {
       "loja": "PcComponentes",
-      "url": "https://www.pccomponentes.pt/portateis"
+      "url": "https://www.pccomponentes.pt/portateis",
+      "product_path_hints": ["/portateis/", "/produto/", "/product/"]
     },
     {
       "loja": "Globaldata",
-      "url": "https://www.globaldata.pt/computadores/portateis"
+      "url": "https://www.globaldata.pt/computadores/portateis",
+      "product_path_hints": ["/produto/", "/product/", "/portatil/"]
     },
     {
       "loja": "Radio Popular",
-      "url": "https://www.radiopopular.pt/pesquisa/portatil"
+      "url": "https://www.radiopopular.pt/pesquisa/laptop",
+      "product_path_hints": ["/produto/", "/product/", "/portatil/", "/laptop/"]
     },
     {
       "loja": "CHIP7",
       "url": "https://chip7.pt/computadores/portateis",
-      "scroll_wait_ms": 3000
+      "scroll_wait_ms": 2500,
+      "scroll_passes": 4,
+      "product_path_hints": ["/produto/", "/product/", "/portateis/"]
     }
   ]
 }
