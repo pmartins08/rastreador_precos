@@ -9,7 +9,7 @@ from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright, Page, BrowserContext
+from playwright.async_api import async_playwright, Page
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config" / "config.json"
@@ -54,7 +54,7 @@ def parse_price_value(value: Any) -> Optional[float]:
         return None
 
 # ==========================================
-# MOTOR DE AVALIAÇÃO (V1)
+# MOTOR DE AVALIAÇÃO
 # ==========================================
 
 TERMOS_EXCLUSAO = [
@@ -76,57 +76,40 @@ def extrair_specs_avancadas(texto_bruto: str) -> dict:
 
     specs = {
         "gpu_modelo": None, "gpu_tipo": "desconhecida",
-        "cpu_modelo": None, "cpu_classe": None, "cpu_str_original": None,
-        "ram_gb": None, "ram_expansivel": False,
-        "armazenamento_tb": None, "ssd_expansivel": False,
-        "bateria_wh": None, "peso_kg": None,
-        "ecra_res": None, "ecra_hz": None,
-        "alertas": [], "fontes": {}
+        "cpu_modelo": None, "cpu_classe": None,
+        "ram_gb": None, "armazenamento_tb": None
     }
 
     gpus = ["rtx 5070", "rtx 5060", "rtx 5050", "rtx 4090", "rtx 4080", "rtx 4070", "rtx 4060", "rtx 4050"]
     for gpu in gpus:
         if gpu in texto:
-            specs["gpu_modelo"], specs["gpu_tipo"], specs["fontes"]["gpu"] = gpu, "dedicada", "modelo_exato"
+            specs["gpu_modelo"], specs["gpu_tipo"] = gpu, "dedicada"
             break
 
     if not specs["gpu_modelo"]:
         if any(x in texto for x in ["intel iris", "radeon graphics", "arc graphics", "780m"]):
-            specs["gpu_tipo"], specs["fontes"]["gpu"] = "integrada", "integrada_detetada"
+            specs["gpu_tipo"] = "integrada"
 
     match_cpu = re.search(r'(core\s+ultra\s+[579]\s+\d{3}(?:h|u|v)?|i[579]-\d{4,5}(?:hx|hs|h|u|p)?|ryzen\s+[579]\s+\d{4}(?:hx|hs|h|u|s)?)', texto)
     if match_cpu:
         cpu_str = match_cpu.group(1)
-        specs["cpu_str_original"], specs["fontes"]["cpu"] = cpu_str, "modelo_detetado"
         if re.search(r'ultra 9|i9|ryzen 9', cpu_str): specs["cpu_modelo"] = "tier_1"
         elif re.search(r'ultra 7|i7|ryzen 7', cpu_str): specs["cpu_modelo"] = "tier_2"
         else: specs["cpu_modelo"] = "tier_3"
 
-        if 'hx' in cpu_str: specs["cpu_classe"] = "hx"
-        elif 'hs' in cpu_str: specs["cpu_classe"] = "hs"
-        elif 'h' in cpu_str: specs["cpu_classe"] = "h"
-        elif 'u' in cpu_str or 'v' in cpu_str or 'p' in cpu_str: specs["cpu_classe"] = "u_ultra"
-
-    match_ram_exp = re.search(r'(\d{2,3})\s?gb\s?(ram|ddr[45]|memory|so-dimm)\b', texto_limpo)
-    if match_ram_exp:
-        specs["ram_gb"], specs["fontes"]["ram"] = int(match_ram_exp.group(1)), "explicita"
-    else:
-        match_ram_heur = re.search(r'\b(\d{2,3})\s?gb\b', texto_limpo)
-        if match_ram_heur and int(match_ram_heur.group(1)) in [8, 16, 24, 32, 48, 64]:
-            specs["ram_gb"], specs["fontes"]["ram"] = int(match_ram_heur.group(1)), "heuristica"
+    match_ram = re.search(r'(\d{2,3})\s?gb\b', texto_limpo)
+    if match_ram and int(match_ram.group(1)) in [8, 16, 24, 32, 48, 64]:
+        specs["ram_gb"] = int(match_ram.group(1))
 
     if re.search(r'2\s?tb', texto): specs["armazenamento_tb"] = 2.0
     elif re.search(r'1\s?tb', texto): specs["armazenamento_tb"] = 1.0
     elif re.search(r'512\s?gb', texto): specs["armazenamento_tb"] = 0.5
 
-    match_hz = re.search(r'(\d{2,3})\s?hz', texto)
-    if match_hz: specs["ecra_hz"] = int(match_hz.group(1))
-
     return specs
 
 def calcular_scores(specs: dict, preco: float, weights: dict) -> dict:
     if specs.get("ram_gb") is not None and specs["ram_gb"] <= 8:
-        return {"status": "REJEITADO", "alertas": [f"{specs['ram_gb']}GB RAM - Insuficiente"]}
+        return {"status": "REJEITADO", "reason": "RAM <= 8GB"}
 
     p_ram = 100 if specs["ram_gb"] and specs["ram_gb"] >= 32 else (80 if specs["ram_gb"] and specs["ram_gb"] >= 16 else 40)
     p_ssd = 100 if specs["armazenamento_tb"] and specs["armazenamento_tb"] >= 2.0 else (85 if specs["armazenamento_tb"] and specs["armazenamento_tb"] >= 1.0 else 65)
@@ -143,12 +126,11 @@ def calcular_scores(specs: dict, preco: float, weights: dict) -> dict:
     return {
         "status": "ACEITE",
         "score_final": round(score_final, 1),
-        "value_score": value_score,
-        "alertas": specs["alertas"]
+        "value_score": value_score
     }
 
 # ==========================================
-# PARSER DE GRELHA (GRID EXTRACTION)
+# EXTRAÇÃO DE GRELHA MELHORADA (COM SCROLL)
 # ==========================================
 
 async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30) -> list[dict]:
@@ -157,43 +139,76 @@ async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30
     produtos = []
 
     try:
-        await page.goto(url, timeout=45000, wait_until="domcontentloaded")
-        await page.wait_for_timeout(3000)
+        response = await page.goto(url, timeout=60000, wait_until="domcontentloaded")
+        page_title = await page.title()
+        print(f"   [Debug {loja}] Status: {response.status if response else 'N/A'} | Título: '{page_title}'")
+
+        # Verificação de bloqueio Cloudflare / Bot
+        if "just a moment" in page_title.lower() or "attention required" in page_title.lower():
+            print(f"   ⚠️ {loja} bloqueada por proteção Cloudflare/Bot Check.")
+            return []
+
+        # Scroll para forçar carregamento dinâmico
+        await page.evaluate("window.scrollTo(0, document.body.scrollHeight / 3);")
+        await page.wait_for_timeout(1500)
+        await page.evaluate("window.scrollTo(0, (document.body.scrollHeight / 3) * 2);")
+        await page.wait_for_timeout(1500)
+
     except Exception as e:
-        print(f"❌ Erro ao abrir página da categoria {loja}: {e}")
+        print(f"   ❌ Erro de navegação em {loja}: {e}")
         return []
 
     html = await page.content()
     soup = BeautifulSoup(html, "html.parser")
 
-    # Estratégia de extração genérica adaptada aos cartões de produto das lojas
-    cards = []
-    if "pcdiga" in loja.lower():
-        cards = soup.select("article, div[class*='product-card'], div[class*='grid'] > div")
-    elif "pccomponentes" in loja.lower():
-        cards = soup.select("article.product-card, div.product-card__content")
-    else:
-        cards = soup.select("article, .product-card, .product-item, .item-card, [class*='product']")
+    # Mapeamento de selectores abrangentes por loja
+    selectors = [
+        "article", 
+        "div[class*='product-card']", 
+        "div[class*='productCard']", 
+        "div[class*='product_card']",
+        "div[class*='product-item']", 
+        "div[class*='ProductItem']", 
+        "li[class*='product']",
+        "[data-testid*='product']"
+    ]
+    
+    cards = soup.select(", ".join(selectors))
+    
+    # Fallback genérico se a estrutura for baseada apenas em links de produto
+    if not cards:
+        cards = soup.find_all(lambda tag: tag.name in ['div', 'li', 'article'] and tag.find('a') and re.search(r'\d+[\.,]\d{2}\s?€?', tag.get_text()))
 
     for card in cards:
         if len(produtos) >= limit: break
 
-        # Extrair Título
-        title_node = card.select_one("h2, h3, .product-title, [class*='title'], [class*='name']")
-        title = title_node.get_text(strip=True) if title_node else ""
-        if not title or len(title) < 10: continue
+        # Procura título
+        title_node = card.select_one("h1, h2, h3, h4, [class*='title'], [class*='name'], a[title]")
+        title = ""
+        if title_node:
+            title = title_node.get("title") or title_node.get_text(strip=True)
+        if not title or len(title) < 12:
+            continue
 
-        # Extrair Preço
-        price_node = card.select_one("[class*='price'], .price, span.price-value, .p")
-        price_text = price_node.get_text(strip=True) if price_node else ""
+        # Procura preço no cartão
+        price_text = ""
+        price_node = card.select_one("[class*='price'], .price, span[class*='Price']")
+        if price_node:
+            price_text = price_node.get_text(strip=True)
+        else:
+            # Procural padrão de preço por RegEx no texto do cartão
+            match_p = re.search(r'(\d{3,4}[\.,]\d{2})\s?€?', card.get_text())
+            if match_p: price_text = match_p.group(1)
+
         price = parse_price_value(price_text)
-        if not price or price < 250 or price > 4500: continue
+        if not price or price < 200 or price > 4500: 
+            continue
 
-        # Extrair Link
+        # Procura URL
         link_node = card.select_one("a[href]")
         link = urljoin(url, link_node["href"]) if link_node else url
 
-        # Extrair Stock (Se não diz que está esgotado, assumimos stock na página de categoria)
+        # Stock
         stock_text = card.get_text().lower()
         stock = not any(x in stock_text for x in ["esgotado", "out of stock", "indisponível", "sem stock"])
 
@@ -205,18 +220,19 @@ async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30
             "stock": stock
         })
 
-    # Remover duplicados da página
+    # Filtrar duplicados na mesma página
     vistos = set()
     unicos = []
     for p in produtos:
-        if p["url"] not in vistos:
-            vistos.add(p["url"])
+        chave = f"{p['titulo']}::{p['preco']}"
+        if chave not in vistos:
+            vistos.add(chave)
             unicos.append(p)
 
     return unicos
 
 # ==========================================
-# NOTIFICAÇÕES & ALERTAS
+# NOTIFICAÇÕES
 # ==========================================
 
 def enviar_alerta(titulo: str, mensagem: str, prioridade: str = "default", tags: str = "computer") -> None:
@@ -235,7 +251,7 @@ def enviar_alerta(titulo: str, mensagem: str, prioridade: str = "default", tags:
 # ==========================================
 
 async def main() -> None:
-    print("🚀 A iniciar Rastreador V3 (Pesquisa em Grelha + Oportunidades de Ouro)...")
+    print("🚀 A iniciar Rastreador V3 (Com Debug & Auto-Scroll)...")
     config = carregar_json(CONFIG_PATH)
     history = carregar_json(HISTORY_PATH)
     history.setdefault("offers", {})
@@ -251,9 +267,17 @@ async def main() -> None:
     total_analisados = 0
 
     async with async_playwright() as p:
-        browser = await p.firefox.launch(headless=True)
+        # Chromium com argumentos para mitigar deteção de automação
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-setuid-sandbox"
+            ]
+        )
         context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
             viewport={"width": 1920, "height": 1080},
             locale="pt-PT"
         )
@@ -261,10 +285,14 @@ async def main() -> None:
         for cat in config.get("category_urls", []):
             print(f"\n🔍 A varrer categoria: {cat['loja']}...")
             page = await context.new_page()
+            
+            # Bloquear imagens e CSS desnecessários para acelerar e poupar tráfego
+            await page.route("**/*.{png,jpg,jpeg,svg,webp,css,woff,woff2}", lambda route: route.abort())
+
             produtos = await extrair_grelha_categoria(page, cat, limit=max_prods)
             await page.close()
 
-            print(f"   => Encontrados {len(produtos)} produtos na grelha da {cat['loja']}.")
+            print(f"   => Encontrados {len(produtos)} produtos válidos na {cat['loja']}.")
 
             for item in produtos:
                 titulo = item["titulo"]
@@ -272,7 +300,6 @@ async def main() -> None:
                 loja = item["loja"]
                 key = f"{loja}::{titulo}"
 
-                # --- BLOQUEIO POR ORÇAMENTO MÁXIMO ---
                 if preco > budget_hard:
                     continue
 
@@ -287,7 +314,6 @@ async def main() -> None:
                 if avaliacao["status"] == "REJEITADO":
                     continue
 
-                # Histórico
                 entries = history["offers"].setdefault(key, [])
                 previous = entries[-1] if entries else None
 
@@ -303,7 +329,6 @@ async def main() -> None:
 
                 print(f"   [+] {titulo[:45]}... | {preco:.2f}€ | Score: {avaliacao['score_final']} | Value: {avaliacao['value_score']}")
 
-                # Regra de Alerta: Oportunidade de Ouro (Value Score alto) ou Queda de Preço
                 e_oportunidade = avaliacao["value_score"] >= min_value_alerta
                 baixou_preco = previous and (previous["price"] - preco > 5.0)
 
@@ -324,11 +349,8 @@ async def main() -> None:
 
         await browser.close()
 
-    if alertas_disparados == 0 and total_analisados > 0:
-        enviar_alerta("Rastreio Concluído", f"✅ {total_analisados} portáteis (abaixo de {budget_hard}€) analisados em massa.\nNenhuma oportunidade de ouro ou queda detetada neste ciclo.", "min", "mag")
-
     guardar_json(HISTORY_PATH, history)
-    print(f"\n✅ Rastreamento em massa concluído ({total_analisados} produtos dentro do budget).")
+    print(f"\n✅ Rastreamento concluído ({total_analisados} portáteis analisados dentro do budget de {budget_hard}€).")
 
 if __name__ == "__main__":
     asyncio.run(main())
