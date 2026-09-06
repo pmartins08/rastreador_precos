@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: rastreador-precos-main
+  cancel-in-progress: false
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -68,14 +72,25 @@ jobs:
 
       - name: Guardar Histórico
         run: |
+          set -e
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/history.json scraper.py
-          if git diff --cached --quiet; then
+
+          if git diff --quiet -- data/history.json scraper.py; then
             echo "Sem alterações no histórico/código."
             exit 0
           fi
-          git commit -m "chore: atualizar historico V8 [skip ci]"
+
+          cp data/history.json /tmp/history-v8.json
           git fetch origin main
-          git rebase origin/main
-          git push
+          git reset --hard origin/main
+          cp /tmp/history-v8.json data/history.json
+
+          git add data/history.json scraper.py
+          if git diff --cached --quiet; then
+            echo "Sem alterações após sincronização com main."
+            exit 0
+          fi
+
+          git commit -m "chore: atualizar historico V8 [skip ci]"
+          git push origin HEAD:main
