@@ -18,6 +18,8 @@ NTFY_TOPIC = os.getenv("NTFY_TOPIC", "")
 
 
 def carregar_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -55,9 +57,12 @@ def availability_to_bool(value: Any) -> Optional[bool]:
     if value is None:
         return None
     text = str(value).lower()
-    if any(x in text for x in ["instock", "in stock", "available", "disponivel", "disponível"]):
+    positive = ["instock", "in stock", "available", "disponivel", "disponível"]
+    negative = ["outofstock", "out of stock", "soldout", "sold out", "indisponivel", "indisponível", "esgotado"]
+    
+    if any(x in text for x in positive):
         return True
-    if any(x in text for x in ["outofstock", "out of stock", "soldout", "sold out", "indisponivel", "indisponível", "esgotado"]):
+    if any(x in text for x in negative):
         return False
     return None
 
@@ -65,9 +70,11 @@ def availability_to_bool(value: Any) -> Optional[bool]:
 def _walk_jsonld(obj: Any, result: dict) -> None:
     if isinstance(obj, dict):
         obj_type = obj.get("@type")
+        types = set()
+        
         if isinstance(obj_type, list):
             types = {str(x).lower() for x in obj_type}
-        else:
+        elif obj_type:
             types = {str(obj_type).lower()}
 
         if "offer" in types or "aggregateoffer" in types or "product" in types:
@@ -76,9 +83,10 @@ def _walk_jsonld(obj: Any, result: dict) -> None:
             if result["stock"] is None and obj.get("availability") is not None:
                 result["stock"] = availability_to_bool(obj.get("availability"))
 
-        for key in ("offers", "offers", "mainEntity"):
+        for key in ("offers", "itemOffered", "item", "mainEntity"):
             if key in obj:
                 _walk_jsonld(obj[key], result)
+                
         for value in obj.values():
             if isinstance(value, (dict, list)):
                 _walk_jsonld(value, result)
@@ -92,6 +100,7 @@ def extrair_preco_e_stock(html_content: str) -> tuple[Optional[float], Optional[
     soup = BeautifulSoup(html_content, "html.parser")
     result = {"price": None, "stock": None}
 
+    # 1. Estruturas JSON-LD (Schema.org)
     for script in soup.find_all("script", type="application/ld+json"):
         raw = script.string or script.get_text(strip=True)
         if not raw:
@@ -100,10 +109,11 @@ def extrair_preco_e_stock(html_content: str) -> tuple[Optional[float], Optional[
             data = json.loads(raw)
             _walk_jsonld(data, result)
             if result["price"] is not None and result["stock"] is not None:
-                break
+                return result["price"], result["stock"]
         except (json.JSONDecodeError, TypeError):
             continue
 
+    # 2. Meta tags OpenGraph / Schema alternativo
     if result["price"] is None:
         for attrs in [
             {"itemprop": "price"},
@@ -127,6 +137,7 @@ def extrair_preco_e_stock(html_content: str) -> tuple[Optional[float], Optional[
                 if result["stock"] is not None:
                     break
 
+    # 3. Regex Fallback para Preço
     if result["price"] is None:
         matches = re.findall(
             r"(?:€\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{2})|\d{1,3}(?:,\d{3})*(?:\.\d{2})|\d{3,5}(?:,\d{2}))\s*€?",
@@ -137,6 +148,7 @@ def extrair_preco_e_stock(html_content: str) -> tuple[Optional[float], Optional[
         if valid:
             result["price"] = min(valid)
 
+    # 4. Fallback de Texto para Stock
     if result["stock"] is None:
         text = soup.get_text(" ", strip=True).lower()
         negative = [
@@ -158,13 +170,13 @@ def extrair_preco_e_stock(html_content: str) -> tuple[Optional[float], Optional[
 
 
 def calcular_categoria(preco: float, rules: dict) -> tuple[str, str, str]:
-    if preco <= rules["excellent_max"]:
+    if preco <= rules.get("excellent_max", 0):
         return "COMPRA_EXCELENTE", "high", "star"
-    if preco <= rules["very_good_max"]:
+    if preco <= rules.get("very_good_max", 0):
         return "COMPRA_MUITO_BOA", "high", "white_check_mark"
-    if preco <= rules["acceptable_max"]:
+    if preco <= rules.get("acceptable_max", 0):
         return "PRECO_ACEITAVEL", "default", "information_source"
-    if preco <= rules["wait_max"]:
+    if preco <= rules.get("wait_max", 0):
         return "ESPERAR", "default", "hourglass_flowing_sand"
     return "EVITAR", "low", "warning"
 
@@ -235,15 +247,22 @@ async def consultar_oferta(page: Page, oferta: dict) -> tuple[Optional[float], O
     try:
         await page.goto(oferta["url"], timeout=40000, wait_until="domcontentloaded")
     except Exception as exc:
-        print(f"   => Aviso na navegação: {exc}")
+        print(f"   => Aviso na navegação principal: {exc}")
+        return None, None, "TIMEOUT_OR_ERROR"
 
     try:
+        # Await network idle, ignorando se der timeout - queremos o HTML independentemente disso.
         await page.wait_for_load_state("networkidle", timeout=10000)
     except Exception:
         pass
 
-    title = await page.title()
-    html = await page.content()
+    try:
+        title = await page.title()
+        html = await page.content()
+    except Exception as e:
+        print(f"   => Falha ao extrair DOM: {e}")
+        return None, None, "DOM_ERROR"
+
     lowered_title = title.lower()
     if "404" in lowered_title or "not found" in lowered_title:
         return None, None, "NOT_FOUND"
@@ -257,12 +276,17 @@ async def consultar_oferta(page: Page, oferta: dict) -> tuple[Optional[float], O
 async def main() -> None:
     print("🚀 A iniciar Rastreador V2...")
     config = carregar_json(CONFIG_PATH)
+    if not config:
+        print("❌ Erro: Ficheiro de configuração products.json não encontrado ou vazio.")
+        return
+        
     history = carregar_json(HISTORY_PATH)
     history.setdefault("offers", {})
-    rules = config["alert_rules"]
+    rules = config.get("alert_rules", {})
 
     async with async_playwright() as p:
-        browser = await p.firefox.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+        # Removidas flags exclusivas de Chromium (--no-sandbox, --disable-dev-shm-usage)
+        browser = await p.firefox.launch(headless=True)
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
             viewport={"width": 1920, "height": 1080},
@@ -271,17 +295,15 @@ async def main() -> None:
         )
         page = await context.new_page()
 
-        for product in config["products"]:
-            for offer in product["offers"]:
+        for product in config.get("products", []):
+            for offer in product.get("offers", []):
                 key = f"{product['product_id']}::{offer['loja']}"
                 print(f"\n🔍 {product['nome']} — {offer['loja']}")
 
                 price, stock, status = await consultar_oferta(page, offer)
-                if status != "OK":
-                    print(f"   => Estado da consulta: {status}")
-                    continue
-                if price is None:
-                    print("   => ❌ Preço não identificado.")
+                
+                if status != "OK" or price is None:
+                    print(f"   => Consulta abortada | Status: {status} | Preço lido: {price}")
                     continue
 
                 entries = history["offers"].setdefault(key, [])
@@ -299,7 +321,7 @@ async def main() -> None:
                 history["offers"][key] = entries[-180:]
 
                 print(f"   => Preço: {price:.2f} € | Stock: {stock} | Categoria: {category}")
-                if metrics["media_30d"] is not None:
+                if metrics.get("media_30d") is not None:
                     print(f"   => Média 30d: {metrics['media_30d']:.2f} € | Mín. 30d: {metrics['min_30d']:.2f} €")
 
                 if should_alert(previous, current) and stock is not False:
@@ -309,11 +331,12 @@ async def main() -> None:
                         f"📦 Stock: {'🟢 Em stock' if stock else '🔴 Indisponível'}\n"
                         f"🏷️ Classificação: {category.replace('_', ' ')}\n"
                     )
-                    if metrics["media_30d"] is not None:
+                    if metrics.get("media_30d") is not None:
                         msg += f"📊 Média 30d: {metrics['media_30d']:.2f} €\n"
-                    if metrics["min_historico"] is not None:
+                    if metrics.get("min_historico") is not None:
                         msg += f"📉 Mínimo histórico observado: {metrics['min_historico']:.2f} €\n"
                     msg += f"\n🔗 {offer['url']}"
+                    
                     enviar_alerta(
                         f"{category.replace('_', ' ')} — {price:.0f} EUR",
                         msg,
