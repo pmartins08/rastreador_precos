@@ -56,6 +56,11 @@ jobs:
               1,
           )
 
+          old_top = 'top = sorted(((e, k) for k, entries in history["offers"].items() for e in (entries[-1:],)), key=lambda x: x[0].get("value_score", 0), reverse=True)[:8]'
+          new_top = 'top = sorted(((entries[-1], k) for k, entries in history["offers"].items() if entries), key=lambda x: x[0].get("value_score", 0), reverse=True)[:8]'
+          if old_top in s:
+              s = s.replace(old_top, new_top, 1)
+
           marker = '        print("OK: V8 estruturada, GPU/RAM/VRAM/TGP/ecrã/bateria, scoring e histórico.")'
           tests = '''        test_settings = load(CONFIG_PATH).get("settings", {})\n        assert value_score(100, 1300, test_settings) == 136.0\n        assert tier_from_value(136.0, test_settings) == "DIAMANTE"\n        assert value_score(75, 1300, test_settings) == 113.2\n        assert tier_from_value(113.2, test_settings) == "OURO"\n        assert tier_from_value(69.9, test_settings) is None\n        assert tier_from_value(70.0, test_settings) == "BRONZE"\n        assert tier_from_value(90.0, test_settings) == "PRATA"\n        assert tier_from_value(110.0, test_settings) == "OURO"\n        assert tier_from_value(130.0, test_settings) == "DIAMANTE"\n'''
           if marker in s and 'assert value_score(100, 1300' not in s:
