@@ -28,20 +28,6 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
-      - name: Consolidar correção V8
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('scraper.py')
-          s = p.read_text(encoding='utf-8')
-          old = '''    if key == "gpu":\n        detected, gt, gm = gpus(value)\n        if detected:\n            o["gpu_modelos_detectados"] = detected\n            o["gpu_modelo"] = gm\n            o["gpu_tipo"] = gt'''
-          new = '''    if key == "gpu":\n        detected, gt, gm = gpus(value)\n        if detected:\n            o["gpu_modelos_detectados"] = detected\n            o["gpu_modelo"] = gm\n            o["gpu_tipo"] = gt\n        elif gt == "integrada":\n            o["gpu_tipo"] = "integrada"'''
-          if old in s:
-              s = s.replace(old, new, 1)
-          p.write_text(s, encoding='utf-8')
-          PY
-          python -m py_compile scraper.py
-
       - name: Smoke tests — V8
         env:
           SMOKE_TEST: '1'
@@ -80,7 +66,7 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scraper.py
 
-      - name: Guardar Histórico e correções V8
+      - name: Guardar Histórico
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -89,7 +75,7 @@ jobs:
             echo "Sem alterações no histórico/código."
             exit 0
           fi
-          git commit -m "fix: persistir correções V8 [skip ci]"
+          git commit -m "chore: atualizar historico V8 [skip ci]"
           git fetch origin main
           git rebase origin/main
           git push
