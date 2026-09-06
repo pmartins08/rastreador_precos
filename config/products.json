@@ -1,73 +1,50 @@
 {
-  "budget": {
-    "soft": 1300.0,
-    "hard": 1500.0
+  "settings": {
+    "budget_soft": 1300.0,
+    "budget_hard": 1500.0,
+    "min_value_score_alerta": 45.0,
+    "max_produtos_por_categoria": 30
   },
-  "alert_rules": {
-    "excellent_max": 1150.0,
-    "very_good_max": 1200.0,
-    "acceptable_max": 1300.0,
-    "wait_max": 1400.0
+  "weights": {
+    "gpu_base": {
+      "rtx 5070": 95,
+      "rtx 4080": 100,
+      "rtx 5060": 85,
+      "rtx 4070": 80,
+      "rtx 4060": 65,
+      "rtx 5050": 60,
+      "rtx 4050": 45
+    },
+    "cpu_base": {
+      "tier_1": 100,
+      "tier_2": 85,
+      "tier_3": 70
+    }
   },
-  "products": [
+  "category_urls": [
     {
-      "product_id": "asus_tuf_a16_fa608um_r72a56cb1",
-      "nome": "ASUS TUF A16 FA608UM-R72A56CB1",
-      "specs": {
-        "cpu": "AMD Ryzen 7",
-        "gpu": "RTX 5060",
-        "ram_gb": 32,
-        "ssd_gb": 1000,
-        "screen_inches": 16
-      },
-      "offers": [
-        {
-          "loja": "PCDiga",
-          "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis/portatil-asus-tuf-gaming-a16-16-fa608umi-r72b56cs1-jaeger-gray-90nr0kv1-m00h70-4711636583923"
-        },
-        {
-          "loja": "Radio Popular",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-fa608um-r72a56cb1/"
-        }
-      ]
+      "loja": "PCDiga",
+      "url": "https://www.pcdiga.com/computadores-e-software/computadores-portateis/portateis?order=price_asc"
     },
     {
-      "product_id": "asus_tuf_f16_fx608jmr",
-      "nome": "ASUS TUF F16 FX608JMR",
-      "specs": {
-        "cpu": "Intel Core i7-14650HX",
-        "gpu": "RTX 5060",
-        "ram_gb": 32,
-        "ssd_gb": 1000,
-        "screen_inches": 16
-      },
-      "offers": [
-        {
-          "loja": "FNAC",
-          "url": "https://www.fnac.pt/Computador-Portatil-Gaming-Asus-TUF-A16-FX608JMR-74A56CB1-16-NVIDIA-GeForce-RTX-5060-Intel-Core-i7-14650HX-32GB-1TB-SSD-Computador-Portatil-Computador-Portatil-Gaming/a13799931?oref=00000000-0000-0000-0000-000000000000"
-        },
-        {
-          "loja": "PcComponentes",
-          "url": "https://www.pccomponentes.pt/portatil-asus-tuf-gaming-f16-fx608jmi-74b56cs1-16-intel-core-i7-14650hx-32gb-1tb-ssd-rtx-5060-pt"
-        }
-      ]
+      "loja": "PcComponentes",
+      "url": "https://www.pccomponentes.pt/portateis/ordenar-por-precio_asc"
     },
     {
-      "product_id": "asus_v16_5060a",
-      "nome": "ASUS V16-5060A",
-      "specs": {
-        "cpu": "Intel Core 7",
-        "gpu": "RTX 5060",
-        "ram_gb": 32,
-        "ssd_gb": 1000,
-        "screen_inches": 16
-      },
-      "offers": [
-        {
-          "loja": "Radio Popular",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-v16-5060a"
-        }
-      ]
+      "loja": "Globaldata",
+      "url": "https://www.globaldata.pt/computadores/portateis?product_list_dir=asc&product_list_order=price"
+    },
+    {
+      "loja": "FNAC",
+      "url": "https://www.fnac.pt/n87140/Computadores-Portateis-Gaming?Nao=1&OrderInSession=1&sl"
+    },
+    {
+      "loja": "Radio Popular",
+      "url": "https://www.radiopopular.pt/pesquisa/portatil%20rtx"
+    },
+    {
+      "loja": "ASUS",
+      "url": "https://estore.asus.com/pt/laptops.html"
     }
   ]
 }
