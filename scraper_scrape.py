@@ -86,9 +86,9 @@ def detail_fields(soup):
  return ' '.join(dict.fromkeys(parts))
 
 def gpu_fields(soup):
- """Recolhe somente linhas/elementos que parecem ser a especificação gráfica do produto."""
+ """Recolhe somente linhas/elementos que parecem ser a especificacao grafica do produto."""
  out=[]
- labels=['gpu','placa grafica','placa gráfica','graphics card','graphic card','graphics processor','processador grafico','video card','vga']
+ labels=['gpu','placa grafica','graphics card','graphic card','graphics processor','processador grafico','video card','vga']
  for tr in soup.select('tr'):
   cells=[norm(x.get_text(' ',strip=True)) for x in tr.find_all(['th','td'])]
   row=' '.join(cells).strip()
@@ -106,18 +106,15 @@ def detail(session,item):
  try:r=session.get(item['url'],timeout=10,allow_redirects=True,headers={'Referer':item.get('_category_url','')})
  except:return item
  if r.status_code>=400:return item
- soup=BeautifulSoup(r.text,'html.parser'); spec_tx=detail_fields(soup); sp=item['_specs']
- product_title=''
- h1=soup.select_one('h1')
+ soup=BeautifulSoup(r.text,'html.parser'); spec_tx=detail_fields(soup); sp=item['_specs']; existing_gpu=(sp.get('gpu_tipo'),sp.get('gpu_modelo'))
+ product_title='';h1=soup.select_one('h1')
  if h1:product_title=h1.get_text(' ',strip=True)
  elif soup.title:product_title=soup.title.get_text(' ',strip=True)
  ds,gt,gm=gpu_from_contexts([product_title])
  if gt=='desconhecida':ds,gt,gm=gpu_from_contexts(gpu_fields(soup))
- if gt=='desconhecida':
-  ds,gt,gm=gpus(product_title)
  if gt!='desconhecida':
-  sp['gpu_tipo']=gt;sp['gpu_modelo']=gm;sp['gpu_modelos_detectados']=ds;sp.setdefault('fontes',{})['gpu']='titulo_produto' if product_title and gt!='desconhecida' and (ds or any(x in norm(product_title) for x in IGPU)) else 'especificacao_gpu'
- else:
+  sp['gpu_tipo']=gt;sp['gpu_modelo']=gm;sp['gpu_modelos_detectados']=ds;sp.setdefault('fontes',{})['gpu']='titulo_produto' if product_title and (ds or gt=='integrada') else 'especificacao_gpu'
+ elif existing_gpu[0]=='desconhecida':
   sp['gpu_tipo']='desconhecida';sp['gpu_modelo']=None;sp['gpu_modelos_detectados']=[];sp.setdefault('fontes',{})['gpu']=None
  en=specs(norm(product_title+' '+spec_tx))
  for f in ['cpu_modelo','cpu_classe','cpu_str_original','ram_gb','ram_expansivel','armazenamento_tb','ssd_expansivel','bateria_wh','peso_kg','ecra_res','ecra_hz','teclado_pt']:
