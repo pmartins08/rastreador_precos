@@ -15,7 +15,7 @@ PORTATEIS = [
     {
         "nome": "ASUS TUF F16 FX608JMR (Intel i7 / RTX 5060 / 32GB) - Worten",
         "url": "https://www.worten.pt/produtos/portatil-gaming-asus-tuf-fx608jmr-intel-core-i7-14650hx-nvidia-geforce-rtx-5060-ram-32-gb-1-tb-ssd-16-8585385",
-        "alvo": 1500.00
+        "alvo": 3000.00
     },
     {
         "nome": "ASUS TUF F16 FX608JMR (Intel i7 / RTX 5060 / 32GB) - Fnac",
