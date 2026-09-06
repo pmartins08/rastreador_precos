@@ -3,16 +3,22 @@
     "budget_soft": 1300.0,
     "budget_hard": 1500.0,
     "min_value_score_alerta": 45.0,
-    "max_produtos_por_categoria": 30
+    "max_produtos_por_categoria": 30,
+    "require_pt_keyboard": true
   },
   "weights": {
     "gpu_base": {
+      "rtx 5090": 100,
+      "rtx 5080": 98,
+      "rtx 5070 ti": 97,
       "rtx 5070": 95,
-      "rtx 4080": 100,
+      "rtx 5060 ti": 90,
       "rtx 5060": 85,
+      "rtx 5050": 60,
+      "rtx 4090": 100,
+      "rtx 4080": 100,
       "rtx 4070": 80,
       "rtx 4060": 65,
-      "rtx 5050": 60,
       "rtx 4050": 45
     },
     "cpu_base": {
@@ -37,6 +43,11 @@
     {
       "loja": "Radio Popular",
       "url": "https://www.radiopopular.pt/pesquisa/portatil"
+    },
+    {
+      "loja": "CHIP7",
+      "url": "https://chip7.pt/computadores/portateis",
+      "scroll_wait_ms": 3000
     }
   ]
 }
