@@ -54,7 +54,7 @@ def parse_price_value(value: Any) -> Optional[float]:
         return None
 
 # ==========================================
-# MOTOR DE AVALIAÇÃO
+# MOTOR DE FILTRAGEM E ELEGIBILIDADE
 # ==========================================
 
 TERMOS_EXCLUSAO = [
@@ -62,8 +62,19 @@ TERMOS_EXCLUSAO = [
     "grade a", "grade b", "grade c", "seminovo", "open box"
 ]
 
+TERMOS_OBRIGATORIOS = ["portátil", "portatil", "laptop", "macbook", "notebook"]
+
 def verificar_elegibilidade(titulo: str) -> bool:
-    return not any(termo in titulo.lower() for termo in TERMOS_EXCLUSAO)
+    t_lower = titulo.lower()
+    
+    # 1. Deve conter pelo menos um termo que garanta ser portátil
+    e_portatil = any(termo in t_lower for termo in TERMOS_OBRIGATORIOS)
+    if not e_portatil:
+        return False
+
+    # 2. Não pode conter termos de recondicionado/componentes soltos
+    contem_exclusao = any(termo in t_lower for termo in TERMOS_EXCLUSAO)
+    return not contem_exclusao
 
 def limpar_vram(texto: str) -> str:
     texto = re.sub(r'\b(4|6|8|12|16|24)\s?gb\s?(gddr\d|vram)\b', '', texto)
@@ -130,7 +141,7 @@ def calcular_scores(specs: dict, preco: float, weights: dict) -> dict:
     }
 
 # ==========================================
-# EXTRAÇÃO DE GRELHA MELHORADA (COM SCROLL)
+# EXTRAÇÃO DE GRELHA
 # ==========================================
 
 async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30) -> list[dict]:
@@ -143,16 +154,14 @@ async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30
         page_title = await page.title()
         print(f"   [Debug {loja}] Status: {response.status if response else 'N/A'} | Título: '{page_title}'")
 
-        # Verificação de bloqueio Cloudflare / Bot
         if "just a moment" in page_title.lower() or "attention required" in page_title.lower():
-            print(f"   ⚠️ {loja} bloqueada por proteção Cloudflare/Bot Check.")
+            print(f"   ⚠️ {loja} bloqueada por Cloudflare.")
             return []
 
-        # Scroll para forçar carregamento dinâmico
         await page.evaluate("window.scrollTo(0, document.body.scrollHeight / 3);")
-        await page.wait_for_timeout(1500)
+        await page.wait_for_timeout(2000)
         await page.evaluate("window.scrollTo(0, (document.body.scrollHeight / 3) * 2);")
-        await page.wait_for_timeout(1500)
+        await page.wait_for_timeout(2000)
 
     except Exception as e:
         print(f"   ❌ Erro de navegação em {loja}: {e}")
@@ -161,7 +170,6 @@ async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30
     html = await page.content()
     soup = BeautifulSoup(html, "html.parser")
 
-    # Mapeamento de selectores abrangentes por loja
     selectors = [
         "article", 
         "div[class*='product-card']", 
@@ -175,28 +183,24 @@ async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30
     
     cards = soup.select(", ".join(selectors))
     
-    # Fallback genérico se a estrutura for baseada apenas em links de produto
     if not cards:
         cards = soup.find_all(lambda tag: tag.name in ['div', 'li', 'article'] and tag.find('a') and re.search(r'\d+[\.,]\d{2}\s?€?', tag.get_text()))
 
     for card in cards:
         if len(produtos) >= limit: break
 
-        # Procura título
         title_node = card.select_one("h1, h2, h3, h4, [class*='title'], [class*='name'], a[title]")
         title = ""
         if title_node:
             title = title_node.get("title") or title_node.get_text(strip=True)
-        if not title or len(title) < 12:
+        if not title or len(title) < 10:
             continue
 
-        # Procura preço no cartão
         price_text = ""
         price_node = card.select_one("[class*='price'], .price, span[class*='Price']")
         if price_node:
             price_text = price_node.get_text(strip=True)
         else:
-            # Procural padrão de preço por RegEx no texto do cartão
             match_p = re.search(r'(\d{3,4}[\.,]\d{2})\s?€?', card.get_text())
             if match_p: price_text = match_p.group(1)
 
@@ -204,11 +208,9 @@ async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30
         if not price or price < 200 or price > 4500: 
             continue
 
-        # Procura URL
         link_node = card.select_one("a[href]")
         link = urljoin(url, link_node["href"]) if link_node else url
 
-        # Stock
         stock_text = card.get_text().lower()
         stock = not any(x in stock_text for x in ["esgotado", "out of stock", "indisponível", "sem stock"])
 
@@ -220,7 +222,6 @@ async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30
             "stock": stock
         })
 
-    # Filtrar duplicados na mesma página
     vistos = set()
     unicos = []
     for p in produtos:
@@ -232,26 +233,36 @@ async def extrair_grelha_categoria(page: Page, cat_config: dict, limit: int = 30
     return unicos
 
 # ==========================================
-# NOTIFICAÇÕES
+# NOTIFICAÇÕES (NTFY)
 # ==========================================
 
 def enviar_alerta(titulo: str, mensagem: str, prioridade: str = "default", tags: str = "computer") -> None:
-    if not NTFY_TOPIC: return
+    if not NTFY_TOPIC:
+        print(f"⚠️ NTFY_TOPIC não definido. Notificação não enviada: {titulo}")
+        return
     try:
-        requests.post(
-            f"https://ntfy.sh/{NTFY_TOPIC}",
+        url = f"https://ntfy.sh/{NTFY_TOPIC}"
+        res = requests.post(
+            url,
             data=mensagem.encode("utf-8"),
-            headers={"Title": titulo.encode("ascii", "ignore").decode("ascii"), "Tags": tags, "Priority": prioridade},
+            headers={
+                "Title": titulo.encode("ascii", "ignore").decode("ascii"), 
+                "Tags": tags, 
+                "Priority": prioridade
+            },
             timeout=15,
-        ).raise_for_status()
-    except requests.RequestException: pass
+        )
+        res.raise_for_status()
+        print(f"📲 Notificação enviada com sucesso para ntfy.sh/{NTFY_TOPIC}")
+    except Exception as e:
+        print(f"❌ Erro ao enviar para o ntfy: {e}")
 
 # ==========================================
 # FLUXO PRINCIPAL
 # ==========================================
 
 async def main() -> None:
-    print("🚀 A iniciar Rastreador V3 (Com Debug & Auto-Scroll)...")
+    print("🚀 A iniciar Rastreador V3 (Filtro Estrito de Portáteis + Heartbeat)...")
     config = carregar_json(CONFIG_PATH)
     history = carregar_json(HISTORY_PATH)
     history.setdefault("offers", {})
@@ -267,7 +278,6 @@ async def main() -> None:
     total_analisados = 0
 
     async with async_playwright() as p:
-        # Chromium com argumentos para mitigar deteção de automação
         browser = await p.chromium.launch(
             headless=True,
             args=[
@@ -285,14 +295,11 @@ async def main() -> None:
         for cat in config.get("category_urls", []):
             print(f"\n🔍 A varrer categoria: {cat['loja']}...")
             page = await context.new_page()
-            
-            # Bloquear imagens e CSS desnecessários para acelerar e poupar tráfego
-            await page.route("**/*.{png,jpg,jpeg,svg,webp,css,woff,woff2}", lambda route: route.abort())
 
             produtos = await extrair_grelha_categoria(page, cat, limit=max_prods)
             await page.close()
 
-            print(f"   => Encontrados {len(produtos)} produtos válidos na {cat['loja']}.")
+            print(f"   => Encontrados {len(produtos)} itens na grelha da {cat['loja']}.")
 
             for item in produtos:
                 titulo = item["titulo"]
@@ -300,13 +307,15 @@ async def main() -> None:
                 loja = item["loja"]
                 key = f"{loja}::{titulo}"
 
+                # 1. Filtro estrito: é efetivamente um portátil?
+                if not verificar_elegibilidade(titulo):
+                    continue
+
+                # 2. Respeita o orçamento máximo?
                 if preco > budget_hard:
                     continue
 
                 total_analisados += 1
-
-                if not verificar_elegibilidade(titulo):
-                    continue
 
                 specs = extrair_specs_avancadas(titulo)
                 avaliacao = calcular_scores(specs, preco, weights)
@@ -348,6 +357,16 @@ async def main() -> None:
                     enviar_alerta(titulo_alerta, msg, prioridade="high", tags=tag_emoji)
 
         await browser.close()
+
+    # NOTIFICAÇÃO DE HEARTBEAT (Garante que recebes sempre sinal de vida)
+    enviar_alerta(
+        "🔄 Relatório de Rastreio V3", 
+        f"Rastreio concluído com sucesso.\n\n"
+        f"💻 Portáteis analisados (<= {budget_hard}€): {total_analisados}\n"
+        f"🚨 Alertas disparados: {alertas_disparados}", 
+        prioridade="default", 
+        tags="white_check_mark"
+    )
 
     guardar_json(HISTORY_PATH, history)
     print(f"\n✅ Rastreamento concluído ({total_analisados} portáteis analisados dentro do budget de {budget_hard}€).")
