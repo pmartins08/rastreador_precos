@@ -11,8 +11,7 @@ UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrom
 EXCLUDE=['recondicionado','refurbished','usado','outlet','grade a','grade b','grade c','seminovo','open box'];BRANDS={'asus':{'rog','tuf','vivobook','zenbook','expertbook','proart'},'lenovo':{'legion','loq','ideapad','thinkpad','thinkbook','yoga'},'hp':{'omen','victus','omnibook','elitebook','probook','envy','pavilion'}}
 KPT=['teclado portugues','teclado pt','teclado pt-pt','keyboard portugues','keyboard pt','keyboard pt-pt','layout pt','layout pt-pt','portuguese keyboard','portuguese layout','pt keyboard','pt-pt'];KNPT=['teclado espanhol','spanish keyboard','spanish layout','teclado frances','french keyboard','french layout','teclado alemao','german keyboard','german layout','teclado ingles','english keyboard','keyboard us','us keyboard','us layout','en-us keyboard','uk keyboard','uk layout','italian keyboard','italian layout','azerty','qwertz'];SNO=['esgotado','fora de stock','out of stock','indisponivel','temporariamente indisponivel','sem stock','unavailable','not available','sold out'];SSI=['em stock','em estoque','disponivel','disponibilidade: disponivel','available','in stock','order now','adicionar ao carrinho','adiciona ao carrinho','add to cart','em stock online'];BLOCK=('captcha','recaptcha','hcaptcha','verify you are human','just a moment','checking your browser','cf-chl-','access denied','robot check','are you a robot')
 GPU_MODELOS=sorted(['rtx 5090','rtx 5080','rtx 5070 ti','rtx 5070','rtx 5060 ti','rtx 5060','rtx 5050','rtx 4090','rtx 4080','rtx 4070','rtx 4060','rtx 4050','rtx a5500','rtx a5000','rtx a4500','rtx a3000','rtx a2000','radeon rx 7900m','radeon rx 7800m','radeon rx 7700s','radeon rx 7600s','radeon rx 7600m xt','radeon rx 7600m','radeon rx 6850m xt','radeon rx 6800m','radeon rx 6650m','radeon rx 6600m','radeon rx 6550m','radeon rx 6500m'],key=len,reverse=True);IGPU=['intel iris','intel arc graphics','intel graphics','intel uhd','intel xe','intel xe graphics','intel arc integrated','radeon graphics','radeon 610m','radeon 680m','radeon 780m','radeon 840m','radeon 890m','radeon 760m','amd radeon graphics','amd integrated graphics','qualcomm adreno','adreno'];GPU_GEN=['rtx graphics','rtx discrete','geforce rtx','geforce mx','radeon rx','radeon pro']
-GPU_SCORE={'rtx 5090':100,'rtx 5080':98,'rtx 5070 ti':97,'rtx 5070':95,'rtx 5060 ti':90,'rtx 5060':85,'rtx 5050':60,'rtx 4090':100,'rtx 4080':98,'rtx 4070':80,'rtx 4060':65,'rtx 4050':45,'rtx a5500':96,'rtx a5000':92,'rtx a4500':82,'rtx a3000':68,'rtx a2000':55,'radeon rx 7900m':96,'radeon rx 7800m':88,'radeon rx 7700s':80,'radeon rx 7600s':68,'radeon rx 7600m xt':72,'radeon rx 7600m':65,'radeon rx 6850m xt':78,'radeon rx 6800m':76,'radeon rx 6650m':60,'radeon rx 6600m':56,'radeon rx 6550m':48,'radeon rx 6500m':42};GPU_FLOOR={k:v for k,v in zip(GPU_SCORE,{})}
-GPU_FLOOR={'rtx 5090':1600,'rtx 5080':1250,'rtx 5070 ti':1000,'rtx 5070':850,'rtx 5060 ti':700,'rtx 5060':600,'rtx 5050':500,'rtx 4090':1400,'rtx 4080':1200,'rtx 4070':850,'rtx 4060':650,'rtx 4050':500,'rtx a5500':1300,'rtx a5000':1200,'rtx a4500':900,'rtx a3000':650,'rtx a2000':550,'radeon rx 7900m':1100,'radeon rx 7800m':850,'radeon rx 7700s':750,'radeon rx 7600s':650,'radeon rx 7600m xt':700,'radeon rx 7600m':600,'radeon rx 6850m xt':750,'radeon rx 6800m':750,'radeon rx 6650m':550,'radeon rx 6600m':500,'radeon rx 6550m':450,'radeon rx 6500m':400}
+GPU_SCORE={'rtx 5090':100,'rtx 5080':98,'rtx 5070 ti':97,'rtx 5070':95,'rtx 5060 ti':90,'rtx 5060':85,'rtx 5050':60,'rtx 4090':100,'rtx 4080':98,'rtx 4070':80,'rtx 4060':65,'rtx 4050':45,'rtx a5500':96,'rtx a5000':92,'rtx a4500':82,'rtx a3000':68,'rtx a2000':55,'radeon rx 7900m':96,'radeon rx 7800m':88,'radeon rx 7700s':80,'radeon rx 7600s':68,'radeon rx 7600m xt':72,'radeon rx 7600m':65,'radeon rx 6850m xt':78,'radeon rx 6800m':76,'radeon rx 6650m':60,'radeon rx 6600m':56,'radeon rx 6550m':48};GPU_FLOOR={'rtx 5090':1600,'rtx 5080':1250,'rtx 5070 ti':1000,'rtx 5070':850,'rtx 5060 ti':700,'rtx 5060':600,'rtx 5050':500,'rtx 4090':1400,'rtx 4080':1200,'rtx 4070':850,'rtx 4060':650,'rtx 4050':500,'rtx a5500':1300,'rtx a5000':1200,'rtx a4500':900,'rtx a3000':650,'rtx a2000':550,'radeon rx 7900m':1100,'radeon rx 7800m':850,'radeon rx 7700s':750,'radeon rx 7600s':650,'radeon rx 7600m xt':700,'radeon rx 7600m':600,'radeon rx 6850m xt':750,'radeon rx 6800m':750,'radeon rx 6650m':550,'radeon rx 6600m':500,'radeon rx 6550m':450,'radeon rx 6500m':400}
 CPU_PAT=[r'core\s+ultra\s+[3579]\s+[0-9]{3,5}[a-z]*',r'core\s+[3579]\s+[0-9]{3,5}[a-z]*',r'core\s+i[3579]\s+[0-9]{4,5}[a-z]*',r'i[3579]-[0-9]{4,5}[a-z]*',r'ryzen(?:\s+ai)?\s+[3579]\s+[0-9]{3,5}[a-z]*']
 ALIASES={'gpu':['gpu','placa grafica','graphics card','graphic card','graphic processor','processador grafico','video card','vga','placa grafica discreta','placa grafica dedicada'],'igpu':['placa grafica integrada','onboard graphics','integrated graphics','integrated gpu'],'vram':['memoria grafica','graphics memory','video memory','vram'],'tgp':['tgp','total graphics power','potencia grafica'],'cpu':['processador','cpu','processor','modelo do processador'],'ram':['memoria ram','ram','system memory','memory','memoria instalada'],'ram_type':['tipo de memoria','memory type','tipo ram','ram type'],'storage':['disco ssd','ssd','armazenamento','storage','capacidade ssd'],'screen':['ecra','display','screen','painel','tipo de ecra'],'resolution':['resolucao','resolution'],'refresh':['refresh rate','frequencia','taxa de atualizacao','hz'],'brightness':['brilho','brightness','nits','cd/m2'],'panel':['tipo de painel','panel type','panel','technology'],'battery':['bateria','battery','capacidade da bateria','battery capacity'],'weight':['peso','weight','peso do produto'],'keyboard':['teclado','keyboard','layout'],'ram_slots':['slots ram','ram slots','so-dimm','memoria expansivel'],'m2':['m.2','slot m.2','slots m.2','nvme','pcie']}
 def norm(x):return re.sub(r'\s+',' ',''.join(c for c in unicodedata.normalize('NFKD',str(x or '')) if not unicodedata.combining(c))).lower().strip()
@@ -69,8 +68,7 @@ def pairs(soup):
   a=n.select_one("[class*='label'],[class*='name'],[class*='key']");b=n.select_one("[class*='value'],[class*='detail'],[class*='spec-value']")
   if a and b and a is not b:out.append((_key(a.get_text(' ',strip=True)),a.get_text(' ',strip=True),b.get_text(' ',strip=True),'label_value',.92))
  return [x for x in out if x[0]]
-def best(ps):
- return sorted(ps,key=lambda x:x[4],reverse=True)[0] if ps else None
+def best(ps):return sorted(ps,key=lambda x:x[4],reverse=True)[0] if ps else None
 def nram(t):
  if re.search(r'vram|memoria grafica|graphics memory|video memory',norm(t)):return None
  m=re.search(r'\b(4|8|12|16|24|32|48|64|96|128)\s*gb\b',norm(t));return int(m.group(1)) if m else None
@@ -80,8 +78,10 @@ def nstorage(t):
   v=float(m.group(1).replace(',','.'));gb=v*1024 if m.group(2)=='tb' else v
   if 128<=gb<=8192:vals.append(gb)
  return round(max(vals)/1024,2) if vals else None
+def specs(text):
+ t=norm(text);o={'fontes':{},'evidencias':{},'conflitos':[],'alertas':[],'marca':None,'submarca':None,'gpu_tipo':'desconhecida','gpu_modelo':None,'gpu_modelos_detectados':[],'cpu_modelo':None,'cpu_str_original':None,'cpu_classe':None,'ram_gb':None,'ram_type':None,'ram_expansivel':False,'armazenamento_tb':None,'ssd_expansivel':False,'vram_gb':None,'tgp_w':None,'bateria_wh':None,'peso_kg':None,'ecra_tamanho':None,'ecra_res':None,'ecra_painel':None,'ecra_hz':None,'ecra_brightness_nits':None,'teclado_pt':'desconhecido'};o['marca'],o['submarca']=brand(t);d,gt,gm=gpus(t);o['gpu_tipo']=gt;o['gpu_modelo']=gm;o['gpu_modelos_detectados']=d;c,_,cl=cpu(t);o['cpu_modelo']=c;o['cpu_str_original']=c;o['cpu_classe']=cl;o['ram_gb']=nram(t);o['armazenamento_tb']=nstorage(t);m=re.search(r'(\d{1,2})\s*gb',t) if not re.search(r'vram|memoria grafica|graphics memory|video memory',t) else None;o['vram_gb']=int(m.group(1)) if m else None;m=re.search(r'(\d{2,3})\s*w',t);o['tgp_w']=int(m.group(1)) if m else None;m=re.search(r'(\d{2,3})\s*wh',t);o['bateria_wh']=int(m.group(1)) if m else None;m=re.search(r'(\d[.,]\d+)\s*kg',t);o['peso_kg']=float(m.group(1).replace(',','.')) if m else None;m=re.search(r'(\d{2,3})\s*hz',t);o['ecra_hz']=int(m.group(1)) if m else None;o['ecra_res']='qhd+' if re.search(r'2560\s*x\s*1600|qhd\+',t) else 'fhd+' if re.search(r'1920\s*x\s*1200|wuxga',t) else 'fhd' if re.search(r'1920\s*x\s*1080|1080p|fhd',t) else None;o['teclado_pt']='nao_pt' if any(x in t for x in KNPT) else 'confirmado' if any(x in t for x in KPT) else 'desconhecido';return o
 def extract(title,soup):
- ps=pairs(soup); by={}
+ ps=pairs(soup);by={}
  for x in ps:by.setdefault(x[0],[]).append(x)
  o=specs(title);o['fontes']=o.get('fontes',{});o['evidencias']=o.get('evidencias',{});o['conflitos']=o.get('conflitos',[]);o['marca'],o['submarca']=brand(title)
  for k in ['gpu','igpu','cpu','ram','storage','vram','tgp','battery','weight','resolution','screen','refresh','brightness','panel','keyboard','ram_type','ram_slots','m2']:
@@ -93,32 +93,21 @@ def extract(title,soup):
   elif k=='cpu':o['cpu_str_original']=cpu(val)[0];o['cpu_modelo']=cpu(val)[0];o['cpu_classe']=cpu(val)[2]
   elif k=='ram':o['ram_gb']=nram(val)
   elif k=='storage':o['armazenamento_tb']=nstorage(val)
-  elif k=='vram':
-   m=re.search(r'(\d{1,2})\s*gb',norm(val));o['vram_gb']=int(m.group(1)) if m else None
-  elif k=='tgp':
-   m=re.search(r'(\d{2,3})\s*w',norm(val));o['tgp_w']=int(m.group(1)) if m else None
-  elif k=='battery':
-   m=re.search(r'(\d{2,3})\s*wh',norm(val));o['bateria_wh']=int(m.group(1)) if m else None
-  elif k=='weight':
-   m=re.search(r'(\d[.,]\d+)\s*kg',norm(val));o['peso_kg']=float(m.group(1).replace(',','.')) if m else None
-  elif k=='refresh':
-   m=re.search(r'(\d{2,3})\s*hz',norm(val));o['ecra_hz']=int(m.group(1)) if m else None
+  elif k=='vram':m=re.search(r'(\d{1,2})\s*gb',norm(val));o['vram_gb']=int(m.group(1)) if m else None
+  elif k=='tgp':m=re.search(r'(\d{2,3})\s*w',norm(val));o['tgp_w']=int(m.group(1)) if m else None
+  elif k=='battery':m=re.search(r'(\d{2,3})\s*wh',norm(val));o['bateria_wh']=int(m.group(1)) if m else None
+  elif k=='weight':m=re.search(r'(\d[.,]\d+)\s*kg',norm(val));o['peso_kg']=float(m.group(1).replace(',','.')) if m else None
+  elif k=='refresh':m=re.search(r'(\d{2,3})\s*hz',norm(val));o['ecra_hz']=int(m.group(1)) if m else None
   elif k=='resolution':
-   v=norm(val);o['ecra_res']='4k' if re.search(r'3840\s*x\s*2160|4k|uhd',v) else 'qhd+' if re.search(r'2880\s*x\s*1800|2560\s*x\s*1600|wqxga|qhd\+',v) else 'qhd' if re.search(r'2560\s*x\s*1440|qhd',v) else 'fhd+' if re.search(r'1920\s*x\s*1200|wuxga|1200p',v) else 'fhd' if re.search(r'1920\s*x\s*1080|1080p|fhd',v) else o['ecra_res']
+   v=norm(val);o['ecra_res']='4k' if re.search(r'3840\s*x\s*2160|4k|uhd',v) else 'qhd+' if re.search(r'2880\s*x\s*1800|2560\s*x\s*1600|wqxga|qhd\+',v) else 'qhd' if re.search(r'2560\s*x\s*1440|qhd',v) else 'fhd+' if re.search(r'1920\s*x\s*1200|wuxga|1200p',v) else 'fhd' if re.search(r'1920\s*x\s*1080|1080p|fhd',v) else o.get('ecra_res')
   elif k=='screen':
-   v=norm(val);m=re.search(r'(\d{1,2}(?:[.,]\d)?)\s*(?:"|inch|polegadas)',v);o['ecra_tamanho']=float(m.group(1).replace(',','.')) if m else o.get('ecra_tamanho');m=re.search(r'(\d{2,3})\s*hz',v);o['ecra_hz']=o.get('ecra_hz') or (int(m.group(1)) if m else None);o['ecra_painel']= 'oled' if 'oled' in v else 'mini-led' if 'mini-led' in v or 'miniled' in v else 'ips' if 'ips' in v else o.get('ecra_painel')
-  elif k=='brightness':
-   m=re.search(r'(\d{2,4})\s*(?:nits?|cd/m2)',norm(val));o['ecra_brightness_nits']=int(m.group(1)) if m else None
-  elif k=='keyboard':
-   v=norm(val);o['teclado_pt']='nao_pt' if any(x in v for x in KNPT) else 'confirmado' if any(x in v for x in KPT) else o['teclado_pt']
- o['ram_expansivel']=bool(by.get('ram_slots'));o['ssd_expansivel']=bool(by.get('m2'))
- tg,tt,tgpu=gpus(title)
+   v=norm(val);m=re.search(r'(\d{1,2}(?:[.,]\d)?)\s*(?:"|inch|polegadas)',v);o['ecra_tamanho']=float(m.group(1).replace(',','.')) if m else o.get('ecra_tamanho');m=re.search(r'(\d{2,3})\s*hz',v);o['ecra_hz']=o.get('ecra_hz') or (int(m.group(1)) if m else None);o['ecra_painel']='oled' if 'oled' in v else 'mini-led' if 'mini-led' in v or 'miniled' in v else 'ips' if 'ips' in v else o.get('ecra_painel')
+  elif k=='brightness':m=re.search(r'(\d{2,4})\s*(?:nits?|cd/m2)',norm(val));o['ecra_brightness_nits']=int(m.group(1)) if m else None
+  elif k=='keyboard':v=norm(val);o['teclado_pt']='nao_pt' if any(x in v for x in KNPT) else 'confirmado' if any(x in v for x in KPT) else o['teclado_pt']
+ o['ram_expansivel']=bool(by.get('ram_slots'));o['ssd_expansivel']=bool(by.get('m2'));tg,tt,tgpu=gpus(title)
  if tgpu:o['gpu_tipo']='dedicada';o['gpu_modelo']=tgpu;o['gpu_modelos_detectados']=tg;o['fontes']['gpu']='title';o['evidencias']['gpu']=title
  return o
-def specs(text):
- o=extract('',BeautifulSoup('', 'html.parser'));t=norm(text);o['marca'],o['submarca']=brand(t);d,gt,gm=gpus(t);o['gpu_tipo']=gt;o['gpu_modelo']=gm;o['gpu_modelos_detectados']=d;c,_,cl=cpu(t);o['cpu_modelo']=c;o['cpu_str_original']=c;o['cpu_classe']=cl;o['ram_gb']=nram(t);o['armazenamento_tb']=nstorage(t);m=re.search(r'(\d{2,3})\s*wh',t);o['bateria_wh']=int(m.group(1)) if m else None;m=re.search(r'(\d[.,]\d+)\s*kg',t);o['peso_kg']=float(m.group(1).replace(',','.')) if m else None;m=re.search(r'(\d{2,3})\s*hz',t);o['ecra_hz']=int(m.group(1)) if m else None;o['ecra_res']='qhd+' if re.search(r'2560\s*x\s*1600|qhd\+',t) else 'fhd+' if re.search(r'1920\s*x\s*1200|wuxga',t) else 'fhd' if re.search(r'1920\s*x\s*1080|fhd',t) else None;o['teclado_pt']='nao_pt' if any(x in t for x in KNPT) else 'confirmado' if any(x in t for x in KPT) else 'desconhecido';return o
-def quality(s):
- q=sum(w for w,v in [(0.16,s.get('cpu_modelo')),(0.24,s.get('gpu_tipo')=='dedicada'),(0.16,s.get('ram_gb')),(0.10,s.get('armazenamento_tb')),(0.10,s.get('bateria_wh')),(0.08,s.get('peso_kg')),(0.08,s.get('ecra_res')),(0.08,s.get('ecra_hz'))] if v);return q,'ALTA' if q>=.85 else 'MEDIA' if q>=.55 else 'BAIXA'
+def quality(s):q=sum(w for w,v in [(0.16,s.get('cpu_modelo')),(0.24,s.get('gpu_tipo')=='dedicada'),(0.16,s.get('ram_gb')),(0.10,s.get('armazenamento_tb')),(0.10,s.get('bateria_wh')),(0.08,s.get('peso_kg')),(0.08,s.get('ecra_res')),(0.08,s.get('ecra_hz'))] if v);return q,'ALTA' if q>=.85 else 'MEDIA' if q>=.55 else 'BAIXA'
 def tier(v,c):return 'DIAMANTE' if v>=float(c.get('diamante_value_min',130)) else 'OURO' if v>=float(c.get('ouro_value_min',110)) else 'PRATA' if v>=float(c.get('prata_value_min',90)) else 'BRONZE' if v>=float(c.get('bronze_value_min',70)) else None
 def pscore(p,c):
  s=float(c.get('budget_soft',1300));h=float(c.get('budget_hard',1500));return 150 if p<=s else max(70,100-(p-h)/max(h,1)*60) if p>=h else 150-50*(p-s)/max(h-s,1)
@@ -163,7 +152,7 @@ def jsonld(soup,base):
    x=stack.pop()
    if isinstance(x,list):stack.extend(x);continue
    if not isinstance(x,dict):continue
-   typ=x.get('@type');types=typ if isinstance(typ,list) else [typ];off=x.get('offers');off=off[0] if isinstance(off,list) and off else off if isinstance(off,dict) else {};p=price(off.get('price'));name=x.get('name')
+   off=x.get('offers');off=off[0] if isinstance(off,list) and off else off if isinstance(off,dict) else {};p=price(off.get('price'));name=x.get('name')
    if name and p:out.append({'titulo':str(name).strip(),'preco':p,'url':urljoin(base,str(x.get('url') or off.get('url') or base))})
    stack.extend(v for v in x.values() if isinstance(v,(dict,list)))
  return out
@@ -206,7 +195,7 @@ def enrich(session,item):
  text,r,err=fetch(session,item['url'],12,item.get('_category_url',''));item.setdefault('_fetch',{})['detail_error']=err
  if not text:return item
  soup=BeautifulSoup(text,'html.parser');h=soup.select_one('h1');title=h.get_text(' ',strip=True) if h else item['titulo'];pg=extract(title,soup);sp=item['_specs'];tg,tt,tgpu=gpus(title)
- if tgpu:sp['gpu_tipo']='dedicada';sp['gpu_modelo']=tgpu;sp['gpu_modelos_detectados']=tg;sp.setdefault('fontes',{})['gpu']='title'
+ if tgpu:sp['gpu_tipo']='dedicada';sp['gpu_modelo']=tgpu;sp['gpu_modelos_detectados']=tg;sp.setdefault('fontes',{})['gpu']='title';sp.setdefault('evidencias',{})['gpu']=title
  else:sp.update({k:v for k,v in pg.items() if v not in (None,'desconhecido','desconhecida',[],False)});sp.setdefault('fontes',{}).update(pg.get('fontes',{}));sp.setdefault('evidencias',{}).update(pg.get('evidencias',{}));sp.setdefault('conflitos',[]).extend(pg.get('conflitos',[]));sp.setdefault('alertas',[]).extend(x for x in pg.get('alertas',[]) if x not in sp['alertas'])
  item['_specs']=sp;return item
 def keyboard(session,item):
