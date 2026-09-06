@@ -28,6 +28,43 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
+      - name: Corrigir V8 e revalidar Ouro/Diamante
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s = Path('scraper.py').read_text(encoding='utf-8')
+
+          old = 'return list({f"{p[\'loja\']}::{p[\'titulo\']}": p for p in converted})[:limit]'
+          new = 'return list({f"{p[\'loja\']}::{p[\'titulo\']}": p for p in converted}.values())[:limit]'
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          old_cpu = '    p_cpu = weights.get("cpu_base", {"tier_1": 100, "tier_2": 85, "tier_3": 70}).get(spec.get("cpu_modelo"), 50)'
+          new_cpu = '''    _cpu_model, cpu_tier, _cpu_class = cpu(spec.get("cpu_modelo", ""))\n    p_cpu = weights.get("cpu_base", {"tier_1": 100, "tier_2": 85, "tier_3": 70}).get(cpu_tier, 50)'''
+          if old_cpu in s:
+              s = s.replace(old_cpu, new_cpu, 1)
+
+          if 'def value_score(' not in s:
+              marker = '\ndef score(spec: dict, price_value: float, weights: dict, settings: dict) -> dict:\n'
+              helper = '''\ndef value_score(ranking: float, price_value: float, settings: dict) -> float:\n    raw = (1.30 * ranking) * 0.70 + price_score(price_value, settings) * 0.30\n    return round(max(0.0, min(150.0, raw)), 1)\n\n'''
+              if marker in s:
+                  s = s.replace(marker, helper + marker, 1)
+
+          s = s.replace(
+              'value = round(ranking * 0.70 + price_score(price_value, settings) * 0.30, 1)',
+              'value = value_score(ranking, price_value, settings)',
+              1,
+          )
+
+          marker = '        print("OK: V8 estruturada, GPU/RAM/VRAM/TGP/ecrã/bateria, scoring e histórico.")'
+          tests = '''        test_settings = load(CONFIG_PATH).get("settings", {})\n        assert value_score(100, 1300, test_settings) == 136.0\n        assert tier_from_value(136.0, test_settings) == "DIAMANTE"\n        assert value_score(75, 1300, test_settings) == 113.0\n        assert tier_from_value(113.0, test_settings) == "OURO"\n        assert tier_from_value(69.9, test_settings) is None\n        assert tier_from_value(70.0, test_settings) == "BRONZE"\n        assert tier_from_value(90.0, test_settings) == "PRATA"\n        assert tier_from_value(110.0, test_settings) == "OURO"\n        assert tier_from_value(130.0, test_settings) == "DIAMANTE"\n'''
+          if marker in s and 'assert value_score(100, 1300' not in s:
+              s = s.replace(marker, tests + marker, 1)
+
+          Path('scraper.py').write_text(s, encoding='utf-8')
+          PY
+          python -m py_compile scraper.py
+
       - name: Smoke tests — V8
         env:
           SMOKE_TEST: '1'
@@ -43,16 +80,16 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scraper.py
 
-      - name: Guardar Histórico V8
+      - name: Guardar Histórico e correções V8
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/history.json
+          git add data/history.json scraper.py
           if git diff --cached --quiet; then
-            echo "Sem alterações no histórico."
+            echo "Sem alterações no histórico/código."
             exit 0
           fi
-          git commit -m "chore: atualizar historico V8 [skip ci]"
+          git commit -m "fix: corrigir descoberta e revalidar score V8 [skip ci]"
           git fetch origin main
           git rebase origin/main
           git push
