@@ -164,8 +164,9 @@ def verificar_elegibilidade(titulo: str) -> bool:
 
 
 def limpar_vram(texto: str) -> str:
-    texto = re.sub(r"\b(4|6|8|12|16|24)\s?gb\s?(gddr\d|vram)\b", "", texto)
-    return re.sub(r"\b(rtx|rx|gtx)\s?\d{4}\s?\d{1,2}gb\b", "", texto)
+    # Remove apenas VRAM claramente identificada; não apaga "RTX 5060 32GB",
+    # porque nesse formato o 32GB pode ser a RAM do portátil.
+    return re.sub(r"\b(4|6|8|12|16|24)\s?gb\s?(?:gddr\d|vram)\b", "", texto)
 
 
 def extrair_cpu(texto: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
@@ -238,8 +239,11 @@ def extrair_specs_avancadas(texto_bruto: str) -> dict:
         s["ram_gb"] = int(m.group(1))
         s["fontes"]["ram"] = "explicita"
     else:
-        for raw in re.findall(r"\b(\d{1,3})\s?gb\b", tl):
-            v = int(raw)
+        for match in re.finditer(r"\b(\d{1,3})\s?gb\b", tl):
+            v = int(match.group(1))
+            before = tl[max(0, match.start() - 14):match.start()]
+            if re.search(r"(?:rtx|gtx|rx)\s?\d{4}\s?$", before):
+                continue
             if v in [8, 12, 16, 24, 32, 48, 64, 96, 128]:
                 s["ram_gb"] = v
                 s["fontes"]["ram"] = "heuristica"
@@ -366,7 +370,6 @@ def calcular_scores(s: dict, preco: float, weights: dict, settings: dict) -> dic
     p_res = {"qhd+": 100, "qhd": 95, "fhd+": 85, "fhd": 75, None: 60}.get(s["ecra_res"], 60)
     p_hz = min(100, (s.get("ecra_hz") or 60) / 1.65)
     p_cpu = weights.get("cpu_base", {"tier_1": 100, "tier_2": 85, "tier_3": 70}).get(s["cpu_modelo"], 50)
-
     penal = {"u_ultra": 0, "hs": 5, "h": 10, "hx": 20, None: 10}
     auto = 50 if s["bateria_wh"] is None else max(0, min(100, s["bateria_wh"] / 90 * 100) - penal.get(s["cpu_classe"], 10))
     gpu = weights.get("gpu_base", GPU_PONTOS)
@@ -386,28 +389,21 @@ def calcular_scores(s: dict, preco: float, weights: dict, settings: dict) -> dic
     ranking = round(max(0, min(100, final * (0.85 + 0.15 * conf))), 1)
     value_score = round(ranking / ((preco / 1000) ** 1.2), 1) if preco > 0 else 0
     tier = classificar_tier(value_score, settings)
-
     alertas = list(dict.fromkeys(s.get("alertas", [])))
     if s["teclado_pt"] == "desconhecido":
         alertas.append("Teclado PT não confirmado — portátil mantido no ranking.")
 
     return {
-        "status": "ACEITE",
-        "score_final": round(final, 1),
-        "score_ranking": ranking,
-        "value_score": value_score,
-        "oportunidade": tier,
-        "qualidade_dados": qualidade,
-        "confianca_percentual": f"{int(conf * 100)}%",
-        "fontes_extraidas": s["fontes"],
+        "status": "ACEITE", "score_final": round(final, 1), "score_ranking": ranking,
+        "value_score": value_score, "oportunidade": tier, "qualidade_dados": qualidade,
+        "confianca_percentual": f"{int(conf * 100)}%", "fontes_extraidas": s["fontes"],
         "alertas": list(dict.fromkeys(alertas)),
         "detalhes": {
-            "marca": s.get("marca"), "submarca": s.get("submarca"),
-            "gpu": s.get("gpu_modelo"), "cpu": s.get("cpu_str_original"),
-            "ram_gb": s.get("ram_gb"), "armazenamento_tb": s.get("armazenamento_tb"),
-            "teclado_pt": s.get("teclado_pt"), "FEUP": round(feup, 1),
-            "Gaming": round(gaming, 1), "Longevidade": round(longevidade, 1),
-            "Portabilidade": round(p_peso, 1),
+            "marca": s.get("marca"), "submarca": s.get("submarca"), "gpu": s.get("gpu_modelo"),
+            "cpu": s.get("cpu_str_original"), "ram_gb": s.get("ram_gb"),
+            "armazenamento_tb": s.get("armazenamento_tb"), "teclado_pt": s.get("teclado_pt"),
+            "FEUP": round(feup, 1), "Gaming": round(gaming, 1),
+            "Longevidade": round(longevidade, 1), "Portabilidade": round(p_peso, 1),
         },
     }
 
@@ -432,11 +428,7 @@ def extrair_jsonld_produtos(soup: BeautifulSoup, base_url: str) -> list[dict]:
             url = obj.get("url") or offer.get("url") if isinstance(offer, dict) else obj.get("url")
             price = parse_price_value((offer or {}).get("price")) if isinstance(offer, dict) else None
             if name and price:
-                produtos.append({
-                    "titulo": str(name).strip(),
-                    "preco": price,
-                    "url": urljoin(base_url, str(url)) if url else base_url,
-                })
+                produtos.append({"titulo": str(name).strip(), "preco": price, "url": urljoin(base_url, str(url)) if url else base_url})
         for value in obj.values():
             if isinstance(value, (dict, list)):
                 walk(value)
@@ -453,10 +445,7 @@ def extrair_jsonld_produtos(soup: BeautifulSoup, base_url: str) -> list[dict]:
 
 
 def escolher_titulo(card) -> str:
-    node = card.select_one(
-        "h1,h2,h3,h4,[class*='title'],[class*='Title'],"
-        "[class*='name'],[class*='Name'],a[title],img[alt]"
-    )
+    node = card.select_one("h1,h2,h3,h4,[class*='title'],[class*='Title'],[class*='name'],[class*='Name'],a[title],img[alt]")
     if not node:
         return ""
     title = node.get("alt") or node.get("title") or node.get_text(" ", strip=True)
@@ -464,9 +453,8 @@ def escolher_titulo(card) -> str:
 
 
 def escolher_link(card, base_url: str, hints: list[str]) -> Optional[str]:
-    anchors = card.select("a[href]")
     ranked = []
-    for a in anchors:
+    for a in card.select("a[href]"):
         href = (a.get("href") or "").strip()
         if not href or href.startswith("#") or href.lower().startswith("javascript:"):
             continue
@@ -501,7 +489,6 @@ def escolher_preco(card) -> Optional[float]:
         current.extend(extrair_precos(node.get_text(" ", strip=True)))
     if current:
         return min(current)
-
     values = extrair_precos(card.get_text(" ", strip=True))
     return min(values) if values else None
 
@@ -509,17 +496,13 @@ def escolher_preco(card) -> Optional[float]:
 def extrair_candidatos_html(soup: BeautifulSoup, cfg: dict, base_url: str, limit: int) -> list[dict]:
     hints = cfg.get("product_path_hints", ["/produto/", "/product/", "/portatil/", "/portateis/"])
     selectors = cfg.get("card_selectors") or [
-        "article", "li[class*='product']", "div[class*='product-card']",
-        "div[class*='productCard']", "div[class*='product-item']", "[data-product-id]",
-        "[data-testid*='product']",
+        "article", "li[class*='product']", "div[class*='product-card']", "div[class*='productCard']",
+        "div[class*='product-item']", "[data-product-id]", "[data-testid*='product']",
     ]
-
     cards = []
     for selector in selectors:
         cards.extend(soup.select(selector))
 
-    # Mesmo com selectors presentes, executamos o fallback por links: isto resolve páginas
-    # como Globaldata/PCDIGA onde o HTML muda mas o link do produto continua consistente.
     for anchor in soup.select("a[href]"):
         href = (anchor.get("href") or "").lower()
         if not any(h.lower() in href for h in hints):
@@ -537,8 +520,7 @@ def extrair_candidatos_html(soup: BeautifulSoup, cfg: dict, base_url: str, limit
         if best is not None:
             cards.append(best)
 
-    candidates = []
-    seen = set()
+    candidates, seen = [], set()
     for card in cards:
         title = escolher_titulo(card)
         if len(title) < 10:
@@ -550,17 +532,10 @@ def extrair_candidatos_html(soup: BeautifulSoup, cfg: dict, base_url: str, limit
         key = (normalizar_texto(title), link)
         if key in seen:
             continue
-        text = card.get_text(" ", strip=True)
-        candidates.append({
-            "titulo": title,
-            "preco": price,
-            "url": link,
-            "stock": detetar_stock(text),
-        })
+        candidates.append({"titulo": title, "preco": price, "url": link, "stock": detetar_stock(card.get_text(" ", strip=True))})
         seen.add(key)
 
-    result = []
-    seen_titles = set()
+    result, seen_titles = [], set()
     for item in candidates:
         if len(result) >= limit:
             break
@@ -573,8 +548,7 @@ def extrair_candidatos_html(soup: BeautifulSoup, cfg: dict, base_url: str, limit
 
 
 def extrair_grelha_categoria(session: requests.Session, cfg: dict, limit: int) -> dict:
-    loja = cfg["loja"]
-    url = cfg["url"]
+    loja, url = cfg["loja"], cfg["url"]
     timeout = max(5, int(cfg.get("timeout_ms", 12000)) // 1000)
     try:
         response = session.get(url, timeout=timeout, allow_redirects=True)
@@ -585,13 +559,7 @@ def extrair_grelha_categoria(session: requests.Session, cfg: dict, limit: int) -
     soup = BeautifulSoup(response.text, "html.parser")
     title = soup.title.get_text(" ", strip=True) if soup.title else ""
     body_text = normalizar_texto(soup.get_text(" ", strip=True)[:12000])
-    blocked = (
-        status in (401, 403, 429, 503)
-        or "just a moment" in title.lower()
-        or "verify you are human" in body_text
-        or "access denied" in body_text
-        or "cf-chl-" in response.text.lower()
-    )
+    blocked = status in (401, 403, 429, 503) or "just a moment" in title.lower() or "verify you are human" in body_text or "access denied" in body_text or "cf-chl-" in response.text.lower()
 
     print(f"   [Debug {loja}] Status: {status} | Título: '{title[:140]}'")
     if blocked:
@@ -600,8 +568,7 @@ def extrair_grelha_categoria(session: requests.Session, cfg: dict, limit: int) -
 
     jsonld = extrair_jsonld_produtos(soup, response.url)
     html_items = extrair_candidatos_html(soup, cfg, response.url, limit)
-    merged = []
-    seen = set()
+    merged, seen = [], set()
     for item in jsonld + html_items:
         title_key = normalizar_texto(item.get("titulo", ""))
         if not title_key or title_key in seen:
@@ -613,17 +580,13 @@ def extrair_grelha_categoria(session: requests.Session, cfg: dict, limit: int) -
         seen.add(title_key)
         if len(merged) >= limit:
             break
-
     return {"loja": loja, "url": response.url, "produtos": merged, "bloqueada": False, "erro": None}
 
 
 def detetar_teclado_html(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
     campos = []
-    for node in soup.select(
-        "[class*='keyboard'], [class*='Keyboard'], [class*='teclado'], "
-        "[class*='Teclado'], [itemprop*='keyboard'], [data-testid*='keyboard']"
-    ):
+    for node in soup.select("[class*='keyboard'], [class*='Keyboard'], [class*='teclado'], [class*='Teclado'], [itemprop*='keyboard'], [data-testid*='keyboard']"):
         campos.append(node.get_text(" ", strip=True))
     universo = normalizar_texto(" ".join(campos) if campos else soup.get_text(" ", strip=True)[:30000])
     if any(x in universo for x in TECLADO_NAO_PT):
@@ -666,17 +629,7 @@ def enviar_alerta(titulo: str, mensagem: str, prioridade: str = "default", tags:
         print("⚠️ NTFY_TOPIC não definido; notificação ignorada.")
         return
     try:
-        requests.post(
-            "https://ntfy.sh",
-            json={
-                "topic": NTFY_TOPIC,
-                "title": titulo,
-                "message": mensagem,
-                "tags": [t.strip() for t in tags.split(",") if t.strip()],
-                "priority": 4 if prioridade == "high" else 3,
-            },
-            timeout=10,
-        ).raise_for_status()
+        requests.post("https://ntfy.sh", json={"topic": NTFY_TOPIC, "title": titulo, "message": mensagem, "tags": [t.strip() for t in tags.split(",") if t.strip()], "priority": 4 if prioridade == "high" else 3}, timeout=10).raise_for_status()
         print(f"📲 Notificação enviada: {titulo}")
     except requests.RequestException as exc:
         print(f"❌ Erro ao enviar ntfy: {exc}")
@@ -688,21 +641,19 @@ def formatar_alerta(tier: str, item: dict, analysis: dict, specs: dict, reason: 
     tag = {"DIAMANTE": "gem", "OURO": "trophy", "PRATA": "medal_sports", "BRONZE": "medal"}.get(tier, "computer")
     title = f"{icon} {tier} | {item['preco']:.0f}€"
     msg = (
-        f"{item['titulo']}\n\n"
-        f"Loja: {item['loja']}\n"
-        f"Preço: {item['preco']:.2f}€\n"
-        f"Ranking: {analysis['score_ranking']}/100\n"
-        f"Índice de valor: {analysis['value_score']}\n"
-        f"Oportunidade: {tier}\n"
-        f"Dados: {analysis['qualidade_dados']} ({analysis['confianca_percentual']})\n"
-        f"GPU: {specs.get('gpu_modelo') or 'não identificada'}\n"
-        f"CPU: {specs.get('cpu_str_original') or 'não confirmada'}\n"
-        f"RAM: {specs.get('ram_gb') or '?'}GB\n"
-        f"Teclado: {specs['teclado_pt']}\n"
-        f"Motivo: {reason}\n\n"
+        f"{item['titulo']}\n\nLoja: {item['loja']}\nPreço: {item['preco']:.2f}€\n"
+        f"Ranking: {analysis['score_ranking']}/100\nÍndice de valor: {analysis['value_score']}\n"
+        f"Oportunidade: {tier}\nDados: {analysis['qualidade_dados']} ({analysis['confianca_percentual']})\n"
+        f"GPU: {specs.get('gpu_modelo') or 'não identificada'}\nCPU: {specs.get('cpu_str_original') or 'não confirmada'}\n"
+        f"RAM: {specs.get('ram_gb') or '?'}GB\nTeclado: {specs['teclado_pt']}\nMotivo: {reason}\n\n"
         f"🔗 Produto: {item['url']}"
     )
     return title, msg, tag
+
+
+def validar_url_produto(item: dict) -> bool:
+    url = item.get("url")
+    return bool(url and urlparse(url).scheme in {"http", "https"})
 
 
 def main() -> None:
@@ -737,10 +688,7 @@ def main() -> None:
     })
 
     with ThreadPoolExecutor(max_workers=max_workers or 1) as executor:
-        future_map = {
-            executor.submit(extrair_grelha_categoria, session, cfg, max_products): cfg["loja"]
-            for cfg in categories
-        }
+        future_map = {executor.submit(extrair_grelha_categoria, session, cfg, max_products): cfg["loja"] for cfg in categories}
         result_map = {}
         for future in as_completed(future_map):
             result = future.result()
@@ -755,7 +703,6 @@ def main() -> None:
         products = result.get("produtos", [])
         print(f"\n🔍 {loja}: {len(products)} produtos candidatos.")
         stats["encontrados"] += len(products)
-
         if result.get("bloqueada"):
             stats["bloqueadas"] += 1
         elif result.get("erro"):
@@ -765,34 +712,26 @@ def main() -> None:
         else:
             stats["lojas_sem_resultados"] += 1
 
-        store_keyboard_count = 0
         for item in products:
             item["_category_url"] = result.get("url") or category["url"]
             if item["preco"] > budget_hard or not verificar_elegibilidade(item["titulo"]):
                 continue
-
             specs = extrair_specs_avancadas(item["titulo"])
             ok_price, price_reason = plausibilidade_preco(specs, item["preco"], settings)
             if not ok_price:
                 stats["precos_suspeitos"] += 1
                 print(f"   [!] {item['titulo'][:68]}... | PREÇO SUSPEITO: {price_reason}")
                 continue
-
             provisional = calcular_scores(specs, item["preco"], weights, settings)
             if provisional["status"] == "REJEITADO":
                 stats["rejeitados"] += 1
                 print(f"   [-] {item['titulo'][:68]}... | REJEITADO: {provisional['alertas']}")
                 continue
-
-            if specs["teclado_pt"] == "desconhecido" and store_keyboard_count < per_store_keyboard_limit:
+            if specs["teclado_pt"] == "desconhecido" and sum(1 for x, _ in candidates_for_keyboard if x.get("loja") == loja) < per_store_keyboard_limit:
                 candidates_for_keyboard.append((item, specs))
-                store_keyboard_count += 1
-
             item["_specs"] = specs
             stats["analisados"] += 1
 
-    # Só valida páginas de produto num pequeno subconjunto: reduz muito o tempo sem voltar a
-    # aceitar implicitamente teclados não-PT.
     def check_keyboard(entry):
         item, specs = entry
         detected = confirmar_teclado_produto(session, item) if specs["teclado_pt"] == "desconhecido" else specs["teclado_pt"]
@@ -821,7 +760,6 @@ def main() -> None:
             if analysis["status"] == "REJEITADO":
                 stats["rejeitados"] += 1
                 continue
-
             stats["aceites"] += 1
             tier = analysis.get("oportunidade")
             if tier == "DIAMANTE": stats["diamante"] += 1
@@ -839,18 +777,11 @@ def main() -> None:
                 "value_score": analysis["value_score"], "oportunidade": tier,
                 "qualidade_dados": analysis["qualidade_dados"], "teclado_pt": specs["teclado_pt"],
                 "marca": specs.get("marca"), "submarca": specs.get("submarca"),
-                "gpu": specs.get("gpu_modelo"), "cpu": specs.get("cpu_str_original"),
-                "url": item["url"],
+                "gpu": specs.get("gpu_modelo"), "cpu": specs.get("cpu_str_original"), "url": item["url"],
             }
             entries.append(record)
             history["offers"][key] = entries[-60:]
-
-            print(
-                f"   [+] {item['titulo'][:48]}... | {item['preco']:.2f}€ | "
-                f"Ranking: {analysis['score_ranking']}/100 | Valor: {analysis['value_score']}"
-                f" | {tier or 'sem tier'} | Dados: {analysis['qualidade_dados']}"
-            )
-
+            print(f"   [+] {item['titulo'][:48]}... | {item['preco']:.2f}€ | Ranking: {analysis['score_ranking']}/100 | Valor: {analysis['value_score']} | {tier or 'sem tier'} | Dados: {analysis['qualidade_dados']}")
             should_alert, reason = deve_alertar(prev, {"preco": item["preco"], **analysis})
             if should_alert and item.get("stock") is not False and validar_url_produto(item):
                 title, msg, tag = formatar_alerta(tier, item, analysis, specs, reason)
@@ -861,30 +792,16 @@ def main() -> None:
     elapsed = (datetime.now(timezone.utc) - started).total_seconds()
     resumo = (
         "📊 Resumo da run\n"
-        f"Lojas: {stats['lojas']}\n"
-        f"Lojas com resultados: {stats['lojas_com_produtos']}\n"
-        f"Sem resultados: {stats['lojas_sem_resultados']}\n"
-        f"Bloqueadas/CAPTCHA: {stats['bloqueadas']}\n"
-        f"Erros de acesso: {stats['erros']}\n"
-        f"Produtos encontrados: {stats['encontrados']}\n"
-        f"Produtos analisados: {stats['analisados']}\n"
-        f"Aceites: {stats['aceites']}\n"
-        f"Rejeitados: {stats['rejeitados']}\n"
-        f"Preços suspeitos descartados: {stats['precos_suspeitos']}\n"
-        f"💎 Diamante: {stats['diamante']}\n"
-        f"🥇 Ouro: {stats['ouro']}\n"
-        f"🥈 Prata: {stats['prata']}\n"
-        f"🥉 Bronze: {stats['bronze']}\n"
-        f"Alertas enviados: {stats['alertas']}\n"
-        f"Tempo do scraper: {elapsed:.1f}s"
+        f"Lojas: {stats['lojas']}\nLojas com resultados: {stats['lojas_com_produtos']}\n"
+        f"Sem resultados: {stats['lojas_sem_resultados']}\nBloqueadas/CAPTCHA: {stats['bloqueadas']}\n"
+        f"Erros de acesso: {stats['erros']}\nProdutos encontrados: {stats['encontrados']}\n"
+        f"Produtos analisados: {stats['analisados']}\nAceites: {stats['aceites']}\nRejeitados: {stats['rejeitados']}\n"
+        f"Preços suspeitos descartados: {stats['precos_suspeitos']}\n💎 Diamante: {stats['diamante']}\n"
+        f"🥇 Ouro: {stats['ouro']}\n🥈 Prata: {stats['prata']}\n🥉 Bronze: {stats['bronze']}\n"
+        f"Alertas enviados: {stats['alertas']}\nTempo do scraper: {elapsed:.1f}s"
     )
     print("\n" + resumo)
     enviar_alerta("🔄 Relatório de Rastreio", resumo, "default", "bar_chart")
-
-
-def validar_url_produto(item: dict) -> bool:
-    url = item.get("url")
-    return bool(url and urlparse(url).scheme in {"http", "https"})
 
 
 if __name__ == "__main__":
