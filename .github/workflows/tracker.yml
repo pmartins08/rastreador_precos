@@ -61,10 +61,20 @@ jobs:
           if old_top in s:
               s = s.replace(old_top, new_top, 1)
 
-          marker = '        print("OK: V8 estruturada, GPU/RAM/VRAM/TGP/ecrã/bateria, scoring e histórico.")'
-          tests = '''        test_settings = load(CONFIG_PATH).get("settings", {})\n        assert value_score(100, 1300, test_settings) == 136.0\n        assert tier_from_value(136.0, test_settings) == "DIAMANTE"\n        assert value_score(75, 1300, test_settings) == 113.2\n        assert tier_from_value(113.2, test_settings) == "OURO"\n        assert tier_from_value(69.9, test_settings) is None\n        assert tier_from_value(70.0, test_settings) == "BRONZE"\n        assert tier_from_value(90.0, test_settings) == "PRATA"\n        assert tier_from_value(110.0, test_settings) == "OURO"\n        assert tier_from_value(130.0, test_settings) == "DIAMANTE"\n'''
-          if marker in s and 'assert value_score(100, 1300' not in s:
-              s = s.replace(marker, tests + marker, 1)
+          old_keyboard = '''    elif key == "keyboard":\n        kt = norm(value)\n        o["teclado_pt"] = (\n            "nao_pt" if any(x in kt for x in KNPT)\n            else "confirmado" if any(x in kt for x in KPT)\n            else o["teclado_pt"]\n        )'''
+          new_keyboard = '''    elif key == "keyboard":\n        kt = norm(value)\n        pt_exact = {"pt", "pt-pt", "portugues", "portuguese", "portugal", "portugues portugal", "portuguese portugal"}\n        o["teclado_pt"] = (\n            "nao_pt" if any(x in kt for x in KNPT)\n            else "confirmado" if kt in pt_exact or bool(re.search(r"\\b(?:pt|pt-pt)\\b", kt))\n            else o["teclado_pt"]\n        )'''
+          if old_keyboard in s:
+              s = s.replace(old_keyboard, new_keyboard, 1)
+
+          old_return = '''    return o\n\ndef quality(s: dict) -> tuple[float, str]:'''
+          new_return = '''    if o.get("teclado_pt") == "desconhecido":\n        nt = norm(page_text)\n        if re.search(r"teclado.{0,80}\\b(?:pt|pt-pt|portugues|portuguese|portugal)\\b", nt):\n            o["teclado_pt"] = "confirmado"\n            o["fontes"]["teclado_pt"] = "contexto_texto"\n        elif re.search(r"teclado.{0,80}\\b(?:espanhol|spanish|frances|french|alemao|german|ingles|english|azerty|qwertz)\\b", nt):\n            o["teclado_pt"] = "nao_pt"\n            o["fontes"]["teclado_pt"] = "contexto_texto"\n    return o\n\ndef quality(s: dict) -> tuple[float, str]:'''
+          if old_return in s:
+              s = s.replace(old_return, new_return, 1)
+
+          old_unknown = '''        if require_pt and s.get("teclado_pt") == "desconhecido":\n            continue'''
+          new_unknown = '''        if require_pt and s.get("teclado_pt") == "desconhecido":\n            loja_stats[loja]["rejeitados"] += 1\n            continue'''
+          if old_unknown in s:
+              s = s.replace(old_unknown, new_unknown, 1)
 
           Path('scraper.py').write_text(s, encoding='utf-8')
           PY
@@ -94,7 +104,7 @@ jobs:
             echo "Sem alterações no histórico/código."
             exit 0
           fi
-          git commit -m "fix: corrigir descoberta e revalidar score V8 [skip ci]"
+          git commit -m "fix: melhorar teclado PT e preservar score V8 [skip ci]"
           git fetch origin main
           git rebase origin/main
           git push
