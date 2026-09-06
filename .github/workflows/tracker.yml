@@ -26,16 +26,18 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
-      - name: Smoke tests — classificação, promoções e GPU
+      - name: Smoke tests — classificação, promoções, GPU e pisos
         run: |
           python - <<'PY'
+          from scraper_core import gpu_from_contexts
           from scraper_specs import specs, score
-          from scraper_scrape import alert
+          from scraper_scrape import alert, validate_price
           settings = {
               'bronze_value_min': 70, 'prata_value_min': 90,
               'ouro_value_min': 110, 'diamante_value_min': 130,
               'preco_minimo_global': 250,
               'alerta_queda_preco_eur': 5,
+              'gpu_preco_min': {'rtx 5090': 1600},
           }
           weights = {'gpu_base': {}, 'cpu_base': {'tier_1': 100, 'tier_2': 85, 'tier_3': 70}}
 
@@ -50,9 +52,21 @@ jobs:
           assert unknown['gpu_tipo'] == 'desconhecida'
           assert score(unknown, 900, weights, settings)['oportunidade'] is None
 
+          # O título do produto deve dominar e nunca herdar uma RTX de texto genérico da página.
+          hp_igpu = gpu_from_contexts(['HP 15 i7-1255U 16GB 512GB FHD Intel UHD Graphics'])
+          assert hp_igpu[1] == 'integrada' and hp_igpu[2] is None
+
+          # Um híbrido confirmado pelo próprio produto continua aceite como dedicada.
+          hp_hybrid = gpu_from_contexts(['ASUS TUF F16 Intel UHD Graphics + NVIDIA RTX 5070'])
+          assert hp_hybrid[1] == 'dedicada' and hp_hybrid[2] == 'rtx 5070'
+
+          # Piso de GPU é reaplicado depois do enriquecimento.
+          false_5090 = specs('HP 15 i7-1255U 16GB 512GB RTX 5090')
+          assert not validate_price(false_5090, 799, settings)
+
           ok, reason = alert({'price': 1700, 'oportunidade': 'OURO'}, {'preco': 1400, 'oportunidade': 'OURO'}, settings)
           assert ok and '1700.00€' in reason and '1400.00€' in reason
-          print('OK: GPU integrada, GPU dedicada, GPU desconhecida, promoção 1700→1400 e alertas de preço.')
+          print('OK: iGPU, híbrida, GPU desconhecida, GPU contextual, piso RTX, promoção 1700→1400 e alertas de preço.')
           PY
 
       - name: Validar configuração NTFY
