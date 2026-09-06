@@ -76,6 +76,18 @@ jobs:
           if old_unknown in s:
               s = s.replace(old_unknown, new_unknown, 1)
 
+          # GPU/VRAM: nunca usar o texto integral da página como fallback.
+          # Páginas de lojas incluem recomendações, comparadores e produtos relacionados.
+          old_fallback = '''    fallback = specs(title + " " + page_text[:20000])\n    for k in ["gpu_modelo", "gpu_tipo", "cpu_modelo", "cpu_str_original", "cpu_classe",\n              "ram_gb", "armazenamento_tb", "vram_gb", "tgp_w", "bateria_wh", "peso_kg",\n              "ecra_tamanho", "ecra_res", "ecra_hz", "teclado_pt"]:\n        if o.get(k) in (None, "desconhecida", "desconhecido") and fallback.get(k) not in (None, "desconhecida", "desconhecido"):\n            o[k] = fallback[k]\n            o["fontes"][k] = "titulo_texto_fallback"'''
+          new_fallback = '''    fallback = specs(title)\n    for k in ["gpu_modelo", "gpu_tipo", "cpu_modelo", "cpu_str_original", "cpu_classe",\n              "ram_gb", "armazenamento_tb", "vram_gb", "tgp_w", "bateria_wh", "peso_kg",\n              "ecra_tamanho", "ecra_res", "ecra_hz", "teclado_pt"]:\n        if o.get(k) in (None, "desconhecida", "desconhecido") and fallback.get(k) not in (None, "desconhecida", "desconhecido"):\n            o[k] = fallback[k]\n            o["fontes"][k] = "titulo_fallback"'''
+          if old_fallback in s:
+              s = s.replace(old_fallback, new_fallback, 1)
+
+          old_vram = '''    elif key == "vram":\n        m = re.search(r"(\\d{1,2})\\s*gb", t)\n        if m:\n            o["vram_gb"] = int(m.group(1))'''
+          new_vram = '''    elif key == "vram":\n        m = re.search(r"(\\d{1,2})\\s*gb\\s*gddr\\d+\\b", t)\n        if m:\n            o["vram_gb"] = int(m.group(1))'''
+          if old_vram in s:
+              s = s.replace(old_vram, new_vram, 1)
+
           Path('scraper.py').write_text(s, encoding='utf-8')
           PY
           python -m py_compile scraper.py
@@ -104,7 +116,7 @@ jobs:
             echo "Sem alterações no histórico/código."
             exit 0
           fi
-          git commit -m "fix: melhorar teclado PT e preservar score V8 [skip ci]"
+          git commit -m "fix: impedir contaminacao GPU e preservar score V8 [skip ci]"
           git fetch origin main
           git rebase origin/main
           git push
