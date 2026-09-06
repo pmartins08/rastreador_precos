@@ -26,6 +26,40 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
+      - name: Smoke tests — classificação, promoções e GPU
+        run: |
+          python - <<'PY'
+          from scraper_specs import specs, score
+          from scraper_scrape import alert
+          settings = {
+              'bronze_value_min': 70, 'prata_value_min': 90,
+              'ouro_value_min': 110, 'diamante_value_min': 130,
+              'preco_minimo_global': 250,
+              'alerta_queda_preco_eur': 5,
+          }
+          weights = {'gpu_base': {}, 'cpu_base': {'tier_1': 100, 'tier_2': 85, 'tier_3': 70}}
+
+          igpu = specs('ASUS Vivobook Intel UHD Graphics Core 7 350 16GB 512GB')
+          assert igpu['gpu_tipo'] == 'integrada'
+          assert score(igpu, 900, weights, settings)['status'] == 'REJEITADO'
+
+          hybrid = specs('ASUS TUF RTX 5070 Intel UHD Graphics Core i7-14650HX 32GB 1TB')
+          assert hybrid['gpu_tipo'] == 'dedicada' and hybrid['gpu_modelo'] == 'rtx 5070'
+
+          unknown = specs('ASUS Vivobook Core 7 350 16GB 512GB')
+          assert unknown['gpu_tipo'] == 'desconhecida'
+          assert score(unknown, 900, weights, settings)['oportunidade'] is None
+
+          ok, reason = alert({'price': 1700, 'oportunidade': 'OURO'}, {'preco': 1400, 'oportunidade': 'OURO'}, settings)
+          assert ok and '1700.00€' in reason and '1400.00€' in reason
+          print('OK: GPU integrada, GPU dedicada, GPU desconhecida, promoção 1700→1400 e alertas de preço.')
+          PY
+
+      - name: Validar configuração NTFY
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: test -n "$NTFY_TOPIC"
+
       - name: Executar Scraper
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
