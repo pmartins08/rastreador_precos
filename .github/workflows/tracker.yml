@@ -28,68 +28,6 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
-      - name: Corrigir V8 e revalidar Ouro/Diamante
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          s = Path('scraper.py').read_text(encoding='utf-8')
-
-          old = 'return list({f"{p[\'loja\']}::{p[\'titulo\']}": p for p in converted})[:limit]'
-          new = 'return list({f"{p[\'loja\']}::{p[\'titulo\']}": p for p in converted}.values())[:limit]'
-          if old in s:
-              s = s.replace(old, new, 1)
-
-          old_cpu = '    p_cpu = weights.get("cpu_base", {"tier_1": 100, "tier_2": 85, "tier_3": 70}).get(spec.get("cpu_modelo"), 50)'
-          new_cpu = '''    _cpu_model, cpu_tier, _cpu_class = cpu(spec.get("cpu_modelo", ""))\n    p_cpu = weights.get("cpu_base", {"tier_1": 100, "tier_2": 85, "tier_3": 70}).get(cpu_tier, 50)'''
-          if old_cpu in s:
-              s = s.replace(old_cpu, new_cpu, 1)
-
-          if 'def value_score(' not in s:
-              marker = '\ndef score(spec: dict, price_value: float, weights: dict, settings: dict) -> dict:\n'
-              helper = '''\ndef value_score(ranking: float, price_value: float, settings: dict) -> float:\n    raw = (1.30 * ranking) * 0.70 + price_score(price_value, settings) * 0.30\n    return round(max(0.0, min(150.0, raw)), 1)\n\n'''
-              if marker in s:
-                  s = s.replace(marker, helper + marker, 1)
-
-          s = s.replace(
-              'value = round(ranking * 0.70 + price_score(price_value, settings) * 0.30, 1)',
-              'value = value_score(ranking, price_value, settings)',
-              1,
-          )
-
-          old_top = 'top = sorted(((e, k) for k, entries in history["offers"].items() for e in (entries[-1:],)), key=lambda x: x[0].get("value_score", 0), reverse=True)[:8]'
-          new_top = 'top = sorted(((entries[-1], k) for k, entries in history["offers"].items() if entries), key=lambda x: x[0].get("value_score", 0), reverse=True)[:8]'
-          if old_top in s:
-              s = s.replace(old_top, new_top, 1)
-
-          old_keyboard = '''    elif key == "keyboard":\n        kt = norm(value)\n        o["teclado_pt"] = (\n            "nao_pt" if any(x in kt for x in KNPT)\n            else "confirmado" if any(x in kt for x in KPT)\n            else o["teclado_pt"]\n        )'''
-          new_keyboard = '''    elif key == "keyboard":\n        kt = norm(value)\n        pt_exact = {"pt", "pt-pt", "portugues", "portuguese", "portugal", "portugues portugal", "portuguese portugal"}\n        o["teclado_pt"] = (\n            "nao_pt" if any(x in kt for x in KNPT)\n            else "confirmado" if kt in pt_exact or bool(re.search(r"\\b(?:pt|pt-pt)\\b", kt))\n            else o["teclado_pt"]\n        )'''
-          if old_keyboard in s:
-              s = s.replace(old_keyboard, new_keyboard, 1)
-
-          old_return = '''    return o\n\ndef quality(s: dict) -> tuple[float, str]:'''
-          new_return = '''    if o.get("teclado_pt") == "desconhecido":\n        nt = norm(page_text)\n        if re.search(r"teclado.{0,80}\\b(?:pt|pt-pt|portugues|portuguese|portugal)\\b", nt):\n            o["teclado_pt"] = "confirmado"\n            o["fontes"]["teclado_pt"] = "contexto_texto"\n        elif re.search(r"teclado.{0,80}\\b(?:espanhol|spanish|frances|french|alemao|german|ingles|english|azerty|qwertz)\\b", nt):\n            o["teclado_pt"] = "nao_pt"\n            o["fontes"]["teclado_pt"] = "contexto_texto"\n    return o\n\ndef quality(s: dict) -> tuple[float, str]:'''
-          if old_return in s:
-              s = s.replace(old_return, new_return, 1)
-
-          old_unknown = '''        if require_pt and s.get("teclado_pt") == "desconhecido":\n            continue'''
-          new_unknown = '''        if require_pt and s.get("teclado_pt") == "desconhecido":\n            loja_stats[loja]["rejeitados"] += 1\n            continue'''
-          if old_unknown in s:
-              s = s.replace(old_unknown, new_unknown, 1)
-
-          old_fallback = '''    fallback = specs(title + " " + page_text[:20000])\n    for k in ["gpu_modelo", "gpu_tipo", "cpu_modelo", "cpu_str_original", "cpu_classe",\n              "ram_gb", "armazenamento_tb", "vram_gb", "tgp_w", "bateria_wh", "peso_kg",\n              "ecra_tamanho", "ecra_res", "ecra_hz", "teclado_pt"]:\n        if o.get(k) in (None, "desconhecida", "desconhecido") and fallback.get(k) not in (None, "desconhecida", "desconhecido"):\n            o[k] = fallback[k]\n            o["fontes"][k] = "titulo_texto_fallback"'''
-          new_fallback = '''    fallback = specs(title)\n    for k in ["gpu_modelo", "gpu_tipo", "cpu_modelo", "cpu_str_original", "cpu_classe",\n              "ram_gb", "armazenamento_tb", "vram_gb", "tgp_w", "bateria_wh", "peso_kg",\n              "ecra_tamanho", "ecra_res", "ecra_hz", "teclado_pt"]:\n        if o.get(k) in (None, "desconhecida", "desconhecido") and fallback.get(k) not in (None, "desconhecida", "desconhecido"):\n            o[k] = fallback[k]\n            o["fontes"][k] = "titulo_fallback"'''
-          if old_fallback in s:
-              s = s.replace(old_fallback, new_fallback, 1)
-
-          old_vram = '''    elif key == "vram":\n        m = re.search(r"(\\d{1,2})\\s*gb", t)\n        if m:\n            o["vram_gb"] = int(m.group(1))'''
-          new_vram = '''    elif key == "vram":\n        m = re.search(r"(\\d{1,2})\\s*gb\\s*gddr\\d+\\b", t)\n        if m:\n            o["vram_gb"] = int(m.group(1))'''
-          if old_vram in s:
-              s = s.replace(old_vram, new_vram, 1)
-
-          Path('scraper.py').write_text(s, encoding='utf-8')
-          PY
-          python -m py_compile scraper.py
-
       - name: Smoke tests — V8
         env:
           SMOKE_TEST: '1'
@@ -115,7 +53,7 @@ jobs:
           x = extract('Portátil HP 15 i7-1255U 16GB 512GB', page([('Memória RAM', '16 GB DDR4'), ('Armazenamento', '512 GB SSD')]))
           assert x['gpu_modelo'] is None, x
           assert x['vram_gb'] is None, x
-          print('OK: anti-contaminacao GPU/VRAM + score V8.')
+          print('OK: anti-contaminacao GPU/VRAM.')
           PY
 
       - name: Validar configuração NTFY
@@ -128,27 +66,16 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scraper.py
 
-      - name: Guardar Histórico e correções V8
+      - name: Guardar Histórico
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('.github/workflows/tracker.yml')
-          w = p.read_text(encoding='utf-8')
-          start = '      - name: Corrigir V8 e revalidar Ouro/Diamante\n'
-          end = '      - name: Smoke tests — V8\n'
-          if start in w and end in w:
-              before, rest = w.split(start, 1)
-              _, after = rest.split(end, 1)
-              p.write_text(before + end + after, encoding='utf-8')
-          PY
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/history.json scraper.py .github/workflows/tracker.yml
+          git add data/history.json scraper.py
           if git diff --cached --quiet; then
-            echo "Sem alterações no histórico/código/workflow."
+            echo "Sem alterações no histórico/código."
             exit 0
           fi
-          git commit -m "fix: eliminar contaminacao GPU e consolidar V8 [skip ci]"
+          git commit -m "chore: atualizar historico V8 [skip ci]"
           git fetch origin main
           git rebase origin/main
           git push
