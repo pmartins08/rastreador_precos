@@ -431,6 +431,11 @@ def price_score(price_value: float, settings: dict) -> float:
     penalty = min(30.0, (price_value - hard) / max(1.0, hard) * 100.0)
     return max(70.0, 100.0 - penalty)
 
+def value_score(ranking: float, price_value: float, settings: dict) -> float:
+    raw = (1.30 * ranking) * 0.70 + price_score(price_value, settings) * 0.30
+    return round(max(0.0, min(150.0, raw)), 1)
+
+
 def score(spec: dict, price_value: float, weights: dict, settings: dict) -> dict:
     if spec.get("teclado_pt") == "nao_pt":
         return {"status": "REJEITADO", "alertas": ["Teclado não é português."]}
@@ -446,7 +451,8 @@ def score(spec: dict, price_value: float, weights: dict, settings: dict) -> dict
     p_ssd = 50 if arm is None else 100 if arm >= 2 else 85 if arm >= 1 else 65
     p_res = {"qhd+": 100, "qhd": 95, "fhd+": 85, "fhd": 75, None: 60}.get(spec.get("ecra_res"), 60)
     p_hz = min(100, (spec.get("ecra_hz") or 60) / 1.65)
-    p_cpu = weights.get("cpu_base", {"tier_1": 100, "tier_2": 85, "tier_3": 70}).get(spec.get("cpu_modelo"), 50)
+    _cpu_model, cpu_tier, _cpu_class = cpu(spec.get("cpu_modelo", ""))
+    p_cpu = weights.get("cpu_base", {"tier_1": 100, "tier_2": 85, "tier_3": 70}).get(cpu_tier, 50)
     penalty = {"u_ultra": 0, "hs": 5, "h": 10, "hx": 20, None: 10}
     autonomy = 50 if spec.get("bateria_wh") is None else max(0, min(100, spec["bateria_wh"] / 90 * 100) - penalty.get(spec.get("cpu_classe"), 10))
     gpu_base = weights.get("gpu_base", {})
@@ -494,7 +500,7 @@ def score(spec: dict, price_value: float, weights: dict, settings: dict) -> dict
     final = feup * 0.50 + gaming * 0.25 + longevity * 0.15 + p_peso * 0.10
     conf, quality_label = quality(spec)
     ranking = round(final * (0.85 + 0.15 * conf), 1)
-    value = round(ranking * 0.70 + price_score(price_value, settings) * 0.30, 1)
+    value = value_score(ranking, price_value, settings)
     return {
         "status": "ACEITE", "score_final": round(final, 1), "score_ranking": ranking,
         "value_score": value, "qualidade_dados": quality_label,
@@ -628,7 +634,7 @@ def discover_category(html: str, cat: dict, limit: int) -> list[dict]:
             if p and 200 <= p <= 4500:
                 converted.append({"loja": cat["loja"], "titulo": x["titulo"], "preco": p, "url": urljoin(cat["url"], x["url"]), "stock": True if x.get("stock") is None else x["stock"]})
     if converted:
-        return list({f"{p['loja']}::{p['titulo']}": p for p in converted})[:limit]
+        return list({f"{p['loja']}::{p['titulo']}": p for p in converted}.values())[:limit]
 
     selectors = cat.get("card_selectors") or [
         "article", "li[class*='product']", "div[class*='product-card']", "div[class*='productCard']",
@@ -770,6 +776,16 @@ def main() -> None:
         assert gpus("ASUS TUF RTX-5070 Laptop GPU 32GB")[-1] == "rtx 5070"
         assert specs("ASUS TUF F16 RTX 5070 32GB DDR5 1TB SSD 240Hz 90Wh").get("vram_gb") is None
         assert specs("ASUS TUF RTX 5070 8 GB GDDR7").get("vram_gb") == 8
+        test_settings = load(CONFIG_PATH).get("settings", {})
+        assert value_score(100, 1300, test_settings) == 136.0
+        assert tier_from_value(136.0, test_settings) == "DIAMANTE"
+        assert value_score(75, 1300, test_settings) == 113.2
+        assert tier_from_value(113.2, test_settings) == "OURO"
+        assert tier_from_value(69.9, test_settings) is None
+        assert tier_from_value(70.0, test_settings) == "BRONZE"
+        assert tier_from_value(90.0, test_settings) == "PRATA"
+        assert tier_from_value(110.0, test_settings) == "OURO"
+        assert tier_from_value(130.0, test_settings) == "DIAMANTE"
         print("OK: V8 estruturada, GPU/RAM/VRAM/TGP/ecrã/bateria, scoring e histórico.")
         return
 
@@ -857,7 +873,7 @@ def main() -> None:
                 enviar_alerta(f"{tier}: {item['titulo']}", msg, "high" if tier in {"DIAMANTE", "OURO"} else "default")
 
     save(HISTORY_PATH, history)
-    top = sorted(((e, k) for k, entries in history["offers"].items() for e in (entries[-1:],)), key=lambda x: x[0].get("value_score", 0), reverse=True)[:8]
+    top = sorted(((entries[-1], k) for k, entries in history["offers"].items() if entries), key=lambda x: x[0].get("value_score", 0), reverse=True)[:8]
     print("🔎 TOP oportunidades:")
     for entry, key in top:
         sp = entry.get("specs", {})
