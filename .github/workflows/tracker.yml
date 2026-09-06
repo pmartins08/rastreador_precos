@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # <--- Dá permissão de escrita explicitamente ao bot
+  contents: write
 
 jobs:
   scrape:
@@ -28,10 +28,10 @@ jobs:
           pip install -r requirements.txt
           playwright install chromium --with-deps
 
-      - name: Executar Scraper
+      - name: Executar Scraper V6
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python scraper.py
+        run: python scraper_v6.py
 
       - name: Guardar Histórico
         run: |
