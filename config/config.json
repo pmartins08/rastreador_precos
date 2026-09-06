@@ -39,7 +39,6 @@
       "radeon rx 7600m xt": 700,
       "radeon rx 7600m": 600,
       "radeon rx 6850m xt": 750,
-      "radeon rx 6800m": 750,
       "radeon rx 6650m": 550,
       "radeon rx 6600m": 500,
       "radeon rx 6550m": 450,
@@ -90,11 +89,12 @@
       "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "product_path_hints": ["/produto/", "/product/", "/computadores-laptop/", "/computadores/", "/portatil/"]
+      "product_path_hints": ["/produto/", "/product/", "/computadores-laptop/", "/computadores/", "/portatil/"],
+      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     },
     {
       "loja": "PcComponentes",
-      "url": "https://www.pccomponentes.pt/portateis",
+      "url": "https://www.pccomponentes.pt/categorias/portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
       "product_path_hints": ["/portateis/", "/produto/", "/product/"]
@@ -104,7 +104,8 @@
       "url": "https://www.globaldata.pt/computadores/computadores-portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "product_path_hints": ["/produto/", "/product/", "/computadores-portateis/", "/portatil/"]
+      "product_path_hints": ["/produto/", "/product/", "/computadores-portateis/", "/portatil/"],
+      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     },
     {
       "loja": "Radio Popular",
@@ -118,7 +119,8 @@
       "url": "https://chip7.pt/computadores/portateis",
       "timeout_ms": 9000,
       "parent_climb": 7,
-      "product_path_hints": ["/produto/", "/product/", "/portateis/"]
+      "product_path_hints": ["/produto/", "/product/", "/portateis/"],
+      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     },
     {
       "loja": "FNAC",
