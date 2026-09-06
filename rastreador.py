@@ -23,14 +23,12 @@ PORTATEIS = [
     {
         "nome": "ASUS TUF F16 FX608JMI (Intel i7 / RTX 5060 / 32GB) - PcComponentes",
         "url": "https://www.pccomponentes.pt/portatil-asus-tuf-gaming-f16-fx608jmi-74b56cs1-16-intel-core-i7-14650hx-32gb-1tb-ssd-rtx-5060-pt",
-        "alvo": 30000.00 # Deixei o alvo a 30.000€ para forçar o disparo do alarme
+        "alvo": 1500.00 
     }
 ]
 
 def enviar_alerta(mensagem):
     try:
-        # A API do ntfy suporta emojis através de "Tags" (rotating_light = 🚨)
-        # O "Title" agora está em texto simples para evitar o erro latin-1
         requests.post(
             f"https://ntfy.sh/{NTFY_TOPIC}", 
             data=mensagem.encode('utf-8'),
@@ -61,19 +59,24 @@ def obter_preco(url):
         texto_limpo = re.sub(r'<[^>]+>', ' ', html).replace('&nbsp;', ' ').replace('&#8364;', '€')
         numeros = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2}))\s*€|(\d{1,3}(?:,\d{3})*(?:\.\d{2}))\s*€', texto_limpo)
         
+        precos_validos = []
         if numeros:
             for match in numeros:
                 n = match[0] if match[0] else match[1]
                 valor = float(n.replace('.', '').replace(',', '.'))
                 if 800 <= valor <= 2500: 
-                    return valor
+                    precos_validos.append(valor)
+            
+            if precos_validos:
+                # DEVOLVE O PREÇO MAIS BAIXO ENCONTRADO NA PÁGINA (A PROMOÇÃO)
+                return min(precos_validos)
     except Exception as e:
         pass
     return None
 
 def main():
     for p in PORTATEIS:
-        print(f"\n🔍 A extrair com ScraperAPI: {p['nome']}...")
+        print(f"\n🔍 A verificar: {p['nome']}...")
         preco = obter_preco(p["url"])
         if preco:
             print(f"   => Preço lido: {preco}€ (Alvo: {p['alvo']}€)")
