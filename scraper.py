@@ -340,7 +340,7 @@ def apply_pair(o: dict, key: str, value: str, source: str) -> None:
         if re.search(r"\b(2\s*x|segundo|extra|expansivel|m\.2\s+livre)\b", t):
             o["ssd_expansivel"] = True
     elif key == "vram":
-        m = re.search(r"(\d{1,2})\s*gb", t)
+        m = re.search(r"(\d{1,2})\s*gb\s*gddr\d+\b", t)
         if m:
             o["vram_gb"] = int(m.group(1))
     elif key == "tgp":
@@ -402,13 +402,21 @@ def extract(title: str, soup: BeautifulSoup) -> dict:
             if key == "m2":
                 o["ssd_expansivel"] = True
     page_text = soup.get_text(" ", strip=True)
-    fallback = specs(title + " " + page_text[:20000])
+    fallback = specs(title)
     for k in ["gpu_modelo", "gpu_tipo", "cpu_modelo", "cpu_str_original", "cpu_classe",
               "ram_gb", "armazenamento_tb", "vram_gb", "tgp_w", "bateria_wh", "peso_kg",
               "ecra_tamanho", "ecra_res", "ecra_hz", "teclado_pt"]:
         if o.get(k) in (None, "desconhecida", "desconhecido") and fallback.get(k) not in (None, "desconhecida", "desconhecido"):
             o[k] = fallback[k]
-            o["fontes"][k] = "titulo_texto_fallback"
+            o["fontes"][k] = "titulo_fallback"
+    if o.get("teclado_pt") == "desconhecido":
+        nt = norm(page_text)
+        if re.search(r"teclado.{0,80}\b(?:pt|pt-pt|portugues|portuguese|portugal)\b", nt):
+            o["teclado_pt"] = "confirmado"
+            o["fontes"]["teclado_pt"] = "contexto_texto"
+        elif re.search(r"teclado.{0,80}\b(?:espanhol|spanish|frances|french|alemao|german|ingles|english|azerty|qwertz)\b", nt):
+            o["teclado_pt"] = "nao_pt"
+            o["fontes"]["teclado_pt"] = "contexto_texto"
     if o.get("teclado_pt") == "desconhecido":
         nt = norm(page_text)
         if re.search(r"teclado.{0,80}\b(?:pt|pt-pt|portugues|portuguese|portugal)\b", nt):
