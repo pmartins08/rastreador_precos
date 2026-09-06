@@ -1,16 +1,18 @@
-name: Tracker de Portáteis
+name: Tracker de Portateis
 
 on:
   schedule:
-    # Corre de 12 em 12 horas (às 00:00 e 12:00 UTC)
     - cron: '0 */12 * * *'
-  workflow_dispatch: # Permite-te clicar num botão para correr manualmente
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout do Código
+      - name: Checkout do Codigo
         uses: actions/checkout@v4
 
       - name: Configurar Python
@@ -18,10 +20,20 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Instalar Dependências e Navegador
+      - name: Instalar Dependencias e Navegador
         run: |
           pip install -r requirements.txt
           playwright install --with-deps firefox
 
       - name: Executar o Rastreador
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scraper.py
+
+      - name: Guardar historico no repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/history.json
+          git diff --cached --quiet || git commit -m "chore: atualizar historico de precos"
+          git push
