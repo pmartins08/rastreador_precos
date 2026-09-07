@@ -8,7 +8,7 @@
     "max_verificacoes_teclado": 12,
     "max_enriquecimentos_detalhe": 48,
     "alerta_queda_preco_eur": 5.0,
-    "require_pt_keyboard": true,
+    "require_pt_keyboard": false,
     "bronze_value_min": 70.0,
     "prata_value_min": 90.0,
     "ouro_value_min": 110.0,
@@ -84,50 +84,11 @@
     }
   },
   "category_urls": [
-    {
-      "loja": "PCDiga",
-      "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
-      "timeout_ms": 12000,
-      "parent_climb": 7,
-      "product_path_hints": ["/produto/", "/product/", "/computadores-laptop/", "/computadores/", "/portatil/"],
-      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
-    },
-    {
-      "loja": "PcComponentes",
-      "url": "https://www.pccomponentes.pt/categorias/portateis",
-      "timeout_ms": 12000,
-      "parent_climb": 7,
-      "product_path_hints": ["/portateis/", "/produto/", "/product/"]
-    },
-    {
-      "loja": "Globaldata",
-      "url": "https://www.globaldata.pt/computadores/computadores-portateis",
-      "timeout_ms": 12000,
-      "parent_climb": 7,
-      "product_path_hints": ["/produto/", "/product/", "/computadores-portateis/", "/portatil/"],
-      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
-    },
-    {
-      "loja": "Radio Popular",
-      "url": "https://www.radiopopular.pt/pesquisa/laptop",
-      "timeout_ms": 12000,
-      "parent_climb": 7,
-      "product_path_hints": ["/produto/", "/product/", "/portatil/", "/laptop/"]
-    },
-    {
-      "loja": "CHIP7",
-      "url": "https://chip7.pt/computadores/portateis",
-      "timeout_ms": 9000,
-      "parent_climb": 7,
-      "product_path_hints": ["/produto/", "/product/", "/portateis/"],
-      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
-    },
-    {
-      "loja": "FNAC",
-      "url": "https://www.fnac.pt/Portateis-Windows/n1334091",
-      "timeout_ms": 12000,
-      "parent_climb": 7,
-      "product_path_hints": ["/a/", "/a-", "/produto/", "/computador-portatil", "/portatil"]
-    }
+    {"loja":"PCDiga","url":"https://www.pcdiga.com/computadores-e-software/computadores-laptop","timeout_ms":12000,"parent_climb":7,"product_path_hints":["/produto/","/product/","/computadores-laptop/","/computadores/","/portatil/"],"card_selectors":["article","div[class*='product']","li[class*='product']"]},
+    {"loja":"PcComponentes","url":"https://www.pccomponentes.pt/categorias/portateis","timeout_ms":12000,"parent_climb":7,"product_path_hints":["/portateis/","/produto/","/product/"]},
+    {"loja":"Globaldata","url":"https://www.globaldata.pt/computadores/computadores-portateis","timeout_ms":12000,"parent_climb":7,"product_path_hints":["/produto/","/product/","/computadores-portateis/","/portatil/"],"card_selectors":["article","div[class*='product']","li[class*='product']"]},
+    {"loja":"Radio Popular","url":"https://www.radiopopular.pt/pesquisa/laptop","timeout_ms":12000,"parent_climb":7,"product_path_hints":["/produto/","/product/","/portatil/","/laptop/"]},
+    {"loja":"CHIP7","url":"https://chip7.pt/computadores/portateis","timeout_ms":9000,"parent_climb":7,"product_path_hints":["/produto/","/product/","/portateis/"],"card_selectors":["article","div[class*='product']","li[class*='product']"]},
+    {"loja":"FNAC","url":"https://www.fnac.pt/Portateis-Windows/n1334091","timeout_ms":12000,"parent_climb":7,"product_path_hints":["/a/","/a-","/produto/","/computador-portatil","/portatil"]}
   ]
 }
