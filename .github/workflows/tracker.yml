@@ -33,31 +33,30 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Smoke tests — V8
-        env:
-          SMOKE_TEST: '1'
         run: |
-          python scraper.py
+          python -m py_compile scraper.py runner.py
+          SMOKE_TEST=1 python scraper.py
           python - <<'PY'
           from bs4 import BeautifulSoup
           from scraper import extract
+          import runner
 
           def page(rows):
               html = '<table>' + ''.join(f'<tr><th>{k}</th><td>{v}</td></tr>' for k, v in rows) + '</table>'
               return BeautifulSoup(html, 'html.parser')
 
           x = extract('Portátil ASUS Zenbook Ryzen AI 7 445 32GB 1TB AMD Graphics', page([('Placa gráfica', 'AMD Radeon Graphics')]))
-          assert x['gpu_modelo'] is None, x
-          assert x['gpu_tipo'] == 'integrada', x
+          assert x['gpu_modelo'] is None and x['gpu_tipo'] == 'integrada', x
 
           x = extract('Portátil ASUS TUF 16 Ryzen 7 260 32GB 1TB RTX 5070', page([('Placa gráfica', 'NVIDIA GeForce RTX 5070 Laptop GPU'), ('Memória gráfica', '8 GB GDDR7'), ('TGP', '115 W')]))
-          assert x['gpu_modelo'] == 'rtx 5070', x
-          assert x['vram_gb'] == 8, x
-          assert x['tgp_w'] == 115, x
+          assert x['gpu_modelo'] == 'rtx 5070' and x['vram_gb'] == 8 and x['tgp_w'] == 115, x
 
           x = extract('Portátil HP 15 i7-1255U 16GB 512GB', page([('Memória RAM', '16 GB DDR4'), ('Armazenamento', '512 GB SSD')]))
-          assert x['gpu_modelo'] is None, x
-          assert x['vram_gb'] is None, x
-          print('OK: anti-contaminacao GPU/VRAM.')
+          assert x['gpu_modelo'] is None and x['vram_gb'] is None, x
+
+          unknown = {'teclado_pt': 'desconhecido', 'ram_gb': 16, 'armazenamento_tb': 1, 'ecra_res': 'fhd', 'ecra_hz': 120, 'cpu_modelo': 'core i7 13620h', 'cpu_classe': 'h', 'gpu_tipo': 'dedicada', 'gpu_modelo': 'rtx 4060', 'fontes': {}}
+          assert runner.score_allow_unknown(unknown, 1200, {'gpu_base': {'rtx 4060': 65}, 'cpu_base': {'tier_1': 100, 'tier_2': 85, 'tier_3': 70}}, {})['status'] == 'ACEITE'
+          print('OK: V8 + runner adaptativo + teclado desconhecido permitido.')
           PY
 
       - name: Validar configuração NTFY
@@ -65,32 +64,34 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: test -n "$NTFY_TOPIC"
 
-      - name: Executar Scraper V8
+      - name: Executar Rastreador V8 adaptativo
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python scraper.py
+        run: python runner.py
 
-      - name: Guardar Histórico
+      - name: Guardar Histórico e Aprendizagem
         run: |
           set -e
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- data/history.json scraper.py; then
-            echo "Sem alterações no histórico/código."
+          if git diff --quiet -- data/history.json data/access_learning.json; then
+            echo "Sem alterações de dados."
             exit 0
           fi
 
           cp data/history.json /tmp/history-v8.json
+          if test -f data/access_learning.json; then cp data/access_learning.json /tmp/access-learning.json; fi
           git fetch origin main
           git reset --hard origin/main
           cp /tmp/history-v8.json data/history.json
+          if test -f /tmp/access-learning.json; then cp /tmp/access-learning.json data/access_learning.json; fi
 
-          git add data/history.json scraper.py
+          git add data/history.json data/access_learning.json
           if git diff --cached --quiet; then
             echo "Sem alterações após sincronização com main."
             exit 0
           fi
 
-          git commit -m "chore: atualizar historico V8 [skip ci]"
+          git commit -m "chore: atualizar histórico e aprendizagem V8 [skip ci]"
           git push origin HEAD:main
