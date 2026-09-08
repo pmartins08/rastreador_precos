@@ -1,21 +1,24 @@
-# Rastreador de Preços — V8.7
+# Rastreador de Preços — V8.8
 
-Motor de inteligência de mercado para portáteis ASUS, Lenovo e HP em Portugal. O sistema combina descoberta de catálogo, acesso adaptativo, extração técnica, scoring orientado ao uso FEUP + gaming, histórico, cache e notificações ntfy.
+Motor de inteligência de mercado para portáteis ASUS, Lenovo e HP em Portugal. O sistema combina descoberta de catálogo, acesso adaptativo, extração técnica, scoring orientado ao uso FEUP + gaming, validação reforçada de preços, matching cross-store, histórico, cache e notificações ntfy.
 
 ## Estrutura
 
 ```text
-scraper.py                  cérebro V8: parsing de hardware + scoring
-tracker.py                  acesso, descoberta, cache, histórico, alertas e heartbeat
-config/config.json          limites, lojas, pesos e tiers
-tests/test_tracker.py       regressões do cérebro e do tracker
-data/history.json           preços/configurações recentes e estado de alertas
-data/access_learning.json   aprendizagem de acesso por loja/método/browser
+scraper.py                  cérebro V8: parsing de hardware + scoring técnico
+price_guard.py              V8.8: confiança de preço, quarentena e bónus de oportunidade
+tracker.py                  acesso, descoberta, cache, matching, histórico, alertas e heartbeat
+runner.py                   bootstrap V8.8 e adaptadores de ingestão específicos
+config/config.json          limites, lojas, pesos, tiers e parâmetros de segurança
+tests/test_tracker.py       regressões do cérebro, acesso, matching e estado
+tests/test_price_guard.py   regressões de preço e oportunidades excecionais
+data/history.json           ofertas/configurações recentes e estado de alertas
+data/access_learning.json   aprendizagem por loja, método e perfil
 .github/workflows/tracker.yml
 requirements.txt
 ```
 
-A divisão é intencional: `scraper.py` decide **o que vale a pena**; `tracker.py` decide **como observar o mercado de forma eficiente**.
+A separação é intencional: `scraper.py` mede a adequação técnica, `price_guard.py` decide se o preço é confiável e como valorizar uma oportunidade excecional, e `tracker.py` decide como observar o mercado de forma eficiente.
 
 ## Universo
 
@@ -27,11 +30,9 @@ Apenas equipamento novo das famílias:
 
 Apple, usados, recondicionados e outlet ficam excluídos.
 
-## Scoring
+## Cérebro e tiers
 
-O cérebro V8 mantém as dimensões FEUP, Gaming, Longevidade e Portabilidade. O Value Score combina ranking técnico/adequação com preço.
-
-Tiers atuais:
+O cérebro V8 mantém as dimensões FEUP, Gaming, Longevidade e Portabilidade. O ranking técnico continua separado da oportunidade de preço.
 
 | Tier | Value mínimo |
 |---|---:|
@@ -40,79 +41,106 @@ Tiers atuais:
 | Ouro | 110 |
 | Diamante | 125 |
 
-Diamante é deliberadamente raro: representa uma combinação excecional de adequação e preço, sem exigir quase perfeição matemática como acontecia com 130.
+Diamante deve representar uma combinação verdadeiramente excecional entre configuração e preço, não apenas hardware topo.
 
-## Descoberta e cobertura
+## V8.8 — confiança de preço
+
+Um preço muito baixo não é rejeitado só por parecer improvável. Em vez disso, a V8.8 procura confirmação independente na ficha através de famílias de sinais como JSON-LD, metadata de produto e preço final/visível.
+
+- preço normal confirmado: entra no ranking;
+- preço suspeito com pelo menos duas famílias independentes concordantes: pode entrar no ranking;
+- preço suspeito sem confirmação suficiente: `PRICE_UNCONFIRMED` → quarentena;
+- preço do catálogo que diverge do preço confirmado da ficha: `PRICE_CONFLICT` → quarentena.
+
+Itens em quarentena não entram nos tiers nem geram alerta de oportunidade.
+
+Abaixo do budget soft, um preço confirmado com confiança **HIGH** pode receber um bónus de oportunidade progressivo, até +15 pontos perto dos 500 €. Assim, 499 € e 1.299 € já não são tratados como equivalentes, mas o bónus nunca existe sem validação forte do preço.
+
+## Descoberta e capacidade
 
 O tracker pode combinar:
 
 1. categoria;
-2. paginação pública confirmada;
-3. JSON-LD e cartões de produto;
-4. sitemaps quando demonstram retorno útil;
-5. probe mode para lojas persistentemente bloqueadas.
+2. segmentos/filtros públicos;
+3. paginação pública;
+4. JSON-LD e cartões;
+5. sitemaps quando demonstram retorno;
+6. probe mode para métodos persistentemente bloqueados.
 
-Cada loja tem orçamento próprio e existe também orçamento global/deadline. O sistema não tenta contornar CAPTCHA ou mecanismos anti-bot.
+O sistema aprende o rendimento de descoberta (`novos candidatos / request`) por loja e método.
 
-A cache de especificações é independente do orçamento de fichas novas: produtos descobertos novamente podem reutilizar CPU/GPU/RAM/ecrã já confirmados, libertando acessos de detalhe para SKUs novos.
+Budgets atuais da V8.8:
 
-## Identidade de configurações
+- até **240 avaliações** por run;
+- até **90 detail fetches**;
+- até **300 pedidos HTTP** globais;
+- até **60 pedidos por loja**;
+- deadline interno de **8 minutos**.
 
-Nunca assumimos que o nome comercial identifica uma configuração única. `ASUS TUF Gaming A16`, por exemplo, pode existir com GPUs, RAM e SSD diferentes.
+Estes valores são limites de segurança, não objetivos a consumir. A cache deve evitar pedidos desnecessários.
 
-A ordem de confiança é:
+## PCDiga
 
-1. SKU / part number / EAN quando disponível;
-2. caso contrário, uma assinatura conservadora que inclui título + CPU + GPU + RAM + SSD + ecrã.
+A página de categoria é pouco útil para descoberta server-side, por isso a estratégia usa sitemap e fichas de produto. O preço da ficha pode aparecer como texto simples; a V8.8 usa um fallback contextual que escolhe o primeiro preço visível seguro e ignora preço antigo/PVPR, descontos negativos, mensalidades e financiamento. Nunca escolhe simplesmente o menor valor em euros da página.
 
-A V8.7 executa matching cross-store conservador em quatro níveis: **EXATO** (EAN/MPN), **FORTE** (model code + CPU/GPU/RAM/SSD), **PROVÁVEL** (apenas para revisão) e **NÃO FUNDIR** quando existe conflito técnico. Só EXATO/FORTE formam grupos automáticos de ofertas e nunca alteram o histórico individual de cada loja.
+## Identidade e matching cross-store
+
+Nunca assumimos que o nome comercial identifica uma configuração única. Um `ASUS TUF Gaming A16`, por exemplo, pode existir com GPU, RAM, SSD, ecrã e bateria diferentes.
+
+A ordem de evidência é:
+
+1. EAN/GTIN ou MPN/part number;
+2. SKU quando acompanhado por configuração técnica completa;
+3. model code + CPU + GPU + RAM + SSD;
+4. assinatura técnica conservadora apenas para análise.
+
+Níveis:
+
+- **EXATO** — EAN/MPN idêntico;
+- **FORTE** — model code/SKU + configuração principal coincidem;
+- **PROVÁVEL** — apenas revisão, nunca fusão automática;
+- **NÃO FUNDIR** — conflito real entre variantes da mesma família.
+
+Só EXATO/FORTE formam grupos automáticos. Alertas cross-store exigem que a melhor oferta cumpra o tier mínimo e que a diferença seja pelo menos 50 € ou 5%.
+
+## Cache e identidade progressiva
+
+Specs já conhecidas podem ser reutilizadas sem ocupar o orçamento de fichas novas. A folga de detail fetches pode refrescar gradualmente até 16 ofertas cached por run que ainda não tenham EAN/MPN. Produtos novos mantêm prioridade.
+
+Cada URL guarda `identity_checked_at`, evitando voltar a abrir indefinidamente uma ficha já verificada sem identificador forte.
 
 ## Acesso adaptativo
 
-O tracker aprende por loja + método + perfil de browser. Fontes persistentemente bloqueadas entram em `probe mode`, recebendo uma tentativa barata em vez de desperdiçar dezenas de requests.
+O tracker aprende por loja + método + perfil de browser. Métodos persistentemente bloqueados entram em `probe mode`, recebendo tentativas baratas em vez de consumir dezenas de requests.
 
-A aprendizagem de acesso é persistida em `data/access_learning.json` e não é apagada quando o histórico de preços é compactado. A V8.7 aprende também o **rendimento de descoberta** (novos candidatos por request) por método/segmento e usa esse histórico para ordenar rotas alternativas mais produtivas.
+A aprendizagem fica em `data/access_learning.json` e é preservada quando o histórico de preços é compactado. Não existe bypass de CAPTCHA nem tentativa de contornar mecanismos anti-bot; novas integrações devem usar apenas vias públicas e legítimas.
 
 ## Histórico
 
-O histórico V8.7 é automaticamente compactado:
-
-- remove formatos e observações pré-V8.7;
-- normaliza chaves por URL;
-- mantém apenas observações recentes necessárias para preço/cache;
-- preserva estado de alertas válido;
-- mantém apenas as runs V8.7 recentes.
+O histórico guarda observações recentes por URL, specs necessárias à cache, IDs de configuração, estado de alertas e runs recentes. O estado é persistido com merge concorrente para impedir que uma run antiga apague aprendizagem mais recente.
 
 ## ntfy
 
-Existem dois sinais independentes:
+Existem sinais independentes:
 
-- alertas de oportunidade (Ouro/Diamante, upgrades de tier ou quedas de preço);
-- heartbeat de saúde em todas as runs normais.
-
-Se o pipeline falhar antes de o Python terminar, o GitHub Actions envia um heartbeat de falha separado.
+- alertas de oportunidades Ouro/Diamante e mudanças materiais;
+- alertas cross-store quando existe diferença relevante;
+- heartbeat de saúde em todas as runs normais;
+- heartbeat de falha pelo GitHub Actions quando o pipeline termina antes do heartbeat normal.
 
 ## Testes
 
 ```bash
-python -m py_compile scraper.py tracker.py tests/test_tracker.py
-python -m unittest discover -s tests -p 'test_tracker.py' -v
+python -m py_compile scraper.py tracker.py price_guard.py runner.py tests/test_tracker.py tests/test_price_guard.py
+python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-A suite cobre preços PT/EU, CPU/GPU, VRAM, TGP, M.2, JSON-LD, IDs fortes, variantes de configuração, cache, paginação, budgets, probe mode, heartbeat, histórico e merge concorrente.
+A suite cobre preços PT/EU, o caso 4.999 € vs 499 €, preço antigo/desconto/mensalidade, confirmação multissinal, Diamante excecional, CPU/GPU/VRAM/TGP/M.2, JSON-LD, IDs fortes, variantes, cache, paginação, budgets, probe mode, heartbeat, matching e merge concorrente.
 
 ## Execução
 
 O workflow corre em push para `main`, manualmente e a cada 6 horas. A ordem é testes → validação ntfy → tracker → heartbeat → merge/persistência segura.
 
+## Caminho para V9
 
-## Refinamentos V8.7
-
-- O matching distingue produtos não relacionados de conflitos reais de variante.
-- Comparações cross-store só notificam quando a melhor oferta cumpre o tier mínimo e a diferença é pelo menos 50 € ou 5%.
-- A PCDiga prioriza famílias de maior interesse no sitemap e pode usar o host público `publojas.pcdiga.com` como fallback de ficha, mantendo a URL canónica da oferta.
-
-
-## Identidade progressiva V8.7
-
-A cache continua a maximizar cobertura, mas a folga de detail fetches pode agora refrescar gradualmente até 12 ofertas cached por run que ainda não tenham EAN/MPN. Produtos novos mantêm sempre prioridade. Cada URL guarda `identity_checked_at`, evitando reabrir repetidamente uma ficha que já foi verificada sem encontrar um identificador forte.
+A V9 fica reservada para quando todas as lojas-alvo tiverem pelo menos um método público, estável e suportado de descoberta/acesso e o matching cross-store estiver maduro. Até lá, a linha V8.x continua a melhorar cobertura, identidade, segurança de preço e eficiência sem alterar arbitrariamente o cérebro técnico.
