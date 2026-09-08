@@ -32,17 +32,21 @@ jobs:
       - name: Compilar módulos
         run: |
           python -m py_compile \
+            version.py \
+            version_guard.py \
             scraper.py \
             brain_guard.py \
             price_guard.py \
             market_guard.py \
             promotion_guard.py \
+            historical_guard.py \
             tracker.py \
             runner.py \
             tests/test_brain_guard.py \
             tests/test_price_guard.py \
             tests/test_market_guard.py \
             tests/test_promotion_guard.py \
+            tests/test_historical_guard.py \
             tests/test_tracker.py
 
       - name: Testes unitários
