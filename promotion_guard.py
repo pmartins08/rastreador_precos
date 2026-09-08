@@ -26,7 +26,6 @@ DEFAULT_CAMPAIGNS = {
         {
             "label": "regresso_aulas_2026",
             "url": "https://www.fnac.pt/regresso-as-aulas",
-            "expires_at": "2026-09-30",
             "priority": 115,
         }
     ],
@@ -34,7 +33,6 @@ DEFAULT_CAMPAIGNS = {
         {
             "label": "regresso_aulas_2026",
             "url": "https://www.radiopopular.pt/microsite/regresso-as-aulas-2026",
-            "expires_at": "2026-09-15",
             "priority": 115,
         }
     ],
