@@ -3,10 +3,15 @@ from __future__ import annotations
 import sys
 
 import scraper
-from market_guard import VERSION, install as install_market_guard
+from brain_guard import VERSION, install as install_brain_guard
+from market_guard import install as install_market_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 
 
+# Ordem intencional: correções técnicas entram primeiro; price_guard envolve o
+# cérebro já corrigido e acrescenta confiança/bónus de preço; market_guard atua
+# depois sobre a decisão operacional cross-store.
+install_brain_guard(scraper)
 install_price_guard(scraper)
 
 import tracker
@@ -49,8 +54,8 @@ def _safe_page_price(soup, structured_price: float | None = None) -> float | Non
     return None
 
 
-# O tracker continua responsável por toda a operação; as camadas de preço e
-# desacordo de mercado são instaladas aqui num único composition root.
+# O tracker continua responsável por toda a operação; as camadas são instaladas
+# aqui num único composition root.
 tracker.preferred_page_price = _safe_page_price
 
 main = tracker.main
