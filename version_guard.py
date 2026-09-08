@@ -2,18 +2,16 @@ from __future__ import annotations
 
 import logging
 
-from version import VERSION
+from version import COMPATIBLE_STATE_VERSIONS, VERSION
 
 
+# O tracker base ainda contém alguns labels históricos no texto de log. Esta
+# camada normaliza apenas a apresentação; não altera versões gravadas no estado.
 LEGACY_RUNTIME_LABELS = ("V8.8.1", "V8.8.4")
 
 
 class RuntimeVersionFilter(logging.Filter):
-    """Normaliza apenas mensagens operacionais antigas do tracker base.
-
-    O histórico continua a preservar a versão em que cada observação foi criada;
-    este filtro serve apenas para o texto emitido pelo runtime atual.
-    """
+    """Normaliza labels operacionais antigos para a versão pública atual."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.msg, str):
@@ -23,9 +21,11 @@ class RuntimeVersionFilter(logging.Filter):
 
 
 def install(tracker_module) -> None:
+    """Aplica versão pública e compatibilidade sem reescrever o tracker base."""
     if getattr(tracker_module, "_VERSION_GUARD_INSTALLED", False):
         return
+
     tracker_module.VERSION = VERSION
-    tracker_module.COMPATIBLE_STATE_VERSIONS.add(VERSION)
+    tracker_module.COMPATIBLE_STATE_VERSIONS.update(COMPATIBLE_STATE_VERSIONS)
     tracker_module.LOGGER.addFilter(RuntimeVersionFilter())
     tracker_module._VERSION_GUARD_INSTALLED = True

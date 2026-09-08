@@ -1,61 +1,29 @@
-# Rastreador de Preços — V8.8.6
+# Rastreador de Preços — V8.8.7
 
-Motor de inteligência de mercado para portáteis ASUS, Lenovo e HP em Portugal. O sistema combina descoberta adaptativa, campanhas promocionais como fonte de leads, extração técnica, scoring orientado ao uso FEUP + gaming, validação reforçada de preços, matching cross-store, histórico de preços, cache e notificações ntfy.
+Sistema de inteligência de mercado para portáteis em Portugal. O projeto descobre ofertas em várias lojas, extrai hardware, calcula adequação para **FEUP + gaming**, valida preços, compara configurações entre lojas, mantém histórico e envia oportunidades por **ntfy**.
 
-A V8.x continua deliberadamente uma linha de maturação. **V9 fica reservada para o momento em que todas as lojas-alvo tenham pelo menos um método público/estável de descoberta e o matching cross-store esteja suficientemente maduro.**
+A linha V8.x está focada em maturação e fiabilidade. V9/V10 são nomes provisórios para a próxima etapa do projeto, não apenas incrementos numéricos.
 
-## Estrutura
+## Estado atual
 
-```text
-version.py                    versão pública única do runtime
-version_guard.py              compatibilidade de labels/estado de versões anteriores
-scraper.py                    cérebro V8: parsing de hardware + scoring técnico base
-brain_guard.py                correções técnicas comprovadas sem reescrever o cérebro
-gpu_guard.py                  confiança mínima de GPU para tiers Ouro/Diamante
-price_guard.py                confiança de preço, quarentena e bónus de oportunidade
-market_guard.py               consenso/desacordo cross-store e proteção de promoções reais
-promotion_guard.py            campanhas públicas como leads e prioridade adaptativa
-historical_guard.py           histórico compacto de preços a 90 dias
-tracker.py                    acesso, descoberta, cache, matching, histórico e alertas
-runner.py                     composition root das camadas V8.8.x
-config/config.json            lojas, limites, pesos, tiers e parâmetros de segurança
-data/history.json             ofertas/configurações recentes e estado de alertas
-data/access_learning.json     aprendizagem por loja, método e perfil
-data/price_history.json       histórico diário compacto (criado/atualizado pelo runtime)
-tests/                        regressões do cérebro, guards, tracker e histórico
-.github/workflows/ci.yml      validação de pull requests/branch de desenvolvimento
-.github/workflows/tracker.yml execução periódica e persistência segura
-requirements.txt
-```
+- versão pública: **8.8.7**;
+- marcas aceites: **ASUS, Lenovo e HP** e respetivas famílias configuradas;
+- lojas monitorizadas: **PCDiga, PcComponentes, Globaldata, Radio Popular, Darty, CHIP7, FNAC e Worten**;
+- apenas equipamento novo; usados, recondicionados e outlet são excluídos;
+- orçamento normal: até **1500 €**, com `budget_soft` em **1300 €**;
+- execução automática a cada **6 horas** no GitHub Actions;
+- notificações de oportunidade e heartbeat por **ntfy**.
 
-A separação é intencional. `scraper.py` mede a adequação técnica; `brain_guard.py` corrige lacunas comprovadas; `gpu_guard.py` impede tiers premium com GPU insuficientemente conhecida; `price_guard.py` decide se um preço individual é confiável; `market_guard.py` usa contexto cross-store; `promotion_guard.py` decide onde vale a pena procurar primeiro; `historical_guard.py` acrescenta contexto temporal. `tracker.py` continua responsável pela observação do mercado e `runner.py` apenas compõe as camadas.
+## Como o sistema decide
 
-## Universo
+O cérebro V8 separa quatro dimensões:
 
-Apenas equipamento novo das famílias:
+1. **FEUP** — RAM, autonomia, armazenamento, ecrã e CPU;
+2. **Gaming** — GPU, CPU, refresh rate e RAM;
+3. **Longevidade** — RAM/SSD, expansibilidade, autonomia e CPU;
+4. **Portabilidade** — peso.
 
-- ASUS — ROG, TUF, Vivobook, Zenbook, ExpertBook, ProArt
-- Lenovo — Legion, LOQ, IdeaPad, ThinkPad, ThinkBook, Yoga
-- HP — OMEN, Victus, OmniBook, EliteBook, ProBook, Envy, Pavilion
-
-Apple, usados, recondicionados e outlet ficam excluídos.
-
-### Lojas-alvo atuais
-
-1. PCDiga
-2. PcComponentes
-3. Globaldata
-4. Radio Popular
-5. Darty
-6. CHIP7
-7. FNAC
-8. Worten
-
-A Darty entrou na V8.8.4 depois de uma auditoria externa ter encontrado ofertas reais que o universo anterior não observava. A estratégia permanece aberta a novas fontes relevantes, desde que possam ser integradas através de interfaces públicas e legítimas.
-
-## Cérebro e tiers
-
-O cérebro V8 mantém quatro dimensões principais: **FEUP, Gaming, Longevidade e Portabilidade**. O ranking técnico continua separado da oportunidade de preço.
+O resultado técnico gera um `score_ranking`. O preço é depois combinado num `value_score` independente do rótulo de tier.
 
 | Tier | Value mínimo |
 |---|---:|
@@ -64,250 +32,126 @@ O cérebro V8 mantém quatro dimensões principais: **FEUP, Gaming, Longevidade 
 | Ouro | 110 |
 | Diamante | 125 |
 
-Diamante deve representar uma combinação verdadeiramente excecional entre configuração e preço, não apenas hardware topo.
+### GPU Guard
 
-### GPU Guard — requisito adicional para Ouro/Diamante
+Ouro e Diamante exigem informação de GPU suficiente para justificar um selo premium.
 
-O Value bruto continua a ser calculado exatamente pela lógica do cérebro e das camadas de preço. Porém, a V8.8.6 adiciona uma regra de confiança ao **rótulo de tier**: um portátil só pode ser classificado como **Ouro ou Diamante quando a GPU dedicada foi identificada por modelo e esse modelo existe no mapa `gpu_base` do cérebro**.
+- GPU dedicada mapeada → pode atingir Ouro/Diamante;
+- iGPU explicitamente mapeada → pode atingir Ouro/Diamante se o Value justificar;
+- GPU dedicada sem modelo conhecido → máximo Prata;
+- iGPU genérica → máximo Prata;
+- GPU desconhecida → máximo Prata.
 
-Isto corrige um comportamento anterior em que uma GPU dedicada não reconhecida recebia o fallback técnico do cérebro e uma GPU completamente desconhecida também recebia pontuação parcial; CPU, RAM e preço muito favoráveis podiam depois compensar essa incerteza e empurrar o produto para Ouro.
+A V8.8.7 acrescenta classes conservadoras para **Intel Arc Graphics 140V/130V** e **Radeon 890M/880M/860M/780M/760M/680M**. A calibração está documentada em [`docs/GPU_CALIBRATION.md`](docs/GPU_CALIBRATION.md).
 
-Na V8.8.6:
+O `value_score` bruto é preservado quando o GPU Guard limita o tier. Assim, falta de confiança na GPU não apaga uma potencial oportunidade; apenas impede um selo premium injustificado.
 
-- GPU dedicada mapeada, por exemplo RTX 5070 → pode atingir Ouro/Diamante normalmente;
-- GPU dedicada detetada mas modelo não reconhecido → Value é preservado, tier máximo Prata;
-- GPU desconhecida → Value é preservado, tier máximo Prata;
-- GPU integrada → por enquanto tier máximo Prata, até existir um mapa explícito e testado de classes de iGPU.
+### Confiança de preço
 
-Esta regra **não rejeita** o portátil e não esconde uma potencial oportunidade. Se um portátil tiver Value 118 mas GPU insuficientemente confirmada, continua registado com Value 118 e pode aparecer como Prata; apenas deixa de receber um selo premium que pressupõe conhecimento suficiente do hardware.
+Preços anormalmente baixos não são aceites nem rejeitados só pelo valor aparente. O Price Guard procura evidência na própria ficha e, quando existe identidade forte, contexto cross-store por EAN/MPN.
 
-A próxima evolução natural é classificar explicitamente iGPUs modernas — por exemplo famílias Radeon 780M/890M e Intel Arc 130V/140V — com evidência de performance e testes, em vez de tratar genericamente qualquer `Radeon Graphics` ou `Intel Graphics` como equivalente.
+Estados principais:
 
-### Correção de RAM intermédia
+- `OK` — preço suficientemente suportado;
+- `PRICE_UNCONFIRMED` — oportunidade suspeita sem prova forte;
+- `PRICE_CONFLICT` — catálogo, ficha ou mercado entram em conflito;
+- quarentena — não entra em tiers nem gera alerta de oportunidade.
 
-A V8.8.3 corrigiu uma lacuna comprovada do V8: capacidades entre 16 e 32 GB, sobretudo 24 GB, caíam no ramo de longevidade de 40 pontos. `brain_guard.py` corrige apenas esse caso sem alterar arbitrariamente a restante filosofia do cérebro.
+### Teclado
 
-## V8.8 — confiança de preço
+Um layout explicitamente não português é rejeitado pelo cérebro. Quando o layout não é identificável, o sistema continua a tentar obter evidência da ficha; a confirmação de teclado PT permanece uma área de qualidade de dados a reforçar antes da linha V9.
 
-Um preço muito baixo não é rejeitado apenas por parecer improvável. A V8.8 procura confirmação independente na própria ficha através de famílias de sinais como JSON-LD, metadata de produto e preço final/visível.
+## Pipeline
 
-Além da ficha, o sistema pode usar o mercado como evidência quando **duas ou mais lojas independentes apresentam o mesmo EAN/GTIN ou MPN e preços concordantes**. Matching `FORTE` ou `PROVÁVEL` nunca é suficiente para certificar preço.
+```text
+lojas / campanhas / sitemap
+          ↓
+descoberta adaptativa
+          ↓
+extração de ficha + identidade
+          ↓
+scraper.py — cérebro técnico base
+          ↓
+brain / gpu / price / market guards
+          ↓
+Value + tier
+          ↓
+matching cross-store + histórico
+          ↓
+ntfy + persistência de estado
+```
 
-- preço normal confirmado: entra no ranking;
-- preço suspeito com múltiplas famílias independentes concordantes: pode entrar;
-- preço suspeito confirmado por lojas independentes com EAN/MPN exato: pode entrar;
-- preço suspeito sem confirmação suficiente: `PRICE_UNCONFIRMED` → quarentena;
-- catálogo vs ficha em conflito: `PRICE_CONFLICT` → quarentena;
-- oferta sem evidência própria forte que diverge de cluster exato: `PRICE_CONFLICT` → quarentena.
+`runner.py` é o composition root: carrega o cérebro e instala as camadas de proteção sem substituir a filosofia base do scoring.
 
-Itens em quarentena não entram nos tiers nem geram alerta de oportunidade.
+## Estrutura do repositório
 
-Abaixo do budget soft, um preço confirmado com confiança **HIGH** pode receber um bónus de oportunidade progressivo, até +15 pontos perto dos 500 €. O bónus nunca existe sem validação forte do preço.
+```text
+version.py                 versão pública + compatibilidade de estado
+scraper.py                 parsing de hardware + cérebro técnico V8
+tracker.py                 descoberta, acesso, cache, matching, estado e ntfy
+runner.py                  composição das camadas do runtime
 
-A evidência de preço é temporal. CPU/GPU/RAM/ecrã podem ser reutilizados da cache, mas confirmação de preço tem TTL e é refrescada quando envelhece ou quando o preço muda.
+brain_guard.py             correções técnicas comprovadas
+ gpu_guard.py              confiança e calibração de GPU/iGPU
+price_guard.py             validação de preço e quarentena
+market_guard.py            consenso/desacordo cross-store
+promotion_guard.py         campanhas e prioridade de descoberta
+historical_guard.py        histórico compacto de preços
+version_guard.py           compatibilidade com labels do tracker base
 
-## V8.8.4 — promoção real vs. consenso de mercado
+config/config.json         lojas, budgets, tiers e pesos
+data/                      estado gerado pelo runtime
+tests/                     testes de regressão e integração das camadas
+docs/                      arquitetura, operação, calibrações e roadmap
+.github/workflows/         CI e execução periódica
+```
 
-A maioria das lojas não é uma fonte de verdade absoluta. Uma promoção genuína pode ser muito mais barata que as restantes ofertas do mesmo EAN/MPN.
+## Estado persistente
 
-A hierarquia de evidência é:
+Os três ficheiros em `data/` fazem parte do produto e são atualizados pelo workflow:
 
-1. **ficha do próprio comerciante com preço HIGH**;
-2. cluster cross-store exato por EAN/MPN;
-3. preço de catálogo sem confirmação forte.
+- `history.json` — ofertas, specs, tiers, alertas e métricas recentes;
+- `access_learning.json` — aprendizagem por loja/método/perfil;
+- `price_history.json` — histórico diário compacto de preços.
 
-Se o mercado discordar de uma oferta mas a própria ficha confirmar o preço com confiança HIGH, o sistema trata-a como **market outlier verificado** em vez de a rejeitar automaticamente. Sem confirmação HIGH, um desacordo extremo mantém o comportamento conservador e pode levar a quarentena.
+Não devem ser editados manualmente. Mais detalhes em [`data/README.md`](data/README.md).
 
-## V8.8.5 — Promo Intelligence
+## Desenvolvimento local
 
-A V8.8.5 acrescentou uma ideia diferente: **campanhas promocionais são uma fonte prioritária de descoberta, não uma fonte de verdade**.
-
-Quando existe uma campanha pública ativa — por exemplo Regresso às Aulas — `promotion_guard.py` pode colocá-la à frente de segmentos genéricos. Rotas com datas conhecidas deixam automaticamente de estar ativas quando expiram.
-
-Produtos encontrados numa campanha recebem apenas:
-
-- proveniência `promocao`;
-- prioridade adicional no **pré-ranking**, para merecerem análise mais cedo;
-- métricas próprias de rendimento (`novos candidatos / request`).
-
-A promoção **não altera** diretamente score técnico, Value, tier, confiança de preço ou regras de quarentena. Assim, um banner “-40%” nunca consegue criar um Ouro/Diamante.
-
-### V8.8.6 — prioridade promocional adaptativa
-
-A primeira run da V8.8.5 mostrou que uma campanha pode ser útil sem ser a rota mais eficiente de uma loja. A V8.8.6 deixa por isso de dar prioridade permanente às campanhas: uma rota nova recebe uma curta fase de exploração; depois, o seu lugar passa a depender do rendimento real aprendido. Uma campanha com poucos candidatos por request deixa de ultrapassar indefinidamente um segmento normal comprovadamente mais produtivo.
-
-## V8.8.5 — histórico de preços a 90 dias
-
-`historical_guard.py` cria uma segunda dimensão temporal: o preço atual passa a poder ser comparado com observações anteriores do próprio sistema.
-
-A identidade histórica segue uma política conservadora:
-
-1. EAN/GTIN → histórico `EXATO` partilhável entre lojas;
-2. MPN → histórico `EXATO` partilhável entre lojas;
-3. sem ID forte → histórico `LOCAL` da própria URL, nunca fundido entre comerciantes.
-
-Para evitar crescimento desnecessário, não são guardadas todas as observações completas. Por identidade e por dia são compactados mínimo, máximo, último preço, soma/número de amostras e lojas observadas.
-
-A janela ativa é de **90 dias**. O contexto pode indicar mínimo, média, mediana dos mínimos diários e se o preço atual representa um **novo mínimo** ou está perto do mínimo observado.
-
-O histórico é deliberadamente informativo nesta versão: **não altera sozinho o Value, o tier ou a confiança de preço**. Serve para melhorar a explicação da oportunidade e os alertas ntfy.
-
-Importante: a comparação de uma run usa como baseline apenas o estado anterior à própria run. Duas lojas observadas segundos uma da outra não são confundidas com “histórico passado”.
-
-### Referências históricas externas
-
-Comparadores como KuantoKusta são uma linha de investigação útil porque podem oferecer histórico adicional e identificadores fortes. A integração externa não faz ainda parte do runtime. Quando existir uma interface pública suficientemente estável, a regra prevista é conservadora: usar EAN/MPN para matching e tratar a fonte externa apenas como **contexto secundário**, nunca como certificação autónoma de preço ou atalho para Diamante.
-
-## Descoberta e capacidade
-
-O tracker pode combinar:
-
-1. campanhas públicas ativas;
-2. categoria;
-3. segmentos/filtros públicos;
-4. paginação pública;
-5. JSON-LD e cartões;
-6. sitemaps quando demonstram retorno;
-7. probe mode para métodos persistentemente bloqueados.
-
-O sistema aprende o rendimento de descoberta (`novos candidatos / request`) por loja e método.
-
-Budgets atuais:
-
-- até **240 avaliações** por run;
-- até **90 detail fetches**;
-- até **300 pedidos HTTP** globais;
-- até **60 pedidos por loja**;
-- deadline interno de **8 minutos**.
-
-Estes valores são fusíveis de segurança, não objetivos a consumir. A cache deve evitar pedidos desnecessários.
-
-### Worten na V8.8.6
-
-A auditoria da primeira run V8.8.5 mostrou que o sitemap público da Worten estava a devolver URLs, mas nenhuma passava o filtro de produto. A causa era um detalhe de rota: a configuração aceitava `/produto/`, enquanto as fichas atuais usam também `/produtos/`. A V8.8.6 acrescenta esse padrão à descoberta; a validação real após merge deve medir se os URLs de sitemap passam finalmente a produzir candidatos úteis.
-
-## PCDiga
-
-A página de categoria é pouco útil para descoberta server-side, por isso a estratégia pode usar sitemap e fichas de produto. O preço da ficha pode aparecer como texto simples; a camada de confiança evita preço antigo/PVPR, descontos, mensalidades e financiamento. Nunca se escolhe simplesmente o menor valor em euros da página.
-
-A PCDiga já produz candidatos reais, mas continua a ter custo por candidato superior às melhores fontes. Melhorar o rendimento por request permanece objetivo da linha V8.x.
-
-## Identidade e matching cross-store
-
-Nunca assumimos que o nome comercial identifica uma configuração única. Um `ASUS TUF Gaming A16`, por exemplo, pode existir com GPU, RAM, SSD, ecrã e bateria diferentes.
-
-Ordem de evidência:
-
-1. EAN/GTIN ou MPN/part number;
-2. SKU quando acompanhado por configuração técnica completa;
-3. model code + CPU + GPU + RAM + SSD;
-4. assinatura técnica conservadora apenas para análise.
-
-Níveis:
-
-- **EXATO** — EAN/MPN idêntico;
-- **FORTE** — model code/SKU + configuração principal coincidem;
-- **PROVÁVEL** — apenas revisão, nunca fusão automática;
-- **NÃO FUNDIR** — conflito real entre variantes da mesma família.
-
-Só EXATO/FORTE formam grupos automáticos. Para **confirmar preço**, apenas EAN/MPN exato pode formar um cluster de mercado. Alertas cross-store exigem que a melhor oferta cumpra o tier mínimo e que a diferença seja pelo menos 50 € ou 5%.
-
-## Cache e identidade progressiva
-
-Specs já conhecidas podem ser reutilizadas sem ocupar o orçamento de fichas novas. A folga de detail fetches pode refrescar gradualmente ofertas cached que ainda não tenham EAN/MPN ou cuja evidência de preço precise de atualização. Produtos novos mantêm prioridade.
-
-Cada URL guarda `identity_checked_at`, evitando voltar a abrir indefinidamente uma ficha já verificada sem identificador forte.
-
-## Acesso adaptativo
-
-O tracker aprende por loja + método + perfil de browser. Métodos persistentemente bloqueados entram em `probe mode`, recebendo tentativas baratas em vez de consumir dezenas de requests.
-
-A aprendizagem fica em `data/access_learning.json`. Não existe bypass de CAPTCHA nem tentativa de contornar mecanismos anti-bot; novas integrações devem usar apenas vias públicas e legítimas.
-
-Para lojas bloqueadas, uma linha de investigação é usar descoberta indexada legítima apenas como **lead generation**: encontrar EAN/MPN/model code por API, feed público ou endpoint autorizado e depois validar identidade/preço através do comerciante, fabricante ou outras lojas. Snippets nunca devem ser fonte única para scoring ou alertas.
-
-## Histórico e estado
-
-Existem três estados persistentes com objetivos diferentes:
-
-- `data/history.json` — ofertas/configurações recentes, cache, alertas e métricas de runs;
-- `data/access_learning.json` — aprendizagem de acesso e rendimento por método;
-- `data/price_history.json` — séries diárias compactas de preço até 90 dias.
-
-A persistência no GitHub Actions faz merge seguro após sincronizar com `main`, para uma run antiga não apagar estado mais recente.
-
-Referências a versões V8.5–V8.8.x mantidas na compatibilidade de estado **não são resíduos**: permitem reutilizar cache válida e preservar a evolução medida do sistema.
-
-## ntfy e observabilidade
-
-Existem sinais independentes:
-
-- alertas de oportunidades Ouro/Diamante e mudanças materiais;
-- contexto histórico quando disponível;
-- alertas cross-store quando existe diferença relevante;
-- heartbeat de saúde em todas as runs normais;
-- heartbeat redundante pelo GitHub Actions;
-- heartbeat de falha quando o pipeline termina prematuramente.
-
-A versão pública do runtime está centralizada em `version.py`.
-
-## Testes e CI
+Requer Python 3.11.
 
 ```bash
-python -m py_compile version.py version_guard.py scraper.py brain_guard.py gpu_guard.py price_guard.py market_guard.py promotion_guard.py historical_guard.py tracker.py runner.py
+python -m pip install -r requirements.txt
+python -m compileall -q .
+python -m json.tool config/config.json > /dev/null
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-A suite cobre, entre outros casos:
+Para executar o rastreador é necessário definir `NTFY_TOPIC` no ambiente e depois correr:
 
-- preços PT/EU e o bug 4.999 € vs 499 €;
-- preço antigo, desconto, mensalidade e financiamento;
-- confirmação multissinal e cross-store exata;
-- promoções reais que divergem do mercado;
-- quarentena por evidência insuficiente;
-- expiração da confiança de preço na cache;
-- RAM intermédia;
-- GPU desconhecida/dedicada não mapeada limitada a Prata;
-- GPU dedicada mapeada preservando Ouro/Diamante;
-- isolamento do GPU Guard sem alterar `tier_from_value()` do cérebro fora de uma avaliação;
-- CPU/GPU/VRAM/TGP/M.2;
-- JSON-LD e IDs fortes;
-- variantes e matching;
-- cache, paginação, budgets e probe mode;
-- prioridade/expiração/adaptação de campanhas;
-- histórico de 90 dias, novo mínimo, compactação e merge idempotente;
-- heartbeat e merge concorrente.
+```bash
+python runner.py
+```
 
-`.github/workflows/ci.yml` valida alterações antes da integração. O workflow de produção corre em push para `main`, manualmente e a cada 6 horas.
+## Documentação
 
-A ordem operacional é aproximadamente:
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — responsabilidades, fluxo e fronteiras entre módulos;
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — workflows, budgets, estado, ntfy e diagnóstico;
+- [`docs/GPU_CALIBRATION.md`](docs/GPU_CALIBRATION.md) — calibração de GPUs integradas;
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — caminho para a próxima grande versão e preparação da futura apresentação;
+- [`docs/validation/`](docs/validation/) — validações pós-release preservadas como evidência histórica;
+- [`CHANGELOG.md`](CHANGELOG.md) — evolução funcional por versão.
 
-`testes → validação ntfy → tracker → heartbeat → merge/persistência de estado`.
+## Princípios do projeto
 
-## Evolução resumida
+- o cérebro não é alterado silenciosamente;
+- guardrails devem ser pequenos, testáveis e explicáveis;
+- preço e qualidade técnica são dimensões separadas;
+- identidade cross-store exige evidência forte;
+- uma loja bloqueada não justifica bypass de CAPTCHA ou mecanismos anti-bot;
+- cache deve aumentar cobertura sem esconder alterações de preço;
+- cada mudança relevante deve deixar testes, métricas ou documentação reutilizável para a futura apresentação do modelo.
 
-- **V8.5** — cobertura por paginação, cache útil e primeira grande consolidação;
-- **V8.6** — aprendizagem de rendimento de descoberta e fundação do matching;
-- **V8.7** — identidade progressiva e maior capacidade de análise;
-- **V8.8** — confiança de preço, quarentena e bónus de oportunidade;
-- **V8.8.2** — desacordo de mercado por identidade exata;
-- **V8.8.3** — correção comprovada para capacidades intermédias de RAM;
-- **V8.8.4** — precedência de evidência HIGH da própria loja, Darty e heartbeat redundante;
-- **V8.8.5** — Promo Intelligence, histórico compacto de 90 dias, CI dedicada e limpeza do versionamento operacional;
-- **V8.8.6** — GPU Guard para tiers premium, prioridade promocional adaptativa e correção de descoberta da Worten;
-- **V9** — todas as lojas-alvo com método estável + matching cross-store maduro.
+## Próxima etapa
 
-## Caminho para V9
-
-As prioridades da linha atual são:
-
-1. validar e estabilizar a descoberta da Worten após a correção de sitemap;
-2. encontrar vias públicas/estáveis para PcComponentes e CHIP7;
-3. criar classificação explícita e testada de iGPUs modernas;
-4. melhorar rendimento da PCDiga;
-5. aumentar cobertura de EAN/MPN;
-6. amadurecer grupos EXATO/FORTE e reduzir PROVÁVEIS ambíguos;
-7. continuar a medir campanhas por candidatos úteis/request;
-8. acumular histórico suficiente para avaliar a qualidade da camada temporal.
-
-Esta cronologia, as métricas das runs e os casos reais de falhas/correções devem ser preservados porque servirão de base à futura apresentação V9/V10: problema inicial, arquitetura, cérebro, segurança, cobertura, evolução medida, matching, inteligência histórica e visão futura.
+Antes de promover o projeto para V9/V10, o objetivo é consolidar cobertura real das lojas, qualidade de dados de teclado/GPU, matching cross-store, observabilidade e histórico suficiente para comparar versões com métricas reais. A arquitetura detalhada e os critérios estão no roadmap.

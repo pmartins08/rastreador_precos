@@ -225,12 +225,17 @@ def install(scraper_module, tracker_module) -> None:
     scraper_module.gpus = gpus
 
     def select_with_cache(items, spec_cache, max_items, weights, settings):
-        # Migração zero-cost da cache: o título atual pode completar uma spec V8.8.6
-        # sem reabrir a ficha e sem invalidar CPU/RAM/ecrã já confirmados.
+        # Migração zero-cost da cache: tanto specs já embebidas no candidato como
+        # a cache externa podem ser completadas pelo título atual sem novo request.
         for item in items:
+            title = item.get("titulo")
+            inline = item.get("specs")
+            if isinstance(inline, dict):
+                _upgrade_spec_igpu(inline, scraper_module, title)
+
             cached = spec_cache.get(item.get("url")) if isinstance(spec_cache, dict) else None
             if isinstance(cached, dict):
-                _upgrade_spec_igpu(cached, scraper_module, item.get("titulo"))
+                _upgrade_spec_igpu(cached, scraper_module, title)
         return base_select_with_cache(items, spec_cache, max_items, weights, settings)
 
     def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict) -> dict:
