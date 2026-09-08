@@ -1,0 +1,418 @@
+name: Maintenance V8.8 Market Evidence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/maintenance_v88_market.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Sincronizar main
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Aplicar V8.8 market evidence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          tracker_path = Path('tracker.py')
+          tracker = tracker_path.read_text(encoding='utf-8')
+
+          old_cache = '''def latest_specs_by_url(history: dict) -> dict[str, dict]:
+    out = {}
+    for entries in (history.get("offers", {}) or {}).values():
+        if not isinstance(entries, list) or not entries:
+            continue
+        entry = entries[-1]
+        if not isinstance(entry, dict):
+            continue
+        url = entry.get("url")
+        specs = entry.get("specs")
+        if url and isinstance(specs, dict) and entry.get("tracker_version") in COMPATIBLE_STATE_VERSIONS:
+            out[url] = specs
+    return out
+'''
+          new_cache = '''PRICE_EVIDENCE_FIELDS = {
+    "price_confirmed",
+    "price_page_confidence",
+    "price_evidence_sources",
+    "price_evidence_count",
+    "price_evidence_signals",
+    "market_price_confirmed",
+    "market_price_confidence",
+    "market_price_sources",
+    "market_price_source_count",
+    "market_price_identifier",
+    "market_price_conflict",
+}
+
+
+def _hardware_cache_copy(specs: dict) -> dict:
+    """Specs persistem; evidência de preço é sempre recalculada na run atual."""
+    return {key: value for key, value in specs.items() if key not in PRICE_EVIDENCE_FIELDS}
+
+
+def latest_specs_by_url(history: dict) -> dict[str, dict]:
+    out = {}
+    for entries in (history.get("offers", {}) or {}).values():
+        if not isinstance(entries, list) or not entries:
+            continue
+        entry = entries[-1]
+        if not isinstance(entry, dict):
+            continue
+        url = entry.get("url")
+        specs = entry.get("specs")
+        if url and isinstance(specs, dict) and entry.get("tracker_version") in COMPATIBLE_STATE_VERSIONS:
+            out[url] = _hardware_cache_copy(specs)
+    return out
+'''
+          if old_cache not in tracker:
+              raise SystemExit('Bloco latest_specs_by_url não encontrado')
+          tracker = tracker.replace(old_cache, new_cache, 1)
+
+          anchor = '''def select_with_cache(
+    items: list[dict],
+'''
+          market_helpers = '''def _price_close(left: float, right: float, settings: dict) -> bool:
+    abs_tol = float(settings.get("price_confirmation_tolerance_eur", 5.0))
+    pct_tol = float(settings.get("price_confirmation_tolerance_pct", 1.5)) / 100.0
+    return abs(float(left) - float(right)) <= max(abs_tol, max(float(left), float(right)) * pct_tol)
+
+
+def _exact_market_key(item: dict) -> str | None:
+    ean = _normal_id(item.get("ean"))
+    if ean:
+        return f"ean:{ean}"
+    mpn = _normal_id(item.get("mpn"))
+    if mpn:
+        return f"mpn:{mpn}"
+    return None
+
+
+def apply_exact_market_price_evidence(records: list[dict], settings: dict) -> dict:
+    """Confirma preço apenas com EAN/MPN exato em lojas independentes.
+
+    O matching provável/forte nunca é usado para validar preço. Um cluster precisa
+    de pelo menos duas lojas distintas a concordar. Um outlier fica marcado como
+    conflito, em vez de contaminar o preço da configuração.
+    """
+    from statistics import median
+
+    for record in records:
+        spec = record.get("spec") or {}
+        for field in (
+            "market_price_confirmed", "market_price_confidence", "market_price_sources",
+            "market_price_source_count", "market_price_identifier", "market_price_conflict",
+        ):
+            spec.pop(field, None)
+
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for record in records:
+        item = record.get("item") or {}
+        key = _exact_market_key(item)
+        if key and item.get("preco") is not None:
+            groups[key].append(record)
+
+    confirmed_groups = 0
+    outliers = 0
+    for key, members in groups.items():
+        stores = {str(member["item"].get("loja")) for member in members}
+        if len(stores) < 2:
+            continue
+
+        # Cada preço é candidato a centro; escolhemos o cluster com mais lojas.
+        candidates = []
+        for center_member in members:
+            center = float(center_member["item"]["preco"])
+            cluster_by_store = {}
+            for member in members:
+                price = float(member["item"]["preco"])
+                store = str(member["item"].get("loja"))
+                if _price_close(center, price, settings):
+                    existing = cluster_by_store.get(store)
+                    if existing is None or abs(price - center) < abs(existing - center):
+                        cluster_by_store[store] = price
+            if len(cluster_by_store) >= 2:
+                values = list(cluster_by_store.values())
+                candidates.append((len(cluster_by_store), -max(values) + min(values), center, cluster_by_store))
+
+        if not candidates:
+            continue
+        _count, _spread_rank, _center, cluster = max(candidates, key=lambda row: (row[0], row[1], -row[2]))
+        market_price = round(float(median(cluster.values())), 2)
+        source_stores = sorted(cluster)
+        confirmed_groups += 1
+
+        for member in members:
+            spec = member["spec"]
+            item_price = float(member["item"]["preco"])
+            conflict = not _price_close(item_price, market_price, settings)
+            spec["market_price_confirmed"] = market_price
+            spec["market_price_confidence"] = "HIGH"
+            spec["market_price_sources"] = source_stores
+            spec["market_price_source_count"] = len(source_stores)
+            spec["market_price_identifier"] = key
+            spec["market_price_conflict"] = conflict
+            outliers += int(conflict)
+
+    return {"confirmed_groups": confirmed_groups, "outliers": outliers}
+
+
+'''
+          if anchor not in tracker:
+              raise SystemExit('Âncora select_with_cache não encontrada')
+          tracker = tracker.replace(anchor, market_helpers + anchor, 1)
+
+          old_tiers = '''    tiers = {"DIAMANTE": 0, "OURO": 0, "PRATA": 0, "BRONZE": 0}
+    alerts = 0
+    suppressed = 0
+    current_ranked = []
+    match_records = []
+
+    for item in evaluated:
+'''
+          new_tiers = '''    preliminary_records = []
+    for item in evaluated:
+        spec = item.get("specs") or scraper.specs(item.get("titulo", ""))
+        preliminary_records.append({"item": item, "spec": spec})
+    market_evidence = apply_exact_market_price_evidence(preliminary_records, settings)
+    LOGGER.info(
+        "Preço cross-store | grupos_confirmados=%d | outliers=%d",
+        market_evidence["confirmed_groups"], market_evidence["outliers"],
+    )
+
+    tiers = {"DIAMANTE": 0, "OURO": 0, "PRATA": 0, "BRONZE": 0}
+    alerts = 0
+    suppressed = 0
+    current_ranked = []
+    match_records = []
+
+    for preliminary in preliminary_records:
+        item = preliminary["item"]
+        spec = preliminary["spec"]
+'''
+          if old_tiers not in tracker:
+              raise SystemExit('Bloco principal de scoring não encontrado')
+          tracker = tracker.replace(old_tiers, new_tiers, 1)
+
+          old_spec_line = '''        spec = item.get("specs") or scraper.specs(item.get("titulo", ""))
+        assessment = score_allow_unknown(spec, float(price), weights, settings)
+'''
+          new_spec_line = '''        assessment = score_allow_unknown(spec, float(price), weights, settings)
+'''
+          if old_spec_line not in tracker:
+              raise SystemExit('Linha spec no scoring não encontrada')
+          tracker = tracker.replace(old_spec_line, new_spec_line, 1)
+
+          tracker_path.write_text(tracker, encoding='utf-8')
+
+          guard_path = Path('price_guard.py')
+          guard = guard_path.read_text(encoding='utf-8')
+
+          old_start = '''    sources = list(spec.get("price_evidence_sources") or [])
+    reason = _suspicion_reason(spec, candidate)
+
+    if confirmed is not None:
+'''
+          new_start = '''    sources = list(spec.get("price_evidence_sources") or [])
+    market_confirmed = spec.get("market_price_confirmed")
+    market_confidence = str(spec.get("market_price_confidence") or "UNKNOWN").upper()
+    market_sources = list(spec.get("market_price_sources") or [])
+    reason = _suspicion_reason(spec, candidate)
+
+    if confirmed is not None:
+'''
+          if old_start not in guard:
+              raise SystemExit('Início validate_price não encontrado')
+          guard = guard.replace(old_start, new_start, 1)
+
+          old_after_page = '''                ),
+            }
+
+    if reason:
+'''
+          new_after_page = '''                ),
+            }
+
+    market_high = market_confirmed is not None and market_confidence == "HIGH"
+    if market_high and not _close(candidate, float(market_confirmed), settings):
+        return {
+            "status": "PRICE_CONFLICT",
+            "confidence": "LOW",
+            "suspicious": bool(reason),
+            "reason": (
+                f"Preço candidato {candidate:.2f}€ diverge do mercado exato por EAN/MPN "
+                f"({float(market_confirmed):.2f}€; lojas: {', '.join(market_sources) or 'desconhecidas'})."
+            ),
+        }
+
+    if reason:
+'''
+          if old_after_page not in guard:
+              raise SystemExit('Ponto de inserção market conflict não encontrado')
+          guard = guard.replace(old_after_page, new_after_page, 1)
+
+          old_suspicious = '''    if reason:
+        if confirmed is None or page_confidence != "HIGH" or not _close(candidate, confirmed, settings):
+            return {
+                "status": "PRICE_UNCONFIRMED",
+                "confidence": "LOW",
+                "suspicious": True,
+                "reason": reason + "; faltam pelo menos duas fontes independentes concordantes na ficha.",
+            }
+        return {
+            "status": "OK",
+            "confidence": "HIGH",
+            "suspicious": True,
+            "reason": reason + "; preço confirmado por múltiplas fontes.",
+        }
+
+    confidence = (
+        "HIGH"
+        if confirmed is not None and page_confidence == "HIGH"
+        else "MEDIUM"
+        if confirmed is not None and page_confidence == "MEDIUM"
+        else "UNKNOWN"
+    )
+'''
+          new_suspicious = '''    if reason:
+        page_high = confirmed is not None and page_confidence == "HIGH" and _close(candidate, confirmed, settings)
+        market_matches = market_high and _close(candidate, float(market_confirmed), settings)
+        if not page_high and not market_matches:
+            return {
+                "status": "PRICE_UNCONFIRMED",
+                "confidence": "LOW",
+                "suspicious": True,
+                "reason": (
+                    reason
+                    + "; faltam duas fontes independentes na ficha ou duas lojas com EAN/MPN exato a concordar."
+                ),
+            }
+        confirmation = "ficha" if page_high else "mercado cross-store por EAN/MPN"
+        return {
+            "status": "OK",
+            "confidence": "HIGH",
+            "suspicious": True,
+            "reason": reason + f"; preço confirmado por {confirmation}.",
+        }
+
+    confidence = (
+        "HIGH"
+        if (confirmed is not None and page_confidence == "HIGH") or market_high
+        else "MEDIUM"
+        if confirmed is not None and page_confidence == "MEDIUM"
+        else "UNKNOWN"
+    )
+'''
+          if old_suspicious not in guard:
+              raise SystemExit('Bloco suspicious não encontrado')
+          guard = guard.replace(old_suspicious, new_suspicious, 1)
+
+          old_metadata = '''            result["price_evidence_sources"] = list(spec.get("price_evidence_sources") or [])
+            result["exceptional_deal_bonus"] = bonus
+'''
+          new_metadata = '''            result["price_evidence_sources"] = list(spec.get("price_evidence_sources") or [])
+            result["market_price_confirmed"] = spec.get("market_price_confirmed")
+            result["market_price_sources"] = list(spec.get("market_price_sources") or [])
+            result["exceptional_deal_bonus"] = bonus
+'''
+          if old_metadata not in guard:
+              raise SystemExit('Metadata score não encontrada')
+          guard = guard.replace(old_metadata, new_metadata, 1)
+          guard_path.write_text(guard, encoding='utf-8')
+
+          test_path = Path('tests/test_price_guard.py')
+          tests = test_path.read_text(encoding='utf-8')
+          insert = '''
+    def test_exact_market_group_can_confirm_suspicious_deal(self):
+        spec = self.high_end_spec(confirmed=None, confidence="UNKNOWN", sources=[])
+        spec["market_price_confirmed"] = 499.0
+        spec["market_price_confidence"] = "HIGH"
+        spec["market_price_sources"] = ["A", "B"]
+        result = scraper.score(spec, 499.0, self.weights, self.settings)
+        self.assertEqual(result["status"], "ACEITE")
+        self.assertEqual(result["price_confidence"], "HIGH")
+        self.assertEqual(scraper.tier_from_value(result["value_score"], self.settings), "DIAMANTE")
+
+    def test_exact_market_peers_quarantine_outlier(self):
+        spec = self.high_end_spec(confirmed=None, confidence="UNKNOWN", sources=[])
+        spec["market_price_confirmed"] = 4999.0
+        spec["market_price_confidence"] = "HIGH"
+        spec["market_price_sources"] = ["A", "B"]
+        result = scraper.score(spec, 499.0, self.weights, self.settings)
+        self.assertEqual(result["status"], "QUARENTENA")
+        self.assertEqual(result["price_status"], "PRICE_CONFLICT")
+
+'''
+          marker = '''
+
+if __name__ == "__main__":
+'''
+          if insert.strip() not in tests:
+              if marker not in tests:
+                  raise SystemExit('Marker tests não encontrado')
+              tests = tests.replace(marker, '\n' + insert + marker, 1)
+          test_path.write_text(tests, encoding='utf-8')
+
+          tracker_tests_path = Path('tests/test_tracker.py')
+          tracker_tests = tracker_tests_path.read_text(encoding='utf-8')
+          tracker_insert = '''
+    def test_market_evidence_requires_exact_id_and_two_stores(self):
+        records = [
+            {"item": {"loja": "A", "ean": "4711636047074", "preco": 1299.0}, "spec": {}},
+            {"item": {"loja": "B", "ean": "4711636047074", "preco": 1299.99}, "spec": {}},
+            {"item": {"loja": "C", "ean": "4711636047074", "preco": 499.0}, "spec": {}},
+        ]
+        stats = tracker.apply_exact_market_price_evidence(records, {"price_confirmation_tolerance_eur": 5})
+        self.assertEqual(stats["confirmed_groups"], 1)
+        self.assertEqual(records[0]["spec"]["market_price_confidence"], "HIGH")
+        self.assertFalse(records[0]["spec"]["market_price_conflict"])
+        self.assertTrue(records[2]["spec"]["market_price_conflict"])
+        self.assertAlmostEqual(records[2]["spec"]["market_price_confirmed"], 1299.495, places=2)
+
+    def test_hardware_cache_discards_stale_price_evidence(self):
+        cached = tracker._hardware_cache_copy({
+            "gpu_modelo": "rtx 5060",
+            "price_confirmed": 1299.0,
+            "price_page_confidence": "HIGH",
+            "market_price_confirmed": 1299.0,
+        })
+        self.assertEqual(cached["gpu_modelo"], "rtx 5060")
+        self.assertNotIn("price_confirmed", cached)
+        self.assertNotIn("market_price_confirmed", cached)
+
+'''
+          if tracker_insert.strip() not in tracker_tests:
+              if marker not in tracker_tests:
+                  raise SystemExit('Marker tracker tests não encontrado')
+              tracker_tests = tracker_tests.replace(marker, '\n' + tracker_insert + marker, 1)
+          tracker_tests_path.write_text(tracker_tests, encoding='utf-8')
+          PY
+
+      - name: Instalar dependências e testar
+        run: |
+          python -m pip install -r requirements.txt
+          python -m py_compile scraper.py tracker.py price_guard.py runner.py tests/test_tracker.py tests/test_price_guard.py
+          python -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Publicar alterações
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tracker.py price_guard.py tests/test_tracker.py tests/test_price_guard.py
+          git commit -m "feat: confirmar preços por matching exato cross-store V8.8"
+          git push origin HEAD:main
