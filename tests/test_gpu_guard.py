@@ -6,6 +6,30 @@ import gpu_guard
 class DummyScraper:
     def __init__(self):
         self.tier_from_value = self._tier
+        self.gpus = self._gpus
+        self.value_score = self._value_score
+        self._PRICE_GUARD_ORIGINALS = {"value_score": self._value_score}
+
+    @staticmethod
+    def norm(value):
+        return " ".join(str(value or "").lower().split())
+
+    @staticmethod
+    def quality(_spec):
+        return 1.0, "ALTA"
+
+    @staticmethod
+    def _value_score(ranking, _price, settings):
+        return round(float(settings.get("test_value", 120.0)) + (float(ranking) - 74.0) * 0.5, 1)
+
+    @staticmethod
+    def _gpus(text):
+        value = str(text or "").lower()
+        if "rtx 5070" in value:
+            return ["rtx 5070"], "dedicada", "rtx 5070"
+        if "radeon" in value or "arc" in value or "integrated" in value:
+            return [], "integrada", None
+        return [], "desconhecida", None
 
     @staticmethod
     def _tier(value, settings):
@@ -30,8 +54,11 @@ class DummyTracker:
         return {
             "status": "ACEITE",
             "value_score": float(settings.get("test_value", 120.0)),
+            "value_score_sem_bonus": float(settings.get("test_value", 120.0)),
+            "exceptional_deal_bonus": 0.0,
             "score_final": 75.0,
             "score_ranking": 74.0,
+            "detalhes": {"Gaming": 50.0},
         }
 
 
@@ -75,12 +102,38 @@ class GpuGuardTests(unittest.TestCase):
         self.assertEqual(assessment["gpu_tier_guard"]["status"], "DEDICADA_NAO_MAPEADA")
         self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "PRATA")
 
-    def test_integrated_gpu_is_capped_until_explicitly_classified(self):
+    def test_generic_integrated_gpu_remains_capped(self):
         scraper, tracker = self._modules()
         spec = {"gpu_tipo": "integrada", "gpu_modelo": None}
         assessment = tracker.score_allow_unknown(spec, 700, self.weights, self.settings)
-        self.assertEqual(assessment["gpu_tier_guard"]["status"], "INTEGRADA_SEM_CLASSE_PREMIUM")
+        self.assertEqual(assessment["gpu_tier_guard"]["status"], "INTEGRADA_NAO_MAPEADA")
         self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "PRATA")
+
+    def test_known_arc_140v_is_identified_and_confirmed(self):
+        scraper, tracker = self._modules()
+        models, kind, model = scraper.gpus("Intel® Arc™ de 140 V | Core Ultra 7")
+        self.assertEqual(kind, "integrada")
+        self.assertEqual(model, "intel arc graphics 140v")
+        self.assertEqual(models, ["intel arc graphics 140v"])
+
+        spec = {"gpu_tipo": kind, "gpu_modelo": model}
+        assessment = tracker.score_allow_unknown(spec, 1299, self.weights, self.settings)
+        self.assertTrue(assessment["gpu_tier_guard"]["confirmed"])
+        self.assertEqual(assessment["gpu_tier_guard"]["performance_class"], 33.0)
+        self.assertGreater(float(assessment["value_score"]), 120.0)
+        self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "OURO")
+
+    def test_known_radeon_890m_is_identified(self):
+        scraper, _tracker = self._modules()
+        models, kind, model = scraper.gpus("AMD Radeon 890M Graphics")
+        self.assertEqual((kind, model), ("integrada", "radeon 890m"))
+        self.assertEqual(models, ["radeon 890m"])
+        self.assertEqual(gpu_guard.igpu_score(model), 31.0)
+
+    def test_igpu_scale_stays_below_rtx_3050_class(self):
+        self.assertLess(max(gpu_guard.IGPU_BASE.values()), 38.0)
+        self.assertGreater(gpu_guard.IGPU_BASE["intel arc graphics 140v"], 30.0)
+        self.assertLess(gpu_guard.IGPU_BASE["radeon 780m"], 30.0)
 
     def test_diamond_also_requires_mapped_gpu(self):
         scraper, tracker = self._modules()
@@ -94,7 +147,7 @@ class GpuGuardTests(unittest.TestCase):
         self.assertEqual(scraper.tier_from_value(assessment["value_score"], settings), "DIAMANTE")
 
     def test_plain_value_calls_keep_original_tier_logic(self):
-        scraper, tracker = self._modules()
+        scraper, _tracker = self._modules()
         self.assertEqual(scraper.tier_from_value(130.0, self.settings), "DIAMANTE")
         self.assertEqual(scraper.tier_from_value(115.0, self.settings), "OURO")
 
