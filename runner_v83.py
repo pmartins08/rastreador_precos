@@ -145,6 +145,11 @@ def method_for_url(url):
     return "page"
 
 
+def store_for_url(url, config):
+    host = urlparse(url).netloc
+    return next((c["loja"] for c in config.get("category_urls", []) if urlparse(c.get("url", "")).netloc == host), host)
+
+
 def classify(response):
     if response is None: return "no_response", True
     code = response.status_code
@@ -255,8 +260,7 @@ def enrich(item, config):
     price = price_ld or item.get("preco")
     if price is None:
         vals = scraper.prices(text); price = min(vals) if vals else None
-    result = dict(item)
-    result["titulo"] = real_title if real_title and scraper.eligible(real_title) else item["titulo"]
+    result = dict(item); result["titulo"] = real_title if real_title and scraper.eligible(real_title) else item["titulo"]
     if price is not None and 200 <= price <= 4500: result["preco"] = price
     stock = scraper.stock(text)
     if stock is not None: result["stock"] = stock
