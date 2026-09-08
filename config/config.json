@@ -8,13 +8,13 @@
     "heartbeat_ntfy": true,
     "max_candidates_per_store": 60,
     "max_category_pages": 4,
-    "max_sitemap_urls_per_store": 80,
+    "max_sitemap_urls_per_store": 100,
     "sitemap_supplement_below": 24,
     "sitemap_probe_limit": 6,
-    "max_evaluated_per_run": 120,
-    "max_detail_fetches_per_run": 50,
-    "max_requests_per_run": 180,
-    "max_requests_per_store": 40,
+    "max_evaluated_per_run": 180,
+    "max_detail_fetches_per_run": 70,
+    "max_requests_per_run": 240,
+    "max_requests_per_store": 50,
     "bronze_value_min": 70.0,
     "prata_value_min": 90.0,
     "ouro_value_min": 110.0,
@@ -23,7 +23,7 @@
     "max_segment_routes": 4,
     "cross_store_alert_min_eur": 50.0,
     "cross_store_alert_min_pct": 5.0,
-    "max_identity_refreshes_per_run": 12
+    "max_identity_refreshes_per_run": 16
   },
   "weights": {
     "gpu_base": {
@@ -76,9 +76,9 @@
       "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "target_candidates": 45,
-      "sitemap_probe_limit": 10,
-      "max_sitemaps": 4,
+      "target_candidates": 60,
+      "sitemap_probe_limit": 16,
+      "max_sitemaps": 6,
       "product_path_hints": [
         "/portatil-asus-",
         "/portatil-lenovo-",
@@ -97,7 +97,8 @@
       ],
       "product_fetch_host_fallbacks": [
         "publojas.pcdiga.com"
-      ]
+      ],
+      "max_sitemap_urls": 160
     },
     {
       "loja": "PcComponentes",

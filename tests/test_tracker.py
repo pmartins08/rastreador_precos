@@ -539,5 +539,47 @@ class TrackerTests(unittest.TestCase):
         self.assertFalse(tracker.needs_identity_refresh(None))
 
 
+class PriceSafetyV871Tests(unittest.TestCase):
+    def test_absurd_rtx5090_card_price_is_rejected(self):
+        html = """
+        <article>
+          <h3>ASUS ROG Strix Scar 16 RTX 5090 64GB 2TB</h3>
+          <a href="/portatil-asus-rog-rtx5090">Produto</a>
+          <span class="price-current">449,90 €</span>
+        </article>
+        """
+        card = BeautifulSoup(html, "html.parser").article
+        item = scraper.candidate_from_card(
+            card,
+            "https://example.com/laptops",
+            {"loja": "TEST", "product_path_hints": ["/portatil-asus-"]},
+        )
+        self.assertIsNone(item)
+
+    def test_preferred_page_price_ignores_discount_amount(self):
+        soup = BeautifulSoup(
+            """
+            <div>
+              <span class="price-current">1.499,99 €</span>
+              <span class="old-price">2.299,99 €</span>
+              <span class="discount">-800,00 €</span>
+            </div>
+            """,
+            "html.parser",
+        )
+        self.assertEqual(tracker.preferred_page_price(soup, 800.0), 1499.99)
+
+    def test_url_ean_extracts_pcdiga_identifier(self):
+        url = (
+            "https://www.pcdiga.com/computadores-e-software/computadores-laptop/"
+            "computadores-portateis/portatil-asus-tuf-90nr0kv1-m00h70-4711636583923"
+        )
+        self.assertEqual(tracker.url_ean(url), "4711636583923")
+
+    def test_price_guardrail_allows_normal_rtx5060_deal(self):
+        self.assertTrue(scraper.price_is_plausible_for_title("ASUS TUF RTX 5060", 899.0))
+        self.assertFalse(scraper.price_is_plausible_for_title("ASUS ROG RTX 5090", 449.9))
+
+
 if __name__ == "__main__":
     unittest.main()

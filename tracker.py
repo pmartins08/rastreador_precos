@@ -23,8 +23,8 @@ from curl_cffi import requests
 import scraper
 
 
-VERSION = "8.7"
-COMPATIBLE_STATE_VERSIONS = {"8.5", "8.6", "8.6.1", "8.7"}
+VERSION = "8.7.1"
+COMPATIBLE_STATE_VERSIONS = {"8.5", "8.6", "8.6.1", "8.7", "8.7.1"}
 BASE = Path(__file__).resolve().parent
 CONFIG_PATH = BASE / "config" / "config.json"
 HISTORY_PATH = BASE / "data" / "history.json"
@@ -606,20 +606,23 @@ def _brand_url_score(url: str) -> int:
 def _sitemap_product_score(url: str) -> int:
     text = scraper.norm(urlparse(url).path.replace("-", " ").replace("_", " "))
     score = _brand_url_score(url) * 10
+    # Com budget hard de 1500€, priorizamos familias com maior probabilidade de
+    # cair dentro do nosso universo. Series premium continuam elegiveis, mas nao
+    # gastam os primeiros probes do sitemap antes de TUF/LOQ/Victus/etc.
     priorities = {
-        "omen": 12,
-        "victus": 11,
-        "tuf": 12,
-        "rog": 11,
-        "loq": 12,
-        "legion": 11,
-        "zenbook": 8,
-        "yoga": 8,
-        "omnibook": 8,
-        "vivobook": 6,
-        "ideapad": 6,
-        "thinkbook": 5,
-        "thinkpad": 5,
+        "tuf": 18,
+        "loq": 18,
+        "victus": 17,
+        "vivobook": 14,
+        "ideapad": 14,
+        "omnibook": 12,
+        "yoga": 10,
+        "thinkbook": 9,
+        "thinkpad": 8,
+        "zenbook": 7,
+        "legion": 6,
+        "omen": 5,
+        "rog": 3,
     }
     for marker, bonus in priorities.items():
         if marker in text:
@@ -761,6 +764,73 @@ def page_identifiers(soup: BeautifulSoup) -> dict:
     return out
 
 
+def url_ean(url: str) -> str | None:
+    """Extrai GTIN/EAN embebido no URL publico (muito util na PCDiga)."""
+    path = urlparse(str(url or "")).path
+    for digits in reversed(re.findall(r"(?<!\d)(\d{8}|\d{12,14})(?!\d)", path)):
+        if gtin_valid(digits):
+            return digits
+    return None
+
+
+def preferred_page_price(soup: BeautifulSoup, structured_price: float | None = None) -> float | None:
+    """Preco de produto por sinais fortes; nunca usa o menor euro da pagina inteira."""
+    selectors = [
+        "meta[itemprop='price'][content]",
+        "meta[property='product:price:amount'][content]",
+        "meta[property='og:price:amount'][content]",
+        "[itemprop='offers'] [itemprop='price']",
+        "[data-price-type='finalPrice'] [data-price-amount]",
+        "[data-price-type='finalPrice']",
+        "[class*='current-price']",
+        "[class*='currentPrice']",
+        "[class*='price-current']",
+        "[class*='priceCurrent']",
+        "[class*='final-price']",
+        "[class*='finalPrice']",
+        "[class*='special-price']",
+        "[class*='sale-price']",
+    ]
+    bad = (
+        "discount", "desconto", "saving", "poupanca", "poupa", "cashback",
+        "voucher", "cupao", "coupon", "mensal", "prestacao", "installment",
+        "financiamento", "finance", "old-price", "oldprice", "preco antigo",
+    )
+    values = []
+    seen = set()
+    for selector in selectors:
+        for node in soup.select(selector):
+            marker = id(node)
+            if marker in seen:
+                continue
+            seen.add(marker)
+            context = scraper.norm(
+                " ".join([
+                    " ".join(node.get("class", [])),
+                    str(node.get("id") or ""),
+                    node.get_text(" ", strip=True),
+                ])
+            )
+            if any(token in context for token in bad):
+                continue
+            raw = (
+                node.get("content")
+                or node.get("data-price-amount")
+                or node.get("data-price")
+                or node.get_text(" ", strip=True)
+            )
+            direct = scraper.parse_price_value(raw)
+            if direct is not None and 200 <= direct <= 10000:
+                values.append(float(direct))
+                continue
+            values.extend(v for v in scraper.prices(str(raw)) if 200 <= v <= 10000)
+    if values:
+        return min(values)
+    if structured_price is not None and 200 <= float(structured_price) <= 10000:
+        return float(structured_price)
+    return None
+
+
 def _product_fetch_urls(item: dict, config: dict) -> list[tuple[str, str]]:
     original = str(item["url"])
     out = [(original, "product")]
@@ -812,15 +882,22 @@ def enrich(item: dict, config: dict) -> tuple[dict, dict]:
         result["titulo"] = real_title
 
     identifiers = page_identifiers(soup)
+    if not identifiers.get("ean"):
+        identifiers["ean"] = url_ean(item.get("url", ""))
     for field in ("ean", "mpn", "sku"):
         value = structured.get(field) or identifiers.get(field) or result.get(field)
         if value:
             result[field] = str(value).strip()
 
-    price = price_ld if price_ld is not None else item.get("preco")
-    if price is None:
-        price = scraper.best_product_price(scraper.prices(text))
-    if price is not None and 200 <= float(price) <= 4500:
+    existing_price = item.get("preco")
+    strong_page_price = preferred_page_price(soup, price_ld)
+    if existing_price is not None and scraper.price_is_plausible_for_title(
+        result.get("titulo", real_title), float(existing_price)
+    ):
+        price = float(existing_price)
+    else:
+        price = strong_page_price
+    if price is not None and 200 <= float(price) <= 10000:
         result["preco"] = float(price)
 
     stock_value = scraper.stock(text)
@@ -881,7 +958,7 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
     stat = _empty_store_stats()
     target = int(cat.get("target_candidates", settings.get("max_candidates_per_store", 60)))
     max_pages = int(cat.get("max_category_pages", settings.get("max_category_pages", 4)))
-    sitemap_limit = int(settings.get("max_sitemap_urls_per_store", 80))
+    sitemap_limit = int(cat.get("max_sitemap_urls", settings.get("max_sitemap_urls_per_store", 80)))
     supplement_limit = int(cat.get("sitemap_probe_limit", settings.get("sitemap_probe_limit", 6)))
     sitemap_threshold = int(settings.get("sitemap_supplement_below", 24))
     max_sitemaps = int(cat.get("max_sitemaps", 8))
@@ -1000,6 +1077,7 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
                     "preco": None,
                     "url": url,
                     "stock": None,
+                    "ean": url_ean(url),
                 }
                 futures.append(executor.submit(enrich, seed, config))
             for future in as_completed(futures):
@@ -1769,7 +1847,7 @@ def main() -> dict:
         unique.setdefault((item["loja"], item["url"]), item)
     selected = select_with_cache(list(unique.values()), spec_cache, max_evaluated, weights, settings)
     LOGGER.info(
-        "Pré-ranking V8.7 | descobertos=%d | selecionados=%d | limite=%d | detalhe_max=%d",
+        "Pré-ranking V8.7.1 | descobertos=%d | selecionados=%d | limite=%d | detalhe_max=%d",
         len(unique),
         len(selected),
         max_evaluated,
@@ -1841,8 +1919,9 @@ def main() -> dict:
             item, error = future.result()
             if error.get("error"):
                 if mode == "identity" and cached_fallback is not None:
+                    # Falha de rede/acesso nao conta como identidade verificada; pode
+                    # voltar a ser tentada numa run futura dentro do limite progressivo.
                     fallback = dict(cached_fallback)
-                    fallback["identity_checked_at"] = now_iso()
                     fallback["detail_source"] = "identity_refresh_failed"
                     evaluated.append(fallback)
                     store = fallback["loja"]
@@ -1869,6 +1948,12 @@ def main() -> dict:
         price = item.get("preco")
         store = item["loja"]
         if price is None:
+            continue
+        if not (min_price <= float(price) <= hard):
+            stats[store]["rejeitados"] += 1
+            continue
+        if not scraper.price_is_plausible_for_title(item.get("titulo", ""), float(price)):
+            stats[store]["rejeitados"] += 1
             continue
         spec = item.get("specs") or scraper.specs(item.get("titulo", ""))
         assessment = score_allow_unknown(spec, float(price), weights, settings)
@@ -1928,7 +2013,7 @@ def main() -> dict:
     save_json(LEARNING_PATH, LEARNING)
 
     LOGGER.info(
-        "V8.7 | Lojas=%d | Descobertos=%d | Avaliados=%d | Aceites=%d | Pedidos=%d | "
+        "V8.7.1 | Lojas=%d | Descobertos=%d | Avaliados=%d | Aceites=%d | Pedidos=%d | "
         "Detalhes=%d | Cache=%d | Tempo=%.1fs | Heartbeat=%s | D=%d O=%d P=%d B=%d",
         len(stats),
         run["total_candidates"],

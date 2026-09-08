@@ -285,6 +285,30 @@ def best_product_price(
     return min(valid) if valid else None
 
 
+# Guardrail de ingestao: impede que mensalidades/descontos absurdamente baixos
+# entrem no ranking como se fossem o preco total do portatil. Nao altera scoring.
+GPU_PRICE_SANITY_MIN = {
+    "rtx 5090": 1500.0,
+    "rtx 5080": 1000.0,
+    "rtx 5070 ti": 800.0,
+    "rtx 5070": 650.0,
+    "rtx 5060 ti": 550.0,
+    "rtx 5060": 450.0,
+    "rtx 5050": 400.0,
+    "rtx 4090": 1200.0,
+    "rtx 4080": 900.0,
+    "rtx 4070": 600.0,
+    "rtx 4060": 450.0,
+}
+
+
+def price_is_plausible_for_title(title: str, price: float) -> bool:
+    value = float(price)
+    _models, _kind, model = gpus(title)
+    floor = GPU_PRICE_SANITY_MIN.get(model)
+    return floor is None or value >= floor
+
+
 # ---------------------------------------------------------------------------
 # Elegibilidade e componentes
 # ---------------------------------------------------------------------------
@@ -1051,7 +1075,7 @@ def candidate_from_card(card: BeautifulSoup, base_url: str, cat: dict) -> dict |
     if not url or not title or not eligible(title):
         return None
     price = best_product_price(_card_prices(card, cat))
-    if price is None:
+    if price is None or not price_is_plausible_for_title(title, price):
         return None
     text = card.get_text(" ", strip=True)
     return {
