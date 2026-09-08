@@ -1,4 +1,4 @@
-from runner_v81 import main
+from runner_v82 import main, score_allow_unknown
 
 
 if __name__ == "__main__":
