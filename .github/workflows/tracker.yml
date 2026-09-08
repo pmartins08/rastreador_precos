@@ -33,15 +33,15 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
-      - name: Smoke tests — V8 + runner V8.2
+      - name: Smoke tests — V8 + runner V8.3
         run: |
-          python -m py_compile scraper.py runner.py runner_v82.py
+          python -m py_compile scraper.py runner.py runner_v83.py
           SMOKE_TEST=1 python scraper.py
           python - <<'PY'
           from bs4 import BeautifulSoup
           from scraper import extract
           import runner
-          import runner_v82
+          import runner_v83
 
           def page(rows):
               html = '<table>' + ''.join(f'<tr><th>{k}</th><td>{v}</td></tr>' for k, v in rows) + '</table>'
@@ -58,14 +58,15 @@ jobs:
 
           unknown = {'teclado_pt': 'desconhecido', 'ram_gb': 16, 'armazenamento_tb': 1, 'ecra_res': 'fhd', 'ecra_hz': 120, 'cpu_modelo': 'core i7 13620h', 'cpu_classe': 'h', 'gpu_tipo': 'dedicada', 'gpu_modelo': 'rtx 4060', 'fontes': {}}
           assert runner.score_allow_unknown(unknown, 1200, {'gpu_base': {'rtx 4060': 65}, 'cpu_base': {'tier_1': 100, 'tier_2': 85, 'tier_3': 70}}, {})['status'] == 'ACEITE'
-          assert runner.main is runner_v82.main
+          assert runner.main is runner_v83.main
 
-          runner_v82.RUN_DEADLINE = 0
-          runner_v82.REQUESTS_USED = 0
-          runner_v82.MAX_REQUESTS = 0
-          assert runner_v82.budget_available() is False
+          runner_v83.RUN_DEADLINE = 0
+          runner_v83.REQUESTS_USED = 0
+          runner_v83.MAX_REQUESTS = 0
+          assert runner_v83.budget_available() is False
 
-          print('OK: V8 + V8.2 adaptativo + teclado desconhecido + orçamento de acesso.')
+          assert len(runner_v83.profile_order('TESTE', 'product')) <= 3
+          print('OK: V8 + V8.3 adaptativo + teclado desconhecido + orçamento/perfis controlados.')
           PY
 
       - name: Validar configuração NTFY
@@ -73,7 +74,7 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: test -n "$NTFY_TOPIC"
 
-      - name: Executar Rastreador V8.2 adaptativo
+      - name: Executar Rastreador V8.3 adaptativo
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           RUN_MAX_MINUTES: '8'
