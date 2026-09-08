@@ -53,12 +53,26 @@ class PromotionGuardTests(unittest.TestCase):
         self.assertEqual(routes[0]["method_key"], "campaign:promo")
         self.assertEqual(routes[1]["kind"], "segment")
 
-    def test_default_campaign_is_added_by_store_without_date_fragility(self):
+    def test_no_campaign_is_invented_when_config_is_empty(self):
         tracker = DummyTracker()
         promotion_guard.install(tracker)
-        routes = tracker.discovery_routes({}, "FNAC")
-        self.assertTrue(any(route["kind"] == "promotion" for route in routes))
-        self.assertTrue(any("regresso_aulas_2026" in route["method_key"] for route in routes))
+        self.assertEqual(tracker.discovery_routes({}, "FNAC"), [])
+
+    def test_configured_campaign_is_available(self):
+        tracker = DummyTracker()
+        promotion_guard.install(tracker)
+        cat = {
+            "campaign_urls": [
+                {
+                    "label": "regresso_aulas_2026",
+                    "url": "https://example.com/regresso-aulas",
+                    "priority": 115,
+                }
+            ]
+        }
+        routes = tracker.discovery_routes(cat, "TEST")
+        self.assertEqual(len(routes), 1)
+        self.assertEqual(routes[0]["method_key"], "campaign:regresso_aulas_2026")
 
     def test_campaign_source_is_recorded_separately(self):
         tracker = DummyTracker()
@@ -78,9 +92,7 @@ class PromotionGuardTests(unittest.TestCase):
     def test_campaign_bonus_only_affects_pre_ranking(self):
         tracker = DummyTracker()
         promotion_guard.install(tracker)
-        promoted = {
-            "discovery_sources": [promotion_guard.PROMOTION_SOURCE]
-        }
+        promoted = {"discovery_sources": [promotion_guard.PROMOTION_SOURCE]}
         normal = {"discovery_sources": ["categoria"]}
         self.assertEqual(tracker.candidate_priority(normal, {}, {}), 50.0)
         self.assertEqual(tracker.candidate_priority(promoted, {}, {}), 56.0)
