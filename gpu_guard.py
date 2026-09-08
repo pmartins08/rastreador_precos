@@ -82,7 +82,7 @@ def igpu_score(model: object) -> float | None:
 
 
 def _upgrade_spec_igpu(spec: dict, scraper_module, title: object = None) -> str | None:
-    """Promove `integrada` genérica para modelo explícito usando evidência já disponível."""
+    """Promove GPU genérica/desconhecida para iGPU explícita usando evidência disponível."""
     if not isinstance(spec, dict) or str(spec.get("gpu_tipo") or "").lower() == "dedicada":
         return None
     existing = str(spec.get("gpu_modelo") or "").strip().lower()
@@ -210,6 +210,7 @@ def install(scraper_module, tracker_module) -> None:
 
     base_gpus = scraper_module.gpus
     base_select_with_cache = tracker_module.select_with_cache
+    base_apply_market_evidence = tracker_module.apply_exact_market_price_evidence
     base_score_allow_unknown = tracker_module.score_allow_unknown
     base_tier_from_value = scraper_module.tier_from_value
 
@@ -225,8 +226,8 @@ def install(scraper_module, tracker_module) -> None:
     scraper_module.gpus = gpus
 
     def select_with_cache(items, spec_cache, max_items, weights, settings):
-        # Migração zero-cost da cache: tanto specs já embebidas no candidato como
-        # a cache externa podem ser completadas pelo título atual sem novo request.
+        # Migração antecipada e sem requests: melhora pré-ranking e cache quando o
+        # título atual já contém o modelo da iGPU.
         for item in items:
             title = item.get("titulo")
             inline = item.get("specs")
@@ -237,6 +238,18 @@ def install(scraper_module, tracker_module) -> None:
             if isinstance(cached, dict):
                 _upgrade_spec_igpu(cached, scraper_module, title)
         return base_select_with_cache(items, spec_cache, max_items, weights, settings)
+
+    def apply_market_evidence(records: list[dict], settings: dict) -> dict:
+        # Ponto autoritativo: aqui cada item já está emparelhado com a spec exata
+        # que será pontuada. Corrige cache/live/refresh antes de mercado e scoring.
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            item = record.get("item") if isinstance(record.get("item"), dict) else {}
+            spec = record.get("spec")
+            if isinstance(spec, dict):
+                _upgrade_spec_igpu(spec, scraper_module, item.get("titulo"))
+        return base_apply_market_evidence(records, settings)
 
     def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict) -> dict:
         _upgrade_spec_igpu(spec, scraper_module)
@@ -262,6 +275,7 @@ def install(scraper_module, tracker_module) -> None:
         return tier
 
     tracker_module.select_with_cache = select_with_cache
+    tracker_module.apply_exact_market_price_evidence = apply_market_evidence
     tracker_module.score_allow_unknown = score_allow_unknown
     scraper_module.tier_from_value = tier_from_value
     tracker_module._GPU_GUARD_INSTALLED = True
