@@ -23,8 +23,8 @@ from curl_cffi import requests
 import scraper
 
 
-VERSION = "8.6"
-COMPATIBLE_STATE_VERSIONS = {"8.5", "8.6"}
+VERSION = "8.6.1"
+COMPATIBLE_STATE_VERSIONS = {"8.5", "8.6", "8.6.1"}
 BASE = Path(__file__).resolve().parent
 CONFIG_PATH = BASE / "config" / "config.json"
 HISTORY_PATH = BASE / "data" / "history.json"
@@ -603,6 +603,32 @@ def _brand_url_score(url: str) -> int:
     return 0
 
 
+def _sitemap_product_score(url: str) -> int:
+    text = scraper.norm(urlparse(url).path.replace("-", " ").replace("_", " "))
+    score = _brand_url_score(url) * 10
+    priorities = {
+        "omen": 12,
+        "victus": 11,
+        "tuf": 12,
+        "rog": 11,
+        "loq": 12,
+        "legion": 11,
+        "zenbook": 8,
+        "yoga": 8,
+        "omnibook": 8,
+        "vivobook": 6,
+        "ideapad": 6,
+        "thinkbook": 5,
+        "thinkpad": 5,
+    }
+    for marker, bonus in priorities.items():
+        if marker in text:
+            score += bonus
+    if any(marker in text for marker in ("rtx 5070", "rtx 5060", "rtx 5050")):
+        score += 5
+    return score
+
+
 def _looks_like_product_url(url: str, cat: dict) -> bool:
     if not scraper.same_host(url, cat["url"]):
         return False
@@ -665,7 +691,7 @@ def discover_sitemap_urls(
                 queue.append(child)
         for url in urls:
             if _looks_like_product_url(url, cat):
-                found[url] = max(found.get(url, 0), _brand_url_score(url))
+                found[url] = max(found.get(url, 0), _sitemap_product_score(url))
 
     return [
         url
@@ -735,13 +761,34 @@ def page_identifiers(soup: BeautifulSoup) -> dict:
     return out
 
 
+def _product_fetch_urls(item: dict, config: dict) -> list[tuple[str, str]]:
+    original = str(item["url"])
+    out = [(original, "product")]
+    store = item.get("loja")
+    cat = next((row for row in config.get("category_urls", []) if row.get("loja") == store), {})
+    parsed = urlparse(original)
+    for host in cat.get("product_fetch_host_fallbacks", []):
+        fallback = parsed._replace(netloc=str(host), query="", fragment="").geturl()
+        if fallback != original:
+            out.append((fallback, f"product_fallback:{host}"))
+    return out
+
+
 def enrich(item: dict, config: dict) -> tuple[dict, dict]:
     store = item["loja"]
-    response, profile, access = adaptive_fetch(
-        item["url"], config, 8, store=store, method="product"
-    )
+    response = None
+    profile = None
+    access = "no_response"
+    used_method = "product"
+    for fetch_url, method in _product_fetch_urls(item, config):
+        response, profile, access = adaptive_fetch(
+            fetch_url, config, 8, store=store, method=method
+        )
+        used_method = method
+        if response and response.status_code < 400:
+            break
     if not response or response.status_code >= 400:
-        record_result(store, "product", profile or "none", "access_failed")
+        record_result(store, used_method, profile or "none", "access_failed")
         return item, {"error": "access_failed", "profile": profile, "access": access}
 
     soup = BeautifulSoup(response.text, "html.parser")
@@ -785,13 +832,14 @@ def enrich(item: dict, config: dict) -> tuple[dict, dict]:
     extracted["acesso_profile"] = profile
     result["specs"] = extracted
     result["detail_source"] = "live"
+    result["fetch_source"] = used_method
 
     outcome = (
         "valid_product"
         if result.get("preco") is not None and scraper.eligible(result.get("titulo", ""))
         else "no_product_or_price"
     )
-    record_result(store, "product", profile or "none", outcome)
+    record_result(store, used_method, profile or "none", outcome)
     return result, {"error": None, "profile": profile, "access": access, "result": outcome}
 
 
@@ -873,8 +921,9 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
             break
         before_requests = REQUESTS_BY_STORE.get(store, 0)
         before_candidates = len(candidates)
+        access_method = f"category_variant:{route['label']}"
         segment_response, _, segment_access = adaptive_fetch(
-            route["url"], config, 7, store=store, method="category_variant"
+            route["url"], config, 7, store=store, method=access_method
         )
         if segment_response and segment_response.status_code < 400:
             stat["segmentos_categoria"] += 1
@@ -1078,23 +1127,59 @@ def _spec_equal(left: object, right: object) -> bool:
     return left == right
 
 
+def _title_tokens(title: str) -> set[str]:
+    stop = {
+        "portatil", "computador", "laptop", "gaming", "intel", "amd", "nvidia",
+        "geforce", "radeon", "graphics", "windows", "sem", "ssd", "ddr4", "ddr5",
+        "oled", "ips", "core", "ultra", "ryzen", "asus", "lenovo", "hp", "inc",
+        "preto", "cinzento", "silver", "black", "grey", "gray", "polegadas",
+    }
+    out = set()
+    for token in re.findall(r"[a-z0-9]+", scraper.norm(title or "")):
+        if len(token) < 3 or token in stop:
+            continue
+        if re.fullmatch(r"\d+(?:gb|tb|hz|w)?", token):
+            continue
+        out.add(token)
+    return out
+
+
+def _title_similarity(left: str, right: str) -> float:
+    a, b = _title_tokens(left), _title_tokens(right)
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
 def match_configurations(left_item: dict, left_spec: dict, right_item: dict, right_spec: dict) -> dict:
     """Compara variantes entre lojas. Só EXATO/FORTE podem ser fundidos automaticamente."""
     left_brand, right_brand = left_spec.get("marca"), right_spec.get("marca")
     if left_brand and right_brand and left_brand != right_brand:
         return {"level": "SEM_MATCH", "reason": "marca diferente"}
 
+    left_codes = _model_codes(left_item.get("titulo", ""))
+    right_codes = _model_codes(right_item.get("titulo", ""))
+    shared_codes = left_codes & right_codes
+    title_similarity = _title_similarity(left_item.get("titulo", ""), right_item.get("titulo", ""))
+    family_evidence = bool(shared_codes or title_similarity >= 0.60)
+
     left_ean, right_ean = _normal_id(left_item.get("ean")), _normal_id(right_item.get("ean"))
     if left_ean and right_ean:
         if left_ean == right_ean:
             return {"level": "EXATO", "reason": "EAN/GTIN idêntico", "identifier": left_ean}
-        return {"level": "NAO_FUNDIR", "reason": "EAN/GTIN diferente"}
+        return {
+            "level": "NAO_FUNDIR" if family_evidence else "SEM_MATCH",
+            "reason": "EAN/GTIN diferente" if family_evidence else "EAN de produtos diferentes",
+        }
 
     left_mpn, right_mpn = _normal_id(left_item.get("mpn")), _normal_id(right_item.get("mpn"))
     if left_mpn and right_mpn:
         if left_mpn == right_mpn:
             return {"level": "EXATO", "reason": "MPN/part number idêntico", "identifier": left_mpn}
-        return {"level": "NAO_FUNDIR", "reason": "MPN/part number diferente"}
+        return {
+            "level": "NAO_FUNDIR" if family_evidence else "SEM_MATCH",
+            "reason": "MPN/part number diferente" if family_evidence else "MPN de produtos diferentes",
+        }
 
     critical = ("cpu_modelo", "gpu_modelo", "ram_gb", "armazenamento_tb", "ecra_res", "ecra_hz")
     known_equal = 0
@@ -1102,14 +1187,15 @@ def match_configurations(left_item: dict, left_spec: dict, right_item: dict, rig
         left_value, right_value = left_spec.get(field), right_spec.get(field)
         if left_value is not None and right_value is not None:
             if not _spec_equal(left_value, right_value):
-                return {"level": "NAO_FUNDIR", "reason": f"configuração difere em {field}"}
+                if family_evidence:
+                    return {"level": "NAO_FUNDIR", "reason": f"configuração difere em {field}"}
+                return {"level": "SEM_MATCH", "reason": f"produto diferente em {field}"}
             known_equal += 1
 
-    left_codes = _model_codes(left_item.get("titulo", ""))
-    right_codes = _model_codes(right_item.get("titulo", ""))
-    shared_codes = left_codes & right_codes
-    same_sku = bool(_normal_id(left_item.get("sku")) and _normal_id(left_item.get("sku")) == _normal_id(right_item.get("sku")))
-
+    same_sku = bool(
+        _normal_id(left_item.get("sku"))
+        and _normal_id(left_item.get("sku")) == _normal_id(right_item.get("sku"))
+    )
     core_fields = ("cpu_modelo", "gpu_modelo", "ram_gb", "armazenamento_tb")
     core_complete = all(
         left_spec.get(field) is not None
@@ -1131,9 +1217,30 @@ def match_configurations(left_item: dict, left_spec: dict, right_item: dict, rig
             "reason": "model code coincide mas faltam campos para fusão automática",
             "model_code": sorted(shared_codes)[0],
         }
-    if known_equal >= 5 and left_brand and right_brand:
-        return {"level": "PROVAVEL", "reason": "assinatura técnica muito próxima sem ID forte"}
+    if title_similarity >= 0.72 and known_equal >= 5 and left_brand and right_brand:
+        return {"level": "PROVAVEL", "reason": "título e assinatura técnica muito próximos sem ID forte"}
     return {"level": "SEM_MATCH", "reason": "evidência insuficiente"}
+
+
+def _group_configuration_key(members: list[dict]) -> str:
+    for field in ("ean", "mpn"):
+        values = [_normal_id(member["item"].get(field)) for member in members]
+        known = {value for value in values if value}
+        if len(known) == 1 and len([value for value in values if value]) >= 2:
+            return f"{field}:{next(iter(known))}"
+    shared_codes = None
+    for member in members:
+        codes = _model_codes(member["item"].get("titulo", ""))
+        shared_codes = codes if shared_codes is None else shared_codes & codes
+    if shared_codes:
+        spec = members[0]["spec"]
+        code = sorted(shared_codes)[0]
+        return (
+            f"model:{code}|cpu:{scraper.norm(spec.get('cpu_modelo') or '?')}|"
+            f"gpu:{scraper.norm(spec.get('gpu_modelo') or spec.get('gpu_tipo') or '?')}|"
+            f"ram:{spec.get('ram_gb') or '?'}|ssd:{spec.get('armazenamento_tb') or '?'}"
+        )
+    return configuration_signature(members[0]["item"], members[0]["spec"])
 
 
 def build_cross_store_matches(records: list[dict]) -> dict:
@@ -1201,7 +1308,7 @@ def build_cross_store_matches(records: list[dict]) -> dict:
         )
         groups.append(
             {
-                "configuration_key": configuration_signature(members[0]["item"], members[0]["spec"]),
+                "configuration_key": _group_configuration_key(members),
                 "stores": sorted(stores),
                 "best_store": offers[0]["loja"],
                 "best_price": offers[0]["price"],
@@ -1393,7 +1500,7 @@ def compact_history(history: dict, entries_per_url: int = 3, keep_runs: int = 8)
     alerts = history.get("alert_state", {}) if isinstance(history.get("alert_state"), dict) else {}
     out["alert_state"] = {
         key: value for key, value in alerts.items()
-        if key in active_urls and isinstance(value, dict)
+        if (key in active_urls or str(key).startswith("cross_store:")) and isinstance(value, dict)
     }
 
     learning = history.get("learning", {}) if isinstance(history.get("learning"), dict) else {}
@@ -1518,8 +1625,61 @@ def maybe_alert(
     return sent, False
 
 
+def maybe_alert_cross_store(history: dict, group: dict, settings: dict) -> bool:
+    offers = group.get("offers", [])
+    if len(offers) < 2:
+        return False
+    best, worst = offers[0], offers[-1]
+    spread = float(group.get("spread_eur", 0.0))
+    pct = (spread / max(1.0, float(best["price"]))) * 100.0
+    min_eur = float(settings.get("cross_store_alert_min_eur", 50.0))
+    min_pct = float(settings.get("cross_store_alert_min_pct", 5.0))
+    if spread < min_eur and pct < min_pct:
+        return False
+
+    order = {"BRONZE": 1, "PRATA": 2, "OURO": 3, "DIAMANTE": 4}
+    min_notify = str(settings.get("alerta_min_tier", "OURO")).upper()
+    if order.get(str(best.get("tier") or ""), 0) < order.get(min_notify, 3):
+        return False
+
+    key = f"cross_store:{group['configuration_key']}"
+    prior = history["alert_state"].get(key)
+    if prior:
+        same_store = prior.get("best_store") == best.get("loja")
+        old_price = float(prior.get("best_price", best["price"]))
+        old_spread = float(prior.get("spread_eur", spread))
+        materially_better = float(best["price"]) <= old_price - float(settings.get("alerta_queda_preco_eur", 5.0))
+        materially_wider = spread >= old_spread + min(10.0, min_eur / 2.0)
+        if same_store and not materially_better and not materially_wider:
+            return False
+
+    message = (
+        f"{best['titulo']}\n"
+        f"Melhor: {best['loja']} — {best['price']:.2f}€\n"
+        f"Mais cara: {worst['loja']} — {worst['price']:.2f}€\n"
+        f"Diferença: {spread:.2f}€ ({pct:.1f}%)\n"
+        f"Tier/Value melhor oferta: {best.get('tier') or '—'} / {best.get('value_score') or '—'}\n"
+        f"{best['url']}"
+    )
+    sent = ntfy_send(
+        f"🔎 Melhor preço entre lojas: {best['loja']}",
+        message,
+        priority=3,
+        tags=["computer", "moneybag"],
+    )
+    if sent:
+        history["alert_state"][key] = {
+            "timestamp": now_iso(),
+            "best_store": best["loja"],
+            "best_price": best["price"],
+            "spread_eur": spread,
+            "spread_pct": round(pct, 2),
+        }
+    return sent
+
+
 # ---------------------------------------------------------------------------
-# Execução V8.5
+# Execução V8.6
 # ---------------------------------------------------------------------------
 
 
@@ -1596,7 +1756,7 @@ def main() -> dict:
         unique.setdefault((item["loja"], item["url"]), item)
     selected = select_with_cache(list(unique.values()), spec_cache, max_evaluated, weights, settings)
     LOGGER.info(
-        "Pré-ranking V8.5 | descobertos=%d | selecionados=%d | limite=%d | detalhe_max=%d",
+        "Pré-ranking V8.6 | descobertos=%d | selecionados=%d | limite=%d | detalhe_max=%d",
         len(unique),
         len(selected),
         max_evaluated,
@@ -1668,6 +1828,11 @@ def main() -> dict:
         match_records.append({"item": item, "spec": spec, "assessment": assessment, "tier": tier})
 
     matching = build_cross_store_matches(match_records)
+    cross_store_alerts = sum(
+        int(maybe_alert_cross_store(history, group, settings))
+        for group in matching.get("groups", [])
+    )
+    alerts += cross_store_alerts
     runtime = round(time.monotonic() - RUN_STARTED, 2)
     run = {
         "timestamp": now_iso(),
@@ -1679,6 +1844,7 @@ def main() -> dict:
         "total_accepted": sum(row["aceites"] for row in stats.values()),
         "alerts_sent": alerts,
         "notifications_suppressed": suppressed,
+        "cross_store_alerts_sent": cross_store_alerts,
         "access_requests": REQUESTS_USED,
         "requests_by_store": dict(sorted(REQUESTS_BY_STORE.items())),
         "detail_fetches": DETAIL_FETCHES_USED,
@@ -1861,7 +2027,7 @@ def merge_state_files(
 
 
 def merge_cli(argv: list[str]) -> None:
-    parser = argparse.ArgumentParser(description="Merge seguro do estado V8.5")
+    parser = argparse.ArgumentParser(description="Merge seguro do estado V8.6")
     parser.add_argument("--history-current", required=True, type=Path)
     parser.add_argument("--history-run", required=True, type=Path)
     parser.add_argument("--learning-current", required=True, type=Path)

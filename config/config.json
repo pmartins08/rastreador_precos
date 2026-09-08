@@ -20,7 +20,9 @@
     "ouro_value_min": 110.0,
     "diamante_value_min": 125.0,
     "preco_minimo_global": 250.0,
-    "max_segment_routes": 4
+    "max_segment_routes": 4,
+    "cross_store_alert_min_eur": 50.0,
+    "cross_store_alert_min_pct": 5.0
   },
   "weights": {
     "gpu_base": {
@@ -74,7 +76,7 @@
       "timeout_ms": 12000,
       "parent_climb": 7,
       "target_candidates": 45,
-      "sitemap_probe_limit": 6,
+      "sitemap_probe_limit": 10,
       "max_sitemaps": 4,
       "product_path_hints": [
         "/portatil-asus-",
@@ -91,6 +93,9 @@
           "label": "lenovo_brand",
           "url": "https://www.pcdiga.com/portateis-lenovo"
         }
+      ],
+      "product_fetch_host_fallbacks": [
+        "publojas.pcdiga.com"
       ]
     },
     {

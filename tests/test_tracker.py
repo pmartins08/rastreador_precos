@@ -489,5 +489,45 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(summary["groups"][0]["spread_eur"], 100.0)
 
 
+    def test_sitemap_priority_prefers_performance_families(self):
+        omen = "https://www.pcdiga.com/portatil-hp-omen-gaming-laptop-16-abc"
+        generic = "https://www.pcdiga.com/portatil-hp-15-generic-abc"
+        self.assertGreater(tracker._sitemap_product_score(omen), tracker._sitemap_product_score(generic))
+
+    def test_product_fetch_urls_keep_canonical_and_add_public_fallback(self):
+        item = {"loja": "PCDiga", "url": "https://www.pcdiga.com/path/produto"}
+        cfg = {"category_urls": [{"loja": "PCDiga", "url": "https://www.pcdiga.com/cat", "product_fetch_host_fallbacks": ["publojas.pcdiga.com"]}]}
+        urls = tracker._product_fetch_urls(item, cfg)
+        self.assertEqual(urls[0][0], item["url"])
+        self.assertEqual(urls[1][0], "https://publojas.pcdiga.com/path/produto")
+
+    def test_unrelated_different_eans_are_not_conflicts(self):
+        left = {"loja": "A", "titulo": "ASUS TUF A16", "ean": "4711636176743"}
+        right = {"loja": "B", "titulo": "Lenovo LOQ 15", "ean": "199271075036"}
+        left_spec = scraper.specs("ASUS TUF Gaming A16 Ryzen 7 260 32GB 1TB RTX 5050")
+        right_spec = scraper.specs("Lenovo LOQ i7-14700HX 32GB 1TB RTX 5070")
+        self.assertEqual(tracker.match_configurations(left, left_spec, right, right_spec)["level"], "SEM_MATCH")
+
+    def test_same_model_different_strong_id_is_conflict(self):
+        left = {"loja": "A", "titulo": "ASUS TUF A16 FA608UH-R72B55CS2", "ean": "4711636176743"}
+        right = {"loja": "B", "titulo": "ASUS TUF A16 FA608UH-R72B55CS2", "ean": "4711636338424"}
+        spec = scraper.specs("ASUS TUF Gaming A16 Ryzen 7 260 32GB 1TB RTX 5050")
+        self.assertEqual(tracker.match_configurations(left, spec, right, spec)["level"], "NAO_FUNDIR")
+
+    def test_cross_store_alert_requires_material_gap_and_ouro(self):
+        history = {"alert_state": {}}
+        group = {
+            "configuration_key": "ean:4711636176743",
+            "spread_eur": 100.0,
+            "offers": [
+                {"loja": "A", "url": "https://a/1", "titulo": "ASUS TUF", "price": 1199.0, "tier": "OURO", "value_score": 117.0},
+                {"loja": "B", "url": "https://b/1", "titulo": "ASUS TUF", "price": 1299.0, "tier": "OURO", "value_score": 112.0},
+            ],
+        }
+        with patch.object(tracker, "ntfy_send", return_value=True):
+            self.assertTrue(tracker.maybe_alert_cross_store(history, group, {"alerta_min_tier": "OURO", "cross_store_alert_min_eur": 50, "cross_store_alert_min_pct": 5}))
+            self.assertFalse(tracker.maybe_alert_cross_store(history, group, {"alerta_min_tier": "OURO", "cross_store_alert_min_eur": 50, "cross_store_alert_min_pct": 5}))
+
+
 if __name__ == "__main__":
     unittest.main()

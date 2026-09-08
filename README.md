@@ -1,4 +1,4 @@
-# Rastreador de Preços — V8.6
+# Rastreador de Preços — V8.6.1
 
 Motor de inteligência de mercado para portáteis ASUS, Lenovo e HP em Portugal. O sistema combina descoberta de catálogo, acesso adaptativo, extração técnica, scoring orientado ao uso FEUP + gaming, histórico, cache e notificações ntfy.
 
@@ -65,23 +65,23 @@ A ordem de confiança é:
 1. SKU / part number / EAN quando disponível;
 2. caso contrário, uma assinatura conservadora que inclui título + CPU + GPU + RAM + SSD + ecrã.
 
-A V8.6 executa matching cross-store conservador em quatro níveis: **EXATO** (EAN/MPN), **FORTE** (model code + CPU/GPU/RAM/SSD), **PROVÁVEL** (apenas para revisão) e **NÃO FUNDIR** quando existe conflito técnico. Só EXATO/FORTE formam grupos automáticos de ofertas e nunca alteram o histórico individual de cada loja.
+A V8.6.1 executa matching cross-store conservador em quatro níveis: **EXATO** (EAN/MPN), **FORTE** (model code + CPU/GPU/RAM/SSD), **PROVÁVEL** (apenas para revisão) e **NÃO FUNDIR** quando existe conflito técnico. Só EXATO/FORTE formam grupos automáticos de ofertas e nunca alteram o histórico individual de cada loja.
 
 ## Acesso adaptativo
 
 O tracker aprende por loja + método + perfil de browser. Fontes persistentemente bloqueadas entram em `probe mode`, recebendo uma tentativa barata em vez de desperdiçar dezenas de requests.
 
-A aprendizagem de acesso é persistida em `data/access_learning.json` e não é apagada quando o histórico de preços é compactado. A V8.6 aprende também o **rendimento de descoberta** (novos candidatos por request) por método/segmento e usa esse histórico para ordenar rotas alternativas mais produtivas.
+A aprendizagem de acesso é persistida em `data/access_learning.json` e não é apagada quando o histórico de preços é compactado. A V8.6.1 aprende também o **rendimento de descoberta** (novos candidatos por request) por método/segmento e usa esse histórico para ordenar rotas alternativas mais produtivas.
 
 ## Histórico
 
-O histórico V8.6 é automaticamente compactado:
+O histórico V8.6.1 é automaticamente compactado:
 
-- remove formatos e observações pré-V8.6;
+- remove formatos e observações pré-V8.6.1;
 - normaliza chaves por URL;
 - mantém apenas observações recentes necessárias para preço/cache;
 - preserva estado de alertas válido;
-- mantém apenas as runs V8.6 recentes.
+- mantém apenas as runs V8.6.1 recentes.
 
 ## ntfy
 
@@ -104,3 +104,10 @@ A suite cobre preços PT/EU, CPU/GPU, VRAM, TGP, M.2, JSON-LD, IDs fortes, varia
 ## Execução
 
 O workflow corre em push para `main`, manualmente e a cada 6 horas. A ordem é testes → validação ntfy → tracker → heartbeat → merge/persistência segura.
+
+
+## Refinamentos V8.6.1
+
+- O matching distingue produtos não relacionados de conflitos reais de variante.
+- Comparações cross-store só notificam quando a melhor oferta cumpre o tier mínimo e a diferença é pelo menos 50 € ou 5%.
+- A PCDiga prioriza famílias de maior interesse no sitemap e pode usar o host público `publojas.pcdiga.com` como fallback de ficha, mantendo a URL canónica da oferta.
