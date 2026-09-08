@@ -1,0 +1,1384 @@
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import os
+import random
+import re
+import sys
+import threading
+import time
+from collections import defaultdict, deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+from urllib.parse import parse_qs, urljoin, urlparse
+from xml.etree import ElementTree as ET
+
+from bs4 import BeautifulSoup
+from curl_cffi import requests
+
+import scraper
+
+
+VERSION = "8.5"
+BASE = Path(__file__).resolve().parent
+CONFIG_PATH = BASE / "config" / "config.json"
+HISTORY_PATH = BASE / "data" / "history.json"
+LEARNING_PATH = BASE / "data" / "access_learning.json"
+
+PROFILES = ["chrome131", "chrome146", "firefox147", "edge101", "safari17_0", "safari260"]
+BLOCK_OUTCOMES = {"http_401", "http_403", "http_429", "challenge"}
+RETRYABLE_SERVER = {"http_500", "http_502", "http_503", "http_504"}
+
+LOCK = threading.RLock()
+LOGGER = logging.getLogger("Tracker")
+
+RUN_STARTED = 0.0
+RUN_DEADLINE = 0.0
+REQUESTS_USED = 0
+REQUESTS_BY_STORE: dict[str, int] = defaultdict(int)
+DETAIL_FETCHES_USED = 0
+MAX_REQUESTS = 180
+MAX_REQUESTS_PER_STORE = 40
+MAX_DETAIL_FETCHES = 50
+LEARNING: dict = {}
+
+
+# ---------------------------------------------------------------------------
+# Estado e aprendizagem de acesso
+# ---------------------------------------------------------------------------
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def load_json(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_json(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
+def new_bucket() -> dict:
+    return {
+        "attempts": 0,
+        "successes": 0,
+        "blocks": 0,
+        "errors": {},
+        "profiles": {},
+        "methods": {},
+        "contexts": {},
+        "last_updated": None,
+    }
+
+
+def load_learning() -> dict:
+    data = load_json(LEARNING_PATH)
+    if data.get("schema_version") != 2:
+        data = {"schema_version": 2, "updated_at": now_iso(), "stores": {}}
+    data.setdefault("stores", {})
+    for store in data["stores"].values():
+        if not isinstance(store, dict):
+            continue
+        store.setdefault("attempts", 0)
+        store.setdefault("successes", 0)
+        store.setdefault("blocks", 0)
+        store.setdefault("errors", {})
+        store.setdefault("profiles", {})
+        store.setdefault("methods", {})
+        store.setdefault("contexts", {})
+        store.setdefault("last_updated", None)
+    return data
+
+
+def bucket(store: str) -> dict:
+    return LEARNING.setdefault("stores", {}).setdefault(store, new_bucket())
+
+
+def context(store: str, method: str, profile: str) -> dict:
+    return bucket(store)["contexts"].setdefault(method, {}).setdefault(
+        profile,
+        {"attempts": 0, "successes": 0, "blocks": 0, "errors": 0, "results": {}},
+    )
+
+
+def record_learning(store: str, profile: str, outcome: str, method: str) -> None:
+    with LOCK:
+        b = bucket(store)
+        b["attempts"] = int(b.get("attempts", 0)) + 1
+        b["methods"][method] = int(b["methods"].get(method, 0)) + 1
+        p = b["profiles"].setdefault(
+            profile, {"attempts": 0, "successes": 0, "blocks": 0, "errors": 0}
+        )
+        c = context(store, method, profile)
+        p["attempts"] = int(p.get("attempts", 0)) + 1
+        c["attempts"] = int(c.get("attempts", 0)) + 1
+        if outcome == "success":
+            b["successes"] = int(b.get("successes", 0)) + 1
+            p["successes"] = int(p.get("successes", 0)) + 1
+            c["successes"] = int(c.get("successes", 0)) + 1
+        elif outcome == "blocked":
+            b["blocks"] = int(b.get("blocks", 0)) + 1
+            p["blocks"] = int(p.get("blocks", 0)) + 1
+            c["blocks"] = int(c.get("blocks", 0)) + 1
+        else:
+            p["errors"] = int(p.get("errors", 0)) + 1
+            c["errors"] = int(c.get("errors", 0)) + 1
+            b["errors"][outcome] = int(b["errors"].get(outcome, 0)) + 1
+        b["last_updated"] = now_iso()
+
+
+def record_result(store: str, method: str, profile: str, result: str) -> None:
+    with LOCK:
+        results = context(store, method, profile).setdefault("results", {})
+        results[result] = int(results.get(result, 0)) + 1
+
+
+def _rate(stats: dict) -> tuple[float, int]:
+    attempts = int(stats.get("attempts", 0))
+    if attempts <= 0:
+        return 0.25, 0
+    successes = int(stats.get("successes", 0))
+    blocks = int(stats.get("blocks", 0))
+    errors = int(stats.get("errors", 0))
+    smoothed = (successes + 1.0) / (attempts + 2.0)
+    score = smoothed - 0.40 * blocks / attempts - 0.10 * errors / attempts
+    return score, attempts
+
+
+def profile_score(store: str, method: str, profile: str) -> tuple[float, int]:
+    b = bucket(store)
+    local = b.get("contexts", {}).get(method, {}).get(profile, {})
+    global_stats = b.get("profiles", {}).get(profile, {})
+    local_score, local_attempts = _rate(local)
+    global_score, global_attempts = _rate(global_stats)
+
+    if local_attempts:
+        return (
+            0.80 * local_score + 0.20 * global_score if global_attempts else local_score,
+            local_attempts,
+        )
+    if global_attempts:
+        return 0.92 * global_score, global_attempts
+    return 0.25, 0
+
+
+def _method_totals(store: str, method: str) -> tuple[int, int, int]:
+    attempts = successes = blocks = 0
+    for stats in bucket(store).get("contexts", {}).get(method, {}).values():
+        attempts += int(stats.get("attempts", 0))
+        successes += int(stats.get("successes", 0))
+        blocks += int(stats.get("blocks", 0))
+    return attempts, successes, blocks
+
+
+def access_mode(store: str, method: str) -> str:
+    b = bucket(store)
+    total_attempts = int(b.get("attempts", 0))
+    total_successes = int(b.get("successes", 0))
+    total_blocks = int(b.get("blocks", 0))
+    if (
+        total_attempts >= 30
+        and total_successes == 0
+        and total_blocks / max(1, total_attempts) >= 0.90
+    ):
+        return "probe"
+
+    attempts, successes, blocks = _method_totals(store, method)
+    if attempts >= 12 and successes == 0 and blocks / max(1, attempts) >= 0.85:
+        return "probe"
+    return "normal"
+
+
+def profile_order(store: str, method: str) -> list[str]:
+    ranked = sorted(
+        [(profile_score(store, method, p), index, p) for index, p in enumerate(PROFILES)],
+        key=lambda item: (-item[0][0], -item[0][1], item[1]),
+    )
+    if access_mode(store, method) == "probe":
+        probe_index = int(bucket(store).get("methods", {}).get(method, 0)) % len(ranked)
+        return [ranked[probe_index][2]]
+
+    selected = [profile for score, _, profile in ranked if score[1] > 0][:2]
+    if not selected:
+        selected = [ranked[0][2]]
+    fresh = [profile for score, _, profile in ranked if score[1] == 0 and profile not in selected]
+    if fresh and len(selected) < 3:
+        selected.append(fresh[0])
+    return list(dict.fromkeys(selected))[:3]
+
+
+# ---------------------------------------------------------------------------
+# HTTP adaptativo e budgets
+# ---------------------------------------------------------------------------
+
+
+def headers(profile: str) -> dict:
+    common = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.7",
+        "Cache-Control": "no-cache",
+    }
+    if profile.startswith("safari"):
+        common["User-Agent"] = (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+        )
+    elif profile.startswith("firefox"):
+        version = profile.removeprefix("firefox")
+        common["User-Agent"] = (
+            f"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:{version}.0) "
+            f"Gecko/20100101 Firefox/{version}.0"
+        )
+    elif profile.startswith("edge"):
+        version = profile.removeprefix("edge")
+        common["User-Agent"] = (
+            f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            f"(KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36 Edg/{version}.0.0.0"
+        )
+    else:
+        version = profile.removeprefix("chrome")
+        common["User-Agent"] = (
+            f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            f"(KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36"
+        )
+    return common
+
+
+def store_for_url(url: str, config: dict) -> str:
+    host = urlparse(url).netloc.lower().removeprefix("www.")
+    for cat in config.get("category_urls", []):
+        cat_host = urlparse(cat.get("url", "")).netloc.lower().removeprefix("www.")
+        if cat_host == host:
+            return cat["loja"]
+    return host
+
+
+def _looks_like_xml(response) -> bool:
+    content_type = str(response.headers.get("Content-Type", "")).lower()
+    if "xml" in content_type:
+        return True
+    prefix = str(response.text or "").lstrip()[:120].lower()
+    return prefix.startswith("<?xml") or prefix.startswith("<urlset") or prefix.startswith("<sitemapindex")
+
+
+def classify(response) -> tuple[str, bool]:
+    if response is None:
+        return "no_response", True
+    code = int(response.status_code)
+    if code in {401, 403, 429, 500, 502, 503, 504}:
+        return f"http_{code}", True
+    if code == 404:
+        return "http_404", False
+
+    if not _looks_like_xml(response):
+        try:
+            soup = BeautifulSoup(response.text, "html.parser")
+            title = scraper.norm(soup.title.get_text(" ", strip=True) if soup.title else "")
+            for node in soup(["script", "style", "noscript"]):
+                node.decompose()
+            visible = scraper.norm(" ".join(soup.stripped_strings))[:20000]
+            markers = (
+                "just a moment",
+                "checking your browser",
+                "verify you are human",
+                "access denied",
+                "robot check",
+                "are you a robot",
+                "captcha",
+            )
+            if any(marker in title or marker in visible for marker in markers) or "cf-chl-" in title:
+                return "challenge", True
+        except Exception:
+            pass
+    return (f"http_{code}", False) if code >= 400 else ("http_success", False)
+
+
+def budget_available(store: str | None = None) -> bool:
+    with LOCK:
+        if REQUESTS_USED >= MAX_REQUESTS:
+            return False
+        if RUN_DEADLINE > 0 and time.monotonic() >= RUN_DEADLINE:
+            return False
+        if store is not None and REQUESTS_BY_STORE.get(store, 0) >= MAX_REQUESTS_PER_STORE:
+            return False
+        return True
+
+
+def consume_request(store: str) -> bool:
+    global REQUESTS_USED
+    with LOCK:
+        if not budget_available(store):
+            return False
+        REQUESTS_USED += 1
+        REQUESTS_BY_STORE[store] = int(REQUESTS_BY_STORE.get(store, 0)) + 1
+        return True
+
+
+def reserve_detail_slot() -> bool:
+    global DETAIL_FETCHES_USED
+    with LOCK:
+        if DETAIL_FETCHES_USED >= MAX_DETAIL_FETCHES:
+            return False
+        DETAIL_FETCHES_USED += 1
+        return True
+
+
+def adaptive_fetch(
+    url: str,
+    config: dict,
+    timeout_s: float = 8.0,
+    *,
+    store: str | None = None,
+    method: str = "page",
+):
+    store = store or store_for_url(url, config)
+    mode = access_mode(store, method)
+    last = None
+    last_profile = None
+    last_outcome = "no_response"
+
+    for index, profile in enumerate(profile_order(store, method)):
+        max_attempts = 1 if mode == "probe" else (2 if index == 0 else 1)
+        for attempt in range(max_attempts):
+            if not consume_request(store):
+                return last, last_profile, "request_budget_exhausted"
+            last_profile = profile
+            try:
+                response = requests.get(
+                    url,
+                    timeout=timeout_s,
+                    impersonate=profile,
+                    headers=headers(profile),
+                    allow_redirects=True,
+                )
+                last = response
+                outcome, retryable = classify(response)
+                last_outcome = outcome
+                record_learning(
+                    store,
+                    profile,
+                    "success" if outcome == "http_success" else "blocked" if outcome in BLOCK_OUTCOMES else outcome,
+                    method,
+                )
+                if outcome == "http_success":
+                    return response, profile, outcome
+                if outcome in BLOCK_OUTCOMES or not retryable:
+                    break
+                if outcome not in RETRYABLE_SERVER:
+                    break
+            except Exception as exc:
+                last_outcome = "request_error"
+                record_learning(store, profile, "request_error", method)
+                LOGGER.warning("Acesso falhou | %s | %s | %s | %s", store, method, profile, exc)
+
+            if attempt + 1 < max_attempts:
+                time.sleep(0.4 + random.random() * 0.5)
+        if not budget_available(store):
+            break
+    return last, last_profile, last_outcome
+
+
+# ---------------------------------------------------------------------------
+# Descoberta: categoria + paginação + sitemap
+# ---------------------------------------------------------------------------
+
+
+def _merge_candidate(target: dict[str, dict], item: dict, source: str) -> bool:
+    url = item.get("url")
+    if not url:
+        return False
+    if url in target:
+        existing = target[url]
+        if existing.get("preco") is None and item.get("preco") is not None:
+            existing["preco"] = item["preco"]
+        if existing.get("stock") is None and item.get("stock") is not None:
+            existing["stock"] = item["stock"]
+        if item.get("specs") and not existing.get("specs"):
+            existing["specs"] = item["specs"]
+        existing.setdefault("discovery_sources", [])
+        if source not in existing["discovery_sources"]:
+            existing["discovery_sources"].append(source)
+        return False
+    row = dict(item)
+    row["discovery_sources"] = [source]
+    target[url] = row
+    return True
+
+
+def pagination_urls(html: str, current_url: str, category_url: str, limit: int = 5) -> list[str]:
+    soup = BeautifulSoup(html, "html.parser")
+    current = urlparse(current_url)
+    category = urlparse(category_url)
+    candidates: list[tuple[int, int, str]] = []
+
+    for anchor in soup.find_all("a", href=True):
+        full = urljoin(current_url, anchor["href"])
+        parsed = urlparse(full)
+        if not scraper.same_host(full, category_url):
+            continue
+        if full.rstrip("/") == current_url.rstrip("/"):
+            continue
+
+        rel = {str(value).lower() for value in (anchor.get("rel") or [])}
+        text = scraper.norm(
+            " ".join(
+                filter(
+                    None,
+                    [
+                        anchor.get_text(" ", strip=True),
+                        anchor.get("aria-label"),
+                        anchor.get("title"),
+                        " ".join(anchor.get("class", [])),
+                        " ".join(anchor.parent.get("class", [])) if anchor.parent else "",
+                    ],
+                )
+            )
+        )
+        query = parse_qs(parsed.query)
+        page_number = None
+        for key in ("page", "pagina", "p", "pg", "pagenumber"):
+            raw = query.get(key)
+            if raw and str(raw[0]).isdigit():
+                page_number = int(raw[0])
+                break
+        if page_number is None:
+            match = re.search(r"/(?:page|pagina)/?(\d+)(?:/|$)", parsed.path.lower())
+            if match:
+                page_number = int(match.group(1))
+
+        pagination_context = any(
+            marker in text
+            for marker in ("pagination", "paginacao", "pager", "seguinte", "proxima", "next")
+        )
+        if "next" in rel:
+            candidates.append((0, page_number or 999, full))
+        elif page_number and (pagination_context or parsed.path.rstrip("/") == category.path.rstrip("/")):
+            candidates.append((1, page_number, full))
+
+    out = []
+    seen = set()
+    for _, _, url in sorted(candidates):
+        if url not in seen:
+            seen.add(url)
+            out.append(url)
+            if len(out) >= limit:
+                break
+    return out
+
+
+def sitemap_parse(content: bytes, text: str, max_children: int = 10) -> tuple[list[str], list[str]]:
+    try:
+        root = ET.fromstring(content)
+        ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        if root.tag.lower().endswith("sitemapindex"):
+            children = [
+                node.text.strip()
+                for node in root.findall("sm:sitemap/sm:loc", ns)
+                if node.text
+            ]
+            children.sort(
+                key=lambda url: (
+                    0
+                    if any(marker in url.lower() for marker in ("product", "produto", "catalog", "portatil", "laptop"))
+                    else 1,
+                    url,
+                )
+            )
+            return [], children[:max_children]
+        return [
+            node.text.strip()
+            for node in root.findall("sm:url/sm:loc", ns)
+            if node.text
+        ], []
+    except ET.ParseError:
+        return re.findall(r"<loc>\s*(https?://[^\s<>]+)\s*</loc>", text, flags=re.I), []
+
+
+def _brand_url_score(url: str) -> int:
+    path = scraper.norm(urlparse(url).path.replace("-", " ").replace("_", " "))
+    parent, sub = scraper.brand(path)
+    if parent and sub:
+        return 3
+    if parent:
+        return 2
+    return 0
+
+
+def _looks_like_product_url(url: str, cat: dict) -> bool:
+    if not scraper.same_host(url, cat["url"]):
+        return False
+    path = urlparse(url).path.lower()
+    if not scraper.product_path_ok(url, cat.get("product_path_hints", [])):
+        return False
+    if _brand_url_score(url) > 0:
+        return True
+    if path.endswith((".html", ".htm")):
+        return True
+    if re.search(r"/(?:a|a-|p|produto|product)[/-]?\d{3,}", path):
+        return True
+    return False
+
+
+def discover_sitemap_urls(
+    cat: dict,
+    config: dict,
+    *,
+    max_urls: int = 80,
+    max_sitemaps: int = 8,
+) -> list[str]:
+    store = cat["loja"]
+    if access_mode(store, "category") == "probe":
+        return []
+
+    origin = f"{urlparse(cat['url']).scheme}://{urlparse(cat['url']).netloc}"
+    robots, _, _ = adaptive_fetch(
+        urljoin(origin, "/robots.txt"), config, 6, store=store, method="robots"
+    )
+    seeds = []
+    if robots and robots.status_code < 400:
+        seeds = [
+            line.split(":", 1)[1].strip()
+            for line in robots.text.splitlines()
+            if line.lower().startswith("sitemap:")
+        ]
+    if not seeds:
+        seeds = [
+            urljoin(origin, candidate)
+            for candidate in ("/sitemap.xml", "/sitemap_index.xml", "/sitemap-products.xml")
+        ]
+
+    queue = deque(seeds)
+    seen_sitemaps = set()
+    found: dict[str, int] = {}
+    while queue and len(seen_sitemaps) < max_sitemaps and budget_available(store):
+        sitemap_url = queue.popleft()
+        if sitemap_url in seen_sitemaps:
+            continue
+        seen_sitemaps.add(sitemap_url)
+        response, _, _ = adaptive_fetch(
+            sitemap_url, config, 6, store=store, method="sitemap"
+        )
+        if not response or response.status_code >= 400:
+            continue
+        urls, children = sitemap_parse(response.content, response.text, max_sitemaps)
+        for child in children:
+            if child not in seen_sitemaps:
+                queue.append(child)
+        for url in urls:
+            if _looks_like_product_url(url, cat):
+                found[url] = max(found.get(url, 0), _brand_url_score(url))
+
+    return [
+        url
+        for url, _score in sorted(found.items(), key=lambda item: (-item[1], item[0]))[:max_urls]
+    ]
+
+
+def jsonld_price_title(soup: BeautifulSoup) -> tuple[float | None, str | None]:
+    data = scraper.jsonld_products(soup)
+    if not data:
+        return None, None
+    for item in data:
+        if item.get("preco") is not None:
+            return float(item["preco"]), item.get("titulo")
+    return None, data[0].get("titulo")
+
+
+def enrich(item: dict, config: dict) -> tuple[dict, dict]:
+    store = item["loja"]
+    response, profile, access = adaptive_fetch(
+        item["url"], config, 8, store=store, method="product"
+    )
+    if not response or response.status_code >= 400:
+        record_result(store, "product", profile or "none", "access_failed")
+        return item, {"error": "access_failed", "profile": profile, "access": access}
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    text = soup.get_text(" ", strip=True)
+    price_ld, title_ld = jsonld_price_title(soup)
+    page_title = soup.title.get_text(" ", strip=True) if soup.title else ""
+    h1 = soup.find("h1")
+    real_title = (
+        (h1.get_text(" ", strip=True) if h1 else "")
+        or title_ld
+        or page_title
+        or item.get("titulo", "")
+    )
+    if title_ld and len(title_ld) >= 8 and scraper.eligible(title_ld):
+        real_title = title_ld
+
+    result = dict(item)
+    if real_title and scraper.eligible(real_title):
+        result["titulo"] = real_title
+
+    price = price_ld if price_ld is not None else item.get("preco")
+    if price is None:
+        price = scraper.best_product_price(scraper.prices(text))
+    if price is not None and 200 <= float(price) <= 4500:
+        result["preco"] = float(price)
+
+    stock_value = scraper.stock(text)
+    if stock_value is not None:
+        result["stock"] = stock_value
+
+    extracted = scraper.extract(result.get("titulo", real_title), soup)
+    extracted["page_url"] = response.url
+    extracted["acesso_profile"] = profile
+    result["specs"] = extracted
+    result["detail_source"] = "live"
+
+    outcome = (
+        "valid_product"
+        if result.get("preco") is not None and scraper.eligible(result.get("titulo", ""))
+        else "no_product_or_price"
+    )
+    record_result(store, "product", profile or "none", outcome)
+    return result, {"error": None, "profile": profile, "access": access, "result": outcome}
+
+
+def _empty_store_stats() -> dict:
+    return {
+        "candidatos": 0,
+        "avaliados": 0,
+        "detalhes_live": 0,
+        "cache_reutilizada": 0,
+        "aceites": 0,
+        "rejeitados": 0,
+        "bloqueada": False,
+        "paginas_categoria": 0,
+        "sitemap_urls": 0,
+        "fontes_descoberta": {"categoria": 0, "paginacao": 0, "sitemap": 0},
+        "acesso": {},
+    }
+
+
+def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dict]:
+    store = cat["loja"]
+    stat = _empty_store_stats()
+    target = int(cat.get("target_candidates", settings.get("max_candidates_per_store", 60)))
+    max_pages = int(cat.get("max_category_pages", settings.get("max_category_pages", 4)))
+    sitemap_limit = int(settings.get("max_sitemap_urls_per_store", 80))
+    supplement_limit = int(cat.get("sitemap_probe_limit", settings.get("sitemap_probe_limit", 6)))
+    sitemap_threshold = int(settings.get("sitemap_supplement_below", 24))
+
+    candidates: dict[str, dict] = {}
+    response, profile, access = adaptive_fetch(
+        cat["url"],
+        config,
+        min(8, float(cat.get("timeout_ms", 12000)) / 1000),
+        store=store,
+        method="category",
+    )
+    stat["acesso"] = {"perfil_categoria": profile, "resultado": access, "modo": access_mode(store, "category")}
+    if not response or response.status_code >= 400:
+        stat["bloqueada"] = True
+        stat["candidatos"] = 0
+        return [], stat
+
+    stat["paginas_categoria"] = 1
+    for item in scraper.discover_category(response.text, cat, target):
+        if _merge_candidate(candidates, item, "categoria"):
+            stat["fontes_descoberta"]["categoria"] += 1
+
+    # Paginação real encontrada no HTML; não inventamos URLs de páginas.
+    queue = deque(pagination_urls(response.text, cat["url"], cat["url"], max_pages * 2))
+    visited = {cat["url"].rstrip("/")}
+    while queue and stat["paginas_categoria"] < max_pages and len(candidates) < target and budget_available(store):
+        page_url = queue.popleft()
+        marker = page_url.rstrip("/")
+        if marker in visited:
+            continue
+        visited.add(marker)
+        page_response, _, page_access = adaptive_fetch(
+            page_url, config, 7, store=store, method="category_page"
+        )
+        if not page_response or page_response.status_code >= 400:
+            continue
+        stat["paginas_categoria"] += 1
+        page_cat = dict(cat)
+        page_cat["url"] = page_url
+        for item in scraper.discover_category(page_response.text, page_cat, target):
+            if _merge_candidate(candidates, item, "paginacao"):
+                stat["fontes_descoberta"]["paginacao"] += 1
+        for discovered in pagination_urls(page_response.text, page_url, cat["url"], max_pages * 2):
+            if discovered.rstrip("/") not in visited:
+                queue.append(discovered)
+        LOGGER.info(
+            "Paginação | %s | páginas=%d | candidatos=%d | acesso=%s",
+            store,
+            stat["paginas_categoria"],
+            len(candidates),
+            page_access,
+        )
+
+    # Sitemap passa a complementar catálogos pequenos em vez de existir apenas como último recurso.
+    if (
+        len(candidates) < min(target, sitemap_threshold)
+        and access_mode(store, "category") != "probe"
+        and budget_available(store)
+    ):
+        sitemap_urls_found = discover_sitemap_urls(
+            cat, config, max_urls=sitemap_limit, max_sitemaps=8
+        )
+        stat["sitemap_urls"] = len(sitemap_urls_found)
+        seeds = [url for url in sitemap_urls_found if url not in candidates][:supplement_limit]
+        futures = []
+        with ThreadPoolExecutor(max_workers=min(4, len(seeds) or 1)) as executor:
+            for url in seeds:
+                if not reserve_detail_slot():
+                    break
+                seed = {
+                    "loja": store,
+                    "titulo": url.rstrip("/").split("/")[-1].replace("-", " "),
+                    "preco": None,
+                    "url": url,
+                    "stock": None,
+                }
+                futures.append(executor.submit(enrich, seed, config))
+            for future in as_completed(futures):
+                item, error = future.result()
+                if (
+                    not error.get("error")
+                    and item.get("preco") is not None
+                    and scraper.eligible(item.get("titulo", ""))
+                ):
+                    if _merge_candidate(candidates, item, "sitemap"):
+                        stat["fontes_descoberta"]["sitemap"] += 1
+                        stat["detalhes_live"] += 1
+
+    stat["candidatos"] = len(candidates)
+    return list(candidates.values()), stat
+
+
+# ---------------------------------------------------------------------------
+# Seleção e cache de especificações
+# ---------------------------------------------------------------------------
+
+
+def candidate_priority(item: dict, weights: dict, settings: dict) -> float:
+    price = float(item.get("preco") or 99999)
+    spec = scraper.specs(item.get("titulo", ""))
+    gpu_model = spec.get("gpu_modelo")
+    if spec.get("gpu_tipo") == "dedicada":
+        p_gpu = float(weights.get("gpu_base", {}).get(gpu_model, 50))
+    elif spec.get("gpu_tipo") == "integrada":
+        p_gpu = 15.0
+    else:
+        p_gpu = 30.0
+
+    _, cpu_tier, _ = scraper.cpu(spec.get("cpu_modelo") or item.get("titulo", ""))
+    p_cpu = float(
+        weights.get("cpu_base", {"tier_1": 100, "tier_2": 85, "tier_3": 70}).get(cpu_tier, 50)
+    )
+    ram = spec.get("ram_gb")
+    p_ram = 50.0 if ram is None else 100.0 if ram >= 32 else 80.0 if ram >= 16 else 40.0
+    storage = spec.get("armazenamento_tb")
+    p_storage = 50.0 if storage is None else 100.0 if storage >= 2 else 85.0 if storage >= 1 else 65.0
+    hardware = 0.50 * p_gpu + 0.25 * p_cpu + 0.15 * p_ram + 0.10 * p_storage
+    value_hint = 0.65 * hardware + 0.35 * scraper.price_score(price, settings)
+    if gpu_model:
+        value_hint += 8.0
+    return round(value_hint, 3)
+
+
+def select_for_evaluation(
+    items: list[dict], max_items: int, weights: dict, settings: dict
+) -> list[dict]:
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for item in items:
+        groups[item["loja"]].append(item)
+    for values in groups.values():
+        values.sort(key=lambda row: (-candidate_priority(row, weights, settings), float(row.get("preco") or 99999)))
+
+    if len(items) <= max_items:
+        return sorted(items, key=lambda row: (-candidate_priority(row, weights, settings), float(row.get("preco") or 99999)))
+
+    selected: list[dict] = []
+    selected_urls = set()
+    guaranteed = min(6, max(2, max_items // max(1, len(groups) * 2)))
+    for store in sorted(groups):
+        for item in groups[store][:guaranteed]:
+            if len(selected) >= max_items:
+                break
+            key = (item["loja"], item["url"])
+            if key not in selected_urls:
+                selected.append(item)
+                selected_urls.add(key)
+
+    remaining = sorted(
+        items,
+        key=lambda row: (-candidate_priority(row, weights, settings), float(row.get("preco") or 99999)),
+    )
+    for item in remaining:
+        if len(selected) >= max_items:
+            break
+        key = (item["loja"], item["url"])
+        if key not in selected_urls:
+            selected.append(item)
+            selected_urls.add(key)
+    return selected
+
+
+def latest_specs_by_url(history: dict) -> dict[str, dict]:
+    out = {}
+    for entries in (history.get("offers", {}) or {}).values():
+        if not isinstance(entries, list) or not entries:
+            continue
+        entry = entries[-1]
+        if not isinstance(entry, dict):
+            continue
+        url = entry.get("url")
+        specs = entry.get("specs")
+        if url and isinstance(specs, dict) and entry.get("tracker_version") == VERSION:
+            out[url] = specs
+    return out
+
+
+def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict) -> dict:
+    adjusted = dict(spec)
+    if adjusted.get("teclado_pt") == "desconhecido":
+        adjusted["teclado_pt"] = "confirmado"
+    return scraper.score(adjusted, price, weights, settings)
+
+
+# ---------------------------------------------------------------------------
+# NTFY: oportunidades + heartbeat independente
+# ---------------------------------------------------------------------------
+
+
+def ntfy_send(
+    title: str,
+    message: str,
+    *,
+    priority: int = 3,
+    tags: list[str] | None = None,
+) -> bool:
+    topic = os.getenv("NTFY_TOPIC", "").strip()
+    if not topic:
+        return False
+    payload = {
+        "topic": topic,
+        "title": title[:180],
+        "message": message,
+        "tags": tags or ["computer"],
+        "priority": priority,
+    }
+    for attempt in range(2):
+        try:
+            response = requests.post("https://ntfy.sh", json=payload, timeout=8)
+            response.raise_for_status()
+            return True
+        except Exception as exc:
+            LOGGER.warning("NTFY falhou | %s", exc)
+            if attempt == 0:
+                time.sleep(0.5 + random.random() * 0.5)
+    return False
+
+
+def send_heartbeat(run: dict) -> bool:
+    stores_ok = sum(1 for stats in run["stores"].values() if not stats.get("bloqueada"))
+    blocked = len(run["stores"]) - stores_ok
+    message = (
+        f"V8.5 operacional\n"
+        f"Lojas acessíveis: {stores_ok}/{len(run['stores'])} | bloqueadas: {blocked}\n"
+        f"Descobertos: {run['total_candidates']} | avaliados: {run['total_evaluated']} | aceites: {run['total_accepted']}\n"
+        f"Detalhes live: {run['detail_fetches']} | cache: {run['cache_reused']}\n"
+        f"Pedidos HTTP: {run['access_requests']} | tempo: {run['runtime_seconds']:.1f}s\n"
+        f"D/O/P/B: {run['tiers']['DIAMANTE']}/{run['tiers']['OURO']}/{run['tiers']['PRATA']}/{run['tiers']['BRONZE']}"
+    )
+    return ntfy_send(
+        "💓 Heartbeat Rastreador V8.5",
+        message,
+        priority=2,
+        tags=["heartbeat", "computer"],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Histórico e alertas
+# ---------------------------------------------------------------------------
+
+
+def _history_base() -> dict:
+    return {
+        "schema_version": 8,
+        "tracker_version": VERSION,
+        "offers": {},
+        "alert_state": {},
+        "learning": {"runs": [], "stores": {}},
+    }
+
+
+def load_history() -> dict:
+    history = load_json(HISTORY_PATH)
+    if not isinstance(history, dict) or not isinstance(history.get("offers"), dict):
+        history = _history_base()
+    history.setdefault("schema_version", 8)
+    history["tracker_version"] = VERSION
+    history.setdefault("offers", {})
+    history.setdefault("alert_state", {})
+    history.setdefault("learning", {"runs": [], "stores": {}})
+    history["learning"].setdefault("runs", [])
+    history["learning"].setdefault("stores", {})
+    return history
+
+
+def previous_for_url(history: dict, url: str) -> dict | None:
+    direct = history.get("offers", {}).get(url)
+    if isinstance(direct, list) and direct:
+        return direct[-1]
+    for entries in history.get("offers", {}).values():
+        if isinstance(entries, list) and entries and isinstance(entries[-1], dict):
+            if entries[-1].get("url") == url:
+                return entries[-1]
+    return None
+
+
+def record_offer(
+    history: dict,
+    item: dict,
+    spec: dict,
+    assessment: dict,
+    tier: str | None,
+) -> tuple[dict | None, str]:
+    url = item["url"]
+    previous = previous_for_url(history, url)
+    key = url
+    entries = history["offers"].setdefault(key, [])
+    entries.append(
+        {
+            "timestamp": now_iso(),
+            "tracker_version": VERSION,
+            "loja": item["loja"],
+            "titulo": item["titulo"],
+            "price": item["preco"],
+            "stock": item.get("stock"),
+            "score_final": assessment["score_final"],
+            "score_ranking": assessment["score_ranking"],
+            "value_score": assessment["value_score"],
+            "tier": tier,
+            "specs": spec,
+            "url": url,
+        }
+    )
+    del entries[:-30]
+    return previous, key
+
+
+def maybe_alert(
+    history: dict,
+    item: dict,
+    spec: dict,
+    assessment: dict,
+    tier: str | None,
+    previous: dict | None,
+    alert_key: str,
+    settings: dict,
+) -> tuple[bool, bool]:
+    if not tier or item.get("stock") is False:
+        return False, False
+    min_alert = float(settings.get("min_value_score_alerta", 70))
+    if assessment["value_score"] < min_alert:
+        return False, False
+
+    order = {"BRONZE": 1, "PRATA": 2, "OURO": 3, "DIAMANTE": 4}
+    min_notify = str(settings.get("alerta_min_tier", "OURO")).upper()
+    prior = history["alert_state"].get(alert_key)
+    base_price = previous.get("price") if previous else None
+    base_value = float(previous.get("value_score", 0)) if previous else 0.0
+    base_tier = previous.get("tier") if previous else None
+    current_base = float(prior.get("price")) if prior and prior.get("price") is not None else base_price
+    old_tier = prior.get("tier") if prior else base_tier
+    price_drop = (
+        current_base is not None
+        and float(item["preco"]) <= current_base - float(settings.get("alerta_queda_preco_eur", 5))
+    )
+    opportunity = base_value < min_alert
+    upgrade = bool(old_tier and order.get(tier, 0) > order.get(old_tier, 0))
+    first = prior is None
+    should_notify = first or opportunity or upgrade or price_drop
+    can_push = order.get(tier, 0) >= order.get(min_notify, 3)
+    if not should_notify:
+        return False, False
+    if not can_push:
+        return False, True
+
+    emoji = {"DIAMANTE": "💎", "OURO": "🥇"}.get(tier, "💻")
+    title = f"{emoji} {tier}: {item['titulo']}"
+    message = (
+        f"{item['titulo']}\n"
+        f"Loja: {item['loja']} | Preço: {float(item['preco']):.2f}€\n"
+        f"Value: {assessment['value_score']:.1f} | Rank: {assessment['score_ranking']:.1f}\n"
+        f"GPU: {spec.get('gpu_modelo') or spec.get('gpu_tipo')} | CPU: {spec.get('cpu_modelo') or '?'}\n"
+        f"RAM: {spec.get('ram_gb') or '?'}GB | SSD: {spec.get('armazenamento_tb') or '?'}TB\n"
+        f"{item['url']}"
+    )
+    sent = ntfy_send(
+        title,
+        message,
+        priority=5 if tier == "DIAMANTE" else 3,
+        tags=["computer", "rotating_light"],
+    )
+    if sent:
+        history["alert_state"][alert_key] = {
+            "timestamp": now_iso(),
+            "price": item["preco"],
+            "value_score": assessment["value_score"],
+            "tier": tier,
+        }
+    return sent, False
+
+
+# ---------------------------------------------------------------------------
+# Execução V8.5
+# ---------------------------------------------------------------------------
+
+
+def main() -> dict:
+    global RUN_STARTED, RUN_DEADLINE, REQUESTS_USED, REQUESTS_BY_STORE
+    global DETAIL_FETCHES_USED, MAX_REQUESTS, MAX_REQUESTS_PER_STORE, MAX_DETAIL_FETCHES, LEARNING
+
+    logging.basicConfig(
+        level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
+        format="%(asctime)s | %(levelname)s | %(message)s",
+    )
+    RUN_STARTED = time.monotonic()
+    RUN_DEADLINE = RUN_STARTED + max(1.0, float(os.getenv("RUN_MAX_MINUTES", "8"))) * 60
+    REQUESTS_USED = 0
+    REQUESTS_BY_STORE = defaultdict(int)
+    DETAIL_FETCHES_USED = 0
+    LEARNING = load_learning()
+
+    config = load_json(CONFIG_PATH)
+    settings = config.get("settings", {})
+    weights = config.get("weights", {})
+    MAX_REQUESTS = int(os.getenv("RUN_MAX_REQUESTS", settings.get("max_requests_per_run", 180)))
+    MAX_REQUESTS_PER_STORE = int(
+        os.getenv("RUN_MAX_REQUESTS_PER_STORE", settings.get("max_requests_per_store", 40))
+    )
+    MAX_DETAIL_FETCHES = int(
+        os.getenv("RUN_MAX_DETAIL_FETCHES", settings.get("max_detail_fetches_per_run", 50))
+    )
+    max_evaluated = int(settings.get("max_evaluated_per_run", 60))
+    min_price = float(settings.get("preco_minimo_global", 250))
+    hard = float(settings.get("budget_hard", 1500))
+
+    history = load_history()
+    spec_cache = latest_specs_by_url(history)
+    all_items: list[dict] = []
+    stats: dict[str, dict] = {}
+
+    for cat in config.get("category_urls", []):
+        if not budget_available():
+            break
+        store = cat["loja"]
+        items, stat = scan_store(cat, config, settings)
+        clean = []
+        seen = set()
+        for item in items:
+            price = item.get("preco")
+            url = item.get("url")
+            if (
+                url
+                and url not in seen
+                and price is not None
+                and min_price <= float(price) <= hard
+                and scraper.eligible(item.get("titulo", ""))
+            ):
+                seen.add(url)
+                clean.append(item)
+        stat["candidatos"] = len(clean)
+        stats[store] = stat
+        all_items.extend(clean)
+        LOGGER.info(
+            "Scan | %s | candidatos=%d | páginas=%d | sitemap=%d | pedidos=%d | fontes=%s",
+            store,
+            len(clean),
+            stat["paginas_categoria"],
+            stat["sitemap_urls"],
+            REQUESTS_BY_STORE.get(store, 0),
+            stat["fontes_descoberta"],
+        )
+
+    unique: dict[tuple[str, str], dict] = {}
+    for item in all_items:
+        unique.setdefault((item["loja"], item["url"]), item)
+    selected = select_for_evaluation(list(unique.values()), max_evaluated, weights, settings)
+    LOGGER.info(
+        "Pré-ranking V8.5 | descobertos=%d | selecionados=%d | limite=%d | detalhe_max=%d",
+        len(unique),
+        len(selected),
+        max_evaluated,
+        MAX_DETAIL_FETCHES,
+    )
+
+    evaluated: list[dict] = []
+    to_fetch = []
+    for item in selected:
+        store = item["loja"]
+        if item.get("specs"):
+            evaluated.append(item)
+            stats[store]["avaliados"] += 1
+            continue
+        cached = spec_cache.get(item["url"])
+        if cached:
+            cached_item = dict(item)
+            cached_item["specs"] = cached
+            cached_item["detail_source"] = "history_cache"
+            evaluated.append(cached_item)
+            stats[store]["avaliados"] += 1
+            stats[store]["cache_reutilizada"] += 1
+            continue
+        if reserve_detail_slot():
+            to_fetch.append(item)
+
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = [executor.submit(enrich, item, config) for item in to_fetch]
+        for future in as_completed(futures):
+            item, error = future.result()
+            if error.get("error"):
+                continue
+            evaluated.append(item)
+            store = item["loja"]
+            stats[store]["avaliados"] += 1
+            stats[store]["detalhes_live"] += 1
+
+    tiers = {"DIAMANTE": 0, "OURO": 0, "PRATA": 0, "BRONZE": 0}
+    alerts = 0
+    suppressed = 0
+    current_ranked = []
+
+    for item in evaluated:
+        price = item.get("preco")
+        store = item["loja"]
+        if price is None:
+            continue
+        spec = item.get("specs") or scraper.specs(item.get("titulo", ""))
+        assessment = score_allow_unknown(spec, float(price), weights, settings)
+        if assessment.get("status") != "ACEITE":
+            stats[store]["rejeitados"] += 1
+            continue
+        stats[store]["aceites"] += 1
+        tier = scraper.tier_from_value(assessment["value_score"], settings)
+        if tier:
+            tiers[tier] += 1
+        previous, alert_key = record_offer(history, item, spec, assessment, tier)
+        sent, was_suppressed = maybe_alert(
+            history, item, spec, assessment, tier, previous, alert_key, settings
+        )
+        alerts += int(sent)
+        suppressed += int(was_suppressed)
+        current_ranked.append((assessment["value_score"], item, tier, assessment))
+
+    runtime = round(time.monotonic() - RUN_STARTED, 2)
+    run = {
+        "timestamp": now_iso(),
+        "runner_version": VERSION,
+        "stores": stats,
+        "total_candidates": sum(row["candidatos"] for row in stats.values()),
+        "selected_for_evaluation": len(selected),
+        "total_evaluated": sum(row["avaliados"] for row in stats.values()),
+        "total_accepted": sum(row["aceites"] for row in stats.values()),
+        "alerts_sent": alerts,
+        "notifications_suppressed": suppressed,
+        "access_requests": REQUESTS_USED,
+        "requests_by_store": dict(sorted(REQUESTS_BY_STORE.items())),
+        "detail_fetches": DETAIL_FETCHES_USED,
+        "cache_reused": sum(row["cache_reutilizada"] for row in stats.values()),
+        "runtime_seconds": runtime,
+        "tiers": tiers,
+    }
+
+    heartbeat_enabled = bool(settings.get("heartbeat_ntfy", True))
+    run["heartbeat_sent"] = send_heartbeat(run) if heartbeat_enabled else False
+    history["learning"]["runs"].append(run)
+    history["learning"]["runs"] = history["learning"]["runs"][-60:]
+    history["tracker_version"] = VERSION
+    LEARNING["schema_version"] = 2
+    LEARNING["updated_at"] = now_iso()
+    save_json(HISTORY_PATH, history)
+    save_json(LEARNING_PATH, LEARNING)
+
+    LOGGER.info(
+        "V8.5 | Lojas=%d | Descobertos=%d | Avaliados=%d | Aceites=%d | Pedidos=%d | "
+        "Detalhes=%d | Cache=%d | Tempo=%.1fs | Heartbeat=%s | D=%d O=%d P=%d B=%d",
+        len(stats),
+        run["total_candidates"],
+        run["total_evaluated"],
+        run["total_accepted"],
+        REQUESTS_USED,
+        DETAIL_FETCHES_USED,
+        run["cache_reused"],
+        runtime,
+        run["heartbeat_sent"],
+        tiers["DIAMANTE"],
+        tiers["OURO"],
+        tiers["PRATA"],
+        tiers["BRONZE"],
+    )
+    for store, stat in stats.items():
+        LOGGER.info(
+            "🏪 %s | cand=%d aval=%d live=%d cache=%d aceites=%d pedidos=%d bloqueada=%s",
+            store,
+            stat["candidatos"],
+            stat["avaliados"],
+            stat["detalhes_live"],
+            stat["cache_reutilizada"],
+            stat["aceites"],
+            REQUESTS_BY_STORE.get(store, 0),
+            stat["bloqueada"],
+        )
+    for value, item, tier, assessment in sorted(current_ranked, reverse=True, key=lambda row: row[0])[:8]:
+        LOGGER.info(
+            "TOP | %s | %.2f€ | Value %.1f | Rank %.1f | %s | %s",
+            item["loja"],
+            float(item["preco"]),
+            value,
+            assessment["score_ranking"],
+            tier or "—",
+            item["titulo"],
+        )
+    return run
+
+
+# ---------------------------------------------------------------------------
+# Merge concorrente de estado (usado pelo GitHub Actions)
+# ---------------------------------------------------------------------------
+
+
+def _timestamp(record: dict) -> str:
+    return str(record.get("timestamp") or record.get("updated_at") or "")
+
+
+def _entry_id(entry: dict) -> tuple:
+    return (
+        entry.get("timestamp"),
+        entry.get("url"),
+        entry.get("price"),
+        entry.get("value_score"),
+        entry.get("tier"),
+    )
+
+
+def _merge_entry_lists(left: list, right: list, limit: int = 30) -> list:
+    merged = {}
+    for entry in [*left, *right]:
+        if isinstance(entry, dict):
+            merged[_entry_id(entry)] = entry
+    return sorted(merged.values(), key=_timestamp)[-limit:]
+
+
+def _merge_monotonic(left: Any, right: Any, key: str | None = None) -> Any:
+    if isinstance(left, dict) and isinstance(right, dict):
+        return {
+            name: _merge_monotonic(left.get(name), right.get(name), name)
+            for name in set(left) | set(right)
+        }
+    if right is None:
+        return left
+    if left is None:
+        return right
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return max(left, right)
+    if isinstance(left, list) and isinstance(right, list):
+        result = []
+        seen = set()
+        for value in [*left, *right]:
+            marker = json.dumps(value, sort_keys=True, ensure_ascii=False) if isinstance(value, (dict, list)) else repr(value)
+            if marker not in seen:
+                seen.add(marker)
+                result.append(value)
+        return result
+    if key in {"updated_at", "last_updated", "timestamp"}:
+        return max(str(left), str(right))
+    return right
+
+
+def merge_history(current: dict, run_state: dict) -> dict:
+    out = _history_base()
+    out["tracker_version"] = max(
+        str(current.get("tracker_version", "")), str(run_state.get("tracker_version", ""))
+    ) or VERSION
+    current_offers = current.get("offers", {}) if isinstance(current.get("offers"), dict) else {}
+    run_offers = run_state.get("offers", {}) if isinstance(run_state.get("offers"), dict) else {}
+    for key in set(current_offers) | set(run_offers):
+        left = current_offers.get(key, []) if isinstance(current_offers.get(key, []), list) else []
+        right = run_offers.get(key, []) if isinstance(run_offers.get(key, []), list) else []
+        out["offers"][key] = _merge_entry_lists(left, right)
+
+    current_alerts = current.get("alert_state", {}) if isinstance(current.get("alert_state"), dict) else {}
+    run_alerts = run_state.get("alert_state", {}) if isinstance(run_state.get("alert_state"), dict) else {}
+    for key in set(current_alerts) | set(run_alerts):
+        choices = [value for value in (current_alerts.get(key), run_alerts.get(key)) if isinstance(value, dict)]
+        if choices:
+            out["alert_state"][key] = max(choices, key=_timestamp)
+
+    runs = {}
+    for record in [
+        *((current.get("learning", {}) or {}).get("runs", []) or []),
+        *((run_state.get("learning", {}) or {}).get("runs", []) or []),
+    ]:
+        if isinstance(record, dict):
+            marker = (record.get("timestamp"), record.get("runner_version"), record.get("access_requests"))
+            runs[marker] = record
+    out["learning"]["runs"] = sorted(runs.values(), key=_timestamp)[-60:]
+    out["learning"]["stores"] = _merge_monotonic(
+        (current.get("learning", {}) or {}).get("stores", {}),
+        (run_state.get("learning", {}) or {}).get("stores", {}),
+    )
+    return out
+
+
+def merge_access_learning(current: dict, run_state: dict) -> dict:
+    merged = _merge_monotonic(current, run_state)
+    if not isinstance(merged, dict):
+        merged = {}
+    merged["schema_version"] = 2
+    return merged
+
+
+def merge_state_files(
+    history_current: Path,
+    history_run: Path,
+    learning_current: Path,
+    learning_run: Path,
+) -> None:
+    save_json(history_current, merge_history(load_json(history_current), load_json(history_run)))
+    save_json(
+        learning_current,
+        merge_access_learning(load_json(learning_current), load_json(learning_run)),
+    )
+
+
+def merge_cli(argv: list[str]) -> None:
+    parser = argparse.ArgumentParser(description="Merge seguro do estado V8.5")
+    parser.add_argument("--history-current", required=True, type=Path)
+    parser.add_argument("--history-run", required=True, type=Path)
+    parser.add_argument("--learning-current", required=True, type=Path)
+    parser.add_argument("--learning-run", required=True, type=Path)
+    args = parser.parse_args(argv)
+    merge_state_files(
+        args.history_current,
+        args.history_run,
+        args.learning_current,
+        args.learning_run,
+    )
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "merge-state":
+        merge_cli(sys.argv[2:])
+    else:
+        main()
