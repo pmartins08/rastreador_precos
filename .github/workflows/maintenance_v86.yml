@@ -38,6 +38,13 @@ jobs:
           path = Path('data/maintenance_v86.py')
           text = path.read_text(encoding='utf-8')
 
+          # Substituições regex devem inserir o texto literalmente (sem interpretar \D, \b, etc.).
+          text = text.replace(
+              'new, count = re.subn(pattern, replacement, text, count=1, flags=re.S)',
+              'new, count = re.subn(pattern, lambda _match: replacement, text, count=1, flags=re.S)',
+              1,
+          )
+
           # O teste HTML estava dentro de uma string raw delimitada também por '''.
           lines = text.splitlines()
           for index, line in enumerate(lines):
