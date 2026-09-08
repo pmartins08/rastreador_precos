@@ -1,6 +1,9 @@
 name: Validar Rastreador
 
 on:
+  push:
+    branches:
+      - 'feature/v8.8.5-promo-intelligence'
   pull_request:
     branches: [main]
   workflow_dispatch:
