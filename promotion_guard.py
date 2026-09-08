@@ -4,6 +4,8 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 
+PROMOTION_SOURCE = "promocao"
+
 DEFAULT_CAMPAIGNS = {
     "Worten": [
         {
@@ -42,9 +44,8 @@ DEFAULT_CAMPAIGNS = {
 def _parse_day(value: Any) -> date | None:
     if not value:
         return None
-    text = str(value).strip()
     try:
-        return date.fromisoformat(text[:10])
+        return date.fromisoformat(str(value).strip()[:10])
     except ValueError:
         return None
 
@@ -97,15 +98,26 @@ def _campaigns_for(cat: dict, store: str) -> list[Any]:
     return out
 
 
-def install(tracker_module) -> None:
-    """Prioriza campanhas públicas sem alterar scoring nem confiança de preço.
+def _active_campaign_urls(cat: dict, store: str) -> set[str]:
+    urls = set()
+    for index, raw in enumerate(_campaigns_for(cat, store)):
+        route = _route(raw, index, "promotion")
+        if route is not None:
+            urls.add(str(route["url"]).rstrip("/").lower())
+    return urls
 
-    As campanhas são apenas lead generation. Produtos descobertos por esta via
-    continuam obrigatoriamente a passar pelo parsing normal, Brain Guard,
-    Price Guard e Market Guard antes de poderem gerar qualquer alerta.
+
+def install(tracker_module) -> None:
+    """Prioriza campanhas sem alterar o Value ou a confiança de preço.
+
+    A campanha serve apenas para lead generation e pré-ranking. O candidato
+    continua a passar pelo scraper, Brain Guard, Price Guard e Market Guard.
     """
     if getattr(tracker_module, "_PROMOTION_GUARD_INSTALLED", False):
         return
+
+    base_discover_html = tracker_module._discover_html
+    base_candidate_priority = tracker_module.candidate_priority
 
     def discovery_routes(cat: dict, store: str) -> list[dict]:
         routes: list[dict] = []
@@ -131,5 +143,26 @@ def install(tracker_module) -> None:
             ),
         )
 
+    def discover_html(response, route_cat, target, candidates, source, stat):
+        store = str(route_cat.get("loja") or "")
+        current = str(route_cat.get("url") or "").rstrip("/").lower()
+        effective_source = source
+        if current and current in _active_campaign_urls(route_cat, store):
+            effective_source = PROMOTION_SOURCE
+            stat.setdefault("fontes_descoberta", {}).setdefault(PROMOTION_SOURCE, 0)
+        return base_discover_html(
+            response, route_cat, target, candidates, effective_source, stat
+        )
+
+    def candidate_priority(item: dict, weights: dict, settings: dict) -> float:
+        base = float(base_candidate_priority(item, weights, settings))
+        if PROMOTION_SOURCE not in set(item.get("discovery_sources", [])):
+            return base
+        # Apenas decide o que merece análise primeiro. Não toca no Value final.
+        bonus = float(settings.get("promotion_candidate_priority_bonus", 6.0))
+        return round(base + max(0.0, min(15.0, bonus)), 3)
+
     tracker_module.discovery_routes = discovery_routes
+    tracker_module._discover_html = discover_html
+    tracker_module.candidate_priority = candidate_priority
     tracker_module._PROMOTION_GUARD_INSTALLED = True
