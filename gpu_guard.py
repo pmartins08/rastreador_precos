@@ -1,9 +1,17 @@
 from __future__ import annotations
 
-from contextvars import ContextVar
 
+class TierAwareValue(float):
+    """Float normal com metadado local para a decisão de tier.
 
-_PREMIUM_GPU_OK: ContextVar[bool] = ContextVar("premium_gpu_ok", default=True)
+    Continua a serializar, formatar e ordenar como número. O único consumidor
+    especial é o wrapper de tier abaixo, evitando qualquer estado global.
+    """
+
+    def __new__(cls, value: float, *, premium_gpu_ok: bool):
+        obj = float.__new__(cls, value)
+        obj.premium_gpu_ok = bool(premium_gpu_ok)
+        return obj
 
 
 def premium_gpu_status(spec: dict, weights: dict) -> dict:
@@ -51,8 +59,9 @@ def premium_gpu_status(spec: dict, weights: dict) -> dict:
 def install(scraper_module, tracker_module) -> None:
     """Limita Ouro/Diamante a produtos com GPU confirmada.
 
-    O loop de scoring do tracker é sequencial após a fase concorrente de fetch.
-    ContextVar mantém ainda assim a decisão isolada por contexto de execução.
+    O Value bruto é preservado. O cap viaja no próprio valor calculado pelo
+    tracker, por isso chamadas independentes a `tier_from_value()` continuam
+    exatamente com o comportamento original do cérebro.
     """
     if getattr(tracker_module, "_GPU_GUARD_INSTALLED", False):
         return
@@ -62,16 +71,20 @@ def install(scraper_module, tracker_module) -> None:
 
     def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict) -> dict:
         status = premium_gpu_status(spec, weights)
-        _PREMIUM_GPU_OK.set(bool(status["confirmed"]))
         spec["gpu_tier_guard"] = status
         assessment = base_score_allow_unknown(spec, price, weights, settings)
         assessment["gpu_tier_guard"] = status
+        if assessment.get("value_score") is not None:
+            raw_value = float(assessment["value_score"])
+            assessment["value_score"] = TierAwareValue(
+                raw_value, premium_gpu_ok=bool(status["confirmed"])
+            )
         return assessment
 
     def tier_from_value(value: float, settings: dict) -> str | None:
-        tier = base_tier_from_value(value, settings)
-        if tier in {"OURO", "DIAMANTE"} and not _PREMIUM_GPU_OK.get():
-            # O Value bruto é preservado; só o rótulo de confiança é limitado.
+        tier = base_tier_from_value(float(value), settings)
+        premium_gpu_ok = getattr(value, "premium_gpu_ok", True)
+        if tier in {"OURO", "DIAMANTE"} and not premium_gpu_ok:
             return "PRATA"
         return tier
 
