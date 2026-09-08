@@ -1,6 +1,7 @@
 import unittest
 
 import gpu_guard
+import market_guard
 
 
 class DummyScraper:
@@ -37,15 +38,28 @@ class DummyScraper:
         return None
 
 
+class DummyLogger:
+    @staticmethod
+    def warning(*_args, **_kwargs):
+        return None
+
+
 class DummyTracker:
     def __init__(self):
         self._GPU_GUARD_INSTALLED = False
+        self._MARKET_GUARD_INSTALLED = False
         self.select_with_cache = self._select
+        self.apply_exact_market_price_evidence = self._market_evidence
         self.score_allow_unknown = self._score
+        self.LOGGER = DummyLogger()
 
     @staticmethod
     def _select(items, _spec_cache, _max_items, _weights, _settings):
         return items
+
+    @staticmethod
+    def _market_evidence(_records, _settings):
+        return {"confirmed_groups": 0, "outliers": 0}
 
     @staticmethod
     def _score(_spec, _price, _weights, _settings):
@@ -60,6 +74,19 @@ class DummyTracker:
         }
 
 
+TITLE = "HP OmniBook X Flip | Intel® Arc™ de 140 V | Core Ultra 7"
+
+
+def unknown_spec():
+    return {
+        "gpu_tipo": "desconhecida",
+        "gpu_modelo": None,
+        "gpu_modelos_detectados": [],
+        "evidencias": {},
+        "fontes": {},
+    }
+
+
 class InlineSpecMigrationTests(unittest.TestCase):
     def test_embedded_arc_140v_specs_are_upgraded_from_current_title(self):
         scraper = DummyScraper()
@@ -68,17 +95,35 @@ class InlineSpecMigrationTests(unittest.TestCase):
 
         item = {
             "url": "https://example.test/hp-omnibook-arc",
-            "titulo": "HP OmniBook X Flip | Intel® Arc™ de 140 V | Core Ultra 7",
-            "specs": {
-                "gpu_tipo": "integrada",
-                "gpu_modelo": None,
-                "evidencias": {},
-                "fontes": {},
-            },
+            "titulo": TITLE,
+            "specs": unknown_spec(),
         }
 
         selected = tracker.select_with_cache([item], {}, 1, {}, {})
         spec = selected[0]["specs"]
+
+        self.assertEqual(spec["gpu_tipo"], "integrada")
+        self.assertEqual(spec["gpu_modelo"], "intel arc graphics 140v")
+
+    def test_authoritative_record_stage_upgrades_history_cache_before_scoring(self):
+        scraper = DummyScraper()
+        tracker = DummyTracker()
+        gpu_guard.install(scraper, tracker)
+        # Mesma ordem do runner real: Market Guard é instalado depois do GPU Guard.
+        market_guard.install(scraper, tracker)
+
+        spec = unknown_spec()
+        record = {
+            "item": {
+                "url": "https://example.test/hp-omnibook-arc",
+                "titulo": TITLE,
+                "preco": 1299.99,
+                "loja": "FNAC",
+            },
+            "spec": spec,
+        }
+
+        tracker.apply_exact_market_price_evidence([record], {})
 
         self.assertEqual(spec["gpu_tipo"], "integrada")
         self.assertEqual(spec["gpu_modelo"], "intel arc graphics 140v")
