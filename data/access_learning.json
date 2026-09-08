@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-09-08T00:25:29.670067Z",
+  "updated_at": "2026-09-08T00:28:09.118775Z",
   "stores": {
     "PCDiga": {
       "attempts": 101,
@@ -82,7 +82,7 @@
           }
         }
       },
-      "last_updated": "2026-09-08T00:23:33.782068Z"
+      "last_updated": "2026-09-08T00:25:56.965498Z"
     },
     "PcComponentes": {
       "attempts": 58,
@@ -175,7 +175,7 @@
           }
         }
       },
-      "last_updated": "2026-09-08T00:23:41.638836Z"
+      "last_updated": "2026-09-08T00:26:05.393315Z"
     },
     "Globaldata": {
       "attempts": 41,
@@ -215,26 +215,24 @@
           }
         }
       },
-      "last_updated": "2026-09-08T00:25:26.591669Z"
+      "last_updated": "2026-09-08T00:28:02.203306Z"
     },
     "Radio Popular": {
-      "attempts": 20,
+      "attempts": 19,
       "successes": 19,
       "blocks": 0,
-      "errors": {
-        "request_error": 1
-      },
+      "errors": {},
       "profiles": {
         "chrome131": {
-          "attempts": 20,
+          "attempts": 19,
           "successes": 19,
           "blocks": 0,
-          "errors": 1
+          "errors": 0
         }
       },
       "methods": {
         "page": 11,
-        "product": 9
+        "product": 8
       },
       "contexts": {
         "page": {
@@ -248,17 +246,17 @@
         },
         "product": {
           "chrome131": {
-            "attempts": 9,
+            "attempts": 8,
             "successes": 8,
             "blocks": 0,
-            "errors": 1,
+            "errors": 0,
             "results": {
               "valid_product": 8
             }
           }
         }
       },
-      "last_updated": "2026-09-08T00:25:24.205199Z"
+      "last_updated": "2026-09-08T00:27:58.380241Z"
     },
     "CHIP7": {
       "attempts": 58,
@@ -351,7 +349,7 @@
           }
         }
       },
-      "last_updated": "2026-09-08T00:23:54.969780Z"
+      "last_updated": "2026-09-08T00:26:18.823458Z"
     },
     "FNAC": {
       "attempts": 17,
@@ -431,7 +429,7 @@
           }
         }
       },
-      "last_updated": "2026-09-08T00:24:03.826496Z"
+      "last_updated": "2026-09-08T00:26:25.290735Z"
     },
     "Worten": {
       "attempts": 34,
@@ -517,19 +515,25 @@
           }
         }
       },
-      "last_updated": "2026-09-08T00:24:11.550311Z"
+      "last_updated": "2026-09-08T00:26:31.939250Z"
     },
     "ASUS": {
-      "attempts": 9,
+      "attempts": 11,
       "successes": 7,
       "blocks": 0,
       "errors": {
-        "request_error": 2
+        "request_error": 4
       },
       "profiles": {
         "chrome131": {
-          "attempts": 9,
-          "successes": 7,
+          "attempts": 8,
+          "successes": 6,
+          "blocks": 0,
+          "errors": 2
+        },
+        "chrome146": {
+          "attempts": 3,
+          "successes": 1,
           "blocks": 0,
           "errors": 2
         }
@@ -537,7 +541,7 @@
       "methods": {
         "page": 1,
         "robots": 1,
-        "sitemap": 7
+        "sitemap": 9
       },
       "contexts": {
         "page": {
@@ -560,15 +564,22 @@
         },
         "sitemap": {
           "chrome131": {
-            "attempts": 7,
-            "successes": 5,
+            "attempts": 6,
+            "successes": 4,
+            "blocks": 0,
+            "errors": 2,
+            "results": {}
+          },
+          "chrome146": {
+            "attempts": 3,
+            "successes": 1,
             "blocks": 0,
             "errors": 2,
             "results": {}
           }
         }
       },
-      "last_updated": "2026-09-08T00:24:47.724920Z"
+      "last_updated": "2026-09-08T00:27:10.282461Z"
     }
   }
 }
