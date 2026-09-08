@@ -6,40 +6,6 @@ from typing import Any
 
 PROMOTION_SOURCE = "promocao"
 
-DEFAULT_CAMPAIGNS = {
-    "Worten": [
-        {
-            "label": "regresso_aulas_2026",
-            "url": "https://www.worten.pt/campanha/tudo-para-o-regresso-as-aulas",
-            "active_from": "2026-08-18",
-            "expires_at": "2026-09-21",
-            "priority": 120,
-        }
-    ],
-    "PcComponentes": [
-        {
-            "label": "regresso_aulas_2026",
-            "url": "https://www.pccomponentes.pt/campanhas/regresso-as-aulas",
-            "expires_at": "2026-09-13",
-            "priority": 120,
-        }
-    ],
-    "FNAC": [
-        {
-            "label": "regresso_aulas_2026",
-            "url": "https://www.fnac.pt/regresso-as-aulas",
-            "priority": 115,
-        }
-    ],
-    "Radio Popular": [
-        {
-            "label": "regresso_aulas_2026",
-            "url": "https://www.radiopopular.pt/microsite/regresso-as-aulas-2026",
-            "priority": 115,
-        }
-    ],
-}
-
 
 def _parse_day(value: Any) -> date | None:
     if not value:
@@ -83,9 +49,13 @@ def _route(raw: Any, index: int, kind: str) -> dict | None:
     return route
 
 
-def _campaigns_for(cat: dict, store: str) -> list[Any]:
+def _campaigns_for(cat: dict) -> list[Any]:
+    """Campanhas são configuração, não código.
+
+    Isto mantém o guard genérico: futuras campanhas podem ser adicionadas,
+    desativadas ou expiradas sem alterar o runtime.
+    """
     configured = list(cat.get("campaign_urls", []))
-    configured.extend(DEFAULT_CAMPAIGNS.get(store, []))
     seen = set()
     out = []
     for raw in configured:
@@ -98,9 +68,9 @@ def _campaigns_for(cat: dict, store: str) -> list[Any]:
     return out
 
 
-def _active_campaign_urls(cat: dict, store: str) -> set[str]:
+def _active_campaign_urls(cat: dict) -> set[str]:
     urls = set()
-    for index, raw in enumerate(_campaigns_for(cat, store)):
+    for index, raw in enumerate(_campaigns_for(cat)):
         route = _route(raw, index, "promotion")
         if route is not None:
             urls.add(str(route["url"]).rstrip("/").lower())
@@ -122,7 +92,7 @@ def install(tracker_module) -> None:
     def discovery_routes(cat: dict, store: str) -> list[dict]:
         routes: list[dict] = []
 
-        for index, raw in enumerate(_campaigns_for(cat, store)):
+        for index, raw in enumerate(_campaigns_for(cat)):
             route = _route(raw, index, "promotion")
             if route is not None:
                 route["yield_score"] = tracker_module.discovery_score(store, route["method_key"])
@@ -144,10 +114,9 @@ def install(tracker_module) -> None:
         )
 
     def discover_html(response, route_cat, target, candidates, source, stat):
-        store = str(route_cat.get("loja") or "")
         current = str(route_cat.get("url") or "").rstrip("/").lower()
         effective_source = source
-        if current and current in _active_campaign_urls(route_cat, store):
+        if current and current in _active_campaign_urls(route_cat):
             effective_source = PROMOTION_SOURCE
             stat.setdefault("fontes_descoberta", {}).setdefault(PROMOTION_SOURCE, 0)
         return base_discover_html(
