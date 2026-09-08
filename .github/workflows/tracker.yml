@@ -6,7 +6,6 @@ on:
     paths-ignore:
       - 'data/**'
       - 'README.md'
-      - '.github/workflows/maintenance_*.yml'
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -15,7 +14,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: rastreador-precos-v884-main
+  group: rastreador-precos-main
   cancel-in-progress: true
 
 jobs:
@@ -42,9 +41,25 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
-      - name: Testes V8 + V8.8.4
+      - name: Validar código e testes
         run: |
-          python -m py_compile scraper.py brain_guard.py price_guard.py market_guard.py tracker.py runner.py tests/test_brain_guard.py tests/test_tracker.py tests/test_price_guard.py tests/test_market_guard.py
+          python -m py_compile \
+            version.py \
+            version_guard.py \
+            scraper.py \
+            brain_guard.py \
+            price_guard.py \
+            market_guard.py \
+            promotion_guard.py \
+            historical_guard.py \
+            tracker.py \
+            runner.py \
+            tests/test_brain_guard.py \
+            tests/test_tracker.py \
+            tests/test_price_guard.py \
+            tests/test_market_guard.py \
+            tests/test_promotion_guard.py \
+            tests/test_historical_guard.py
           python -m unittest discover -s tests -p 'test_*.py' -v
 
       - name: Validar configuração NTFY
@@ -52,7 +67,7 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: test -n "$NTFY_TOPIC"
 
-      - name: Executar Rastreador V8.8.4 adaptativo
+      - name: Executar rastreador
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           RUN_MAX_MINUTES: '8'
@@ -68,6 +83,7 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
+          APP_VERSION="$(python -c 'from version import VERSION; print(VERSION)')"
           if python - <<'PY'
           import json
           from pathlib import Path
@@ -84,12 +100,13 @@ jobs:
             MESSAGE="$(python - <<'PY'
           import json
           from pathlib import Path
+          from version import VERSION
 
           data = json.loads(Path('data/history.json').read_text(encoding='utf-8'))
           run = (data.get('learning', {}).get('runs', []) or [{}])[-1]
           tiers = run.get('tiers', {})
           print(
-              f"V{run.get('runner_version', '8.8.4')} operacional (heartbeat redundante)\n"
+              f"V{run.get('runner_version', VERSION)} operacional (heartbeat redundante)\n"
               f"Lojas: {len(run.get('stores', {}))} | descobertos: {run.get('total_candidates', '?')} | "
               f"avaliados: {run.get('total_evaluated', '?')} | aceites: {run.get('total_accepted', '?')}\n"
               f"Pedidos: {run.get('access_requests', '?')} | tempo: {run.get('runtime_seconds', '?')}s\n"
@@ -102,7 +119,7 @@ jobs:
             for attempt in 1 2 3 4; do
               if curl -fsS --connect-timeout 10 --max-time 20 --retry 1 --retry-delay 2 --retry-all-errors \
                 -X POST "https://ntfy.sh/${NTFY_TOPIC}" \
-                -H "Title: 💓 Heartbeat Rastreador V8.8.4" \
+                -H "Title: 💓 Heartbeat Rastreador V${APP_VERSION}" \
                 -H "Priority: low" \
                 -H "Tags: heartbeat,computer" \
                 -d "$MESSAGE"; then
@@ -120,54 +137,61 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
+          APP_VERSION="$(python -c 'from version import VERSION; print(VERSION)' 2>/dev/null || echo '?')"
           if [ -n "$NTFY_TOPIC" ]; then
             for attempt in 1 2 3 4; do
               if curl -fsS --connect-timeout 10 --max-time 20 --retry 1 --retry-delay 2 --retry-all-errors \
                 -X POST "https://ntfy.sh/${NTFY_TOPIC}" \
-                -H "Title: ❌ Rastreador V8.8.4 falhou" \
+                -H "Title: ❌ Rastreador V${APP_VERSION} falhou" \
                 -H "Priority: high" \
                 -H "Tags: warning,computer" \
-                -d "GitHub Actions detetou uma falha no pipeline V8.8.4. Consulta a run para identificar o passo que falhou."; then
+                -d "GitHub Actions detetou uma falha no pipeline V${APP_VERSION}. Consulta a run para identificar o passo que falhou."; then
                 break
               fi
               sleep $((attempt * 2))
             done
           fi
 
-      - name: Guardar histórico e aprendizagem
+      - name: Guardar estado, aprendizagem e histórico de preços
         if: success()
         run: |
           set -e
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- data/history.json data/access_learning.json; then
+          if [ -z "$(git status --porcelain -- data/history.json data/access_learning.json data/price_history.json)" ]; then
             echo "Sem alterações de dados."
             exit 0
           fi
 
-          cp data/history.json /tmp/history-v884.json
-          cp data/access_learning.json /tmp/access-learning-v884.json
+          cp data/history.json /tmp/history-run.json
+          cp data/access_learning.json /tmp/access-learning-run.json
+          cp data/price_history.json /tmp/price-history-run.json
 
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --hard origin/main
+            git clean -f -- data/price_history.json
 
             python runner.py merge-state \
               --history-current data/history.json \
-              --history-run /tmp/history-v884.json \
+              --history-run /tmp/history-run.json \
               --learning-current data/access_learning.json \
-              --learning-run /tmp/access-learning-v884.json
+              --learning-run /tmp/access-learning-run.json
 
-            git add data/history.json data/access_learning.json
+            python historical_guard.py \
+              --current data/price_history.json \
+              --run /tmp/price-history-run.json
+
+            git add data/history.json data/access_learning.json data/price_history.json
             if git diff --cached --quiet; then
               echo "Sem alterações após merge com main."
               exit 0
             fi
 
-            git commit -m "chore: atualizar estado V8.8.4 [skip ci]"
+            git commit -m "chore: atualizar estado do rastreador [skip ci]"
             if git push origin HEAD:main; then
-              echo "Estado V8.8.4 persistido com sucesso."
+              echo "Estado persistido com sucesso."
               exit 0
             fi
 
