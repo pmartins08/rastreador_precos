@@ -38,14 +38,14 @@ jobs:
           path = Path('data/maintenance_v86.py')
           text = path.read_text(encoding='utf-8')
 
-          # Substituições regex devem inserir o texto literalmente (sem interpretar \D, \b, etc.).
+          # Substituições regex devem inserir o texto literalmente.
           text = text.replace(
               'new, count = re.subn(pattern, replacement, text, count=1, flags=re.S)',
               'new, count = re.subn(pattern, lambda _match: replacement, text, count=1, flags=re.S)',
               1,
           )
 
-          # O teste HTML estava dentro de uma string raw delimitada também por '''.
+          # Corrige o teste HTML que estava dentro de uma raw string com o mesmo delimitador.
           lines = text.splitlines()
           for index, line in enumerate(lines):
               if "html = '''<script type=\"application/ld+json\">" in line:
@@ -53,11 +53,16 @@ jobs:
                   lines[index] = line[:len(line) - len(line.lstrip())] + 'html = ' + repr(payload)
           text = '\n'.join(lines) + '\n'
 
-          # Corrige argumento omitido numa chamada replace_once da migração.
-          needle = "tracker = replace_once(\n    '        \"runtime_seconds\": runtime,\\n        \"tiers\": tiers,'"
-          replacement = "tracker = replace_once(\n    tracker,\n    '        \"runtime_seconds\": runtime,\\n        \"tiers\": tiers,'"
-          if needle in text:
-              text = text.replace(needle, replacement, 1)
+          # Qualquer tracker = replace_once(...) tem de receber tracker como primeiro argumento.
+          lines = text.splitlines()
+          fixed = []
+          for index, line in enumerate(lines):
+              fixed.append(line)
+              if line.strip() == 'tracker = replace_once(':
+                  next_line = lines[index + 1].strip() if index + 1 < len(lines) else ''
+                  if next_line != 'tracker,':
+                      fixed.append('    tracker,')
+          text = '\n'.join(fixed) + '\n'
 
           # Cada rota pública aprende acesso separadamente.
           old = '''        segment_response, _, segment_access = adaptive_fetch(
@@ -76,13 +81,22 @@ jobs:
               1,
           )
 
-          # A paginação é limitada por tentativas, para URLs falhadas não criarem uma fila cara.
-          text = text.replace('    pages_fetched = 0\n    while pagination_queue and pages_fetched < max(0, max_pages - 1)',
-                              '    pages_attempted = 0\n    while pagination_queue and pages_attempted < max(0, max_pages - 1)', 1)
-          text = text.replace('        before_requests = REQUESTS_BY_STORE.get(store, 0)\n        before_candidates = len(candidates)\n        page_response, _, page_access = adaptive_fetch(',
-                              '        pages_attempted += 1\n        before_requests = REQUESTS_BY_STORE.get(store, 0)\n        before_candidates = len(candidates)\n        page_response, _, page_access = adaptive_fetch(', 1)
-          text = text.replace('            pages_fetched += 1\n            stat["paginas_categoria"] += 1',
-                              '            stat["paginas_categoria"] += 1', 1)
+          # Paginação limitada por tentativas, não só por sucessos.
+          text = text.replace(
+              '    pages_fetched = 0\n    while pagination_queue and pages_fetched < max(0, max_pages - 1)',
+              '    pages_attempted = 0\n    while pagination_queue and pages_attempted < max(0, max_pages - 1)',
+              1,
+          )
+          text = text.replace(
+              '        before_requests = REQUESTS_BY_STORE.get(store, 0)\n        before_candidates = len(candidates)\n        page_response, _, page_access = adaptive_fetch(',
+              '        pages_attempted += 1\n        before_requests = REQUESTS_BY_STORE.get(store, 0)\n        before_candidates = len(candidates)\n        page_response, _, page_access = adaptive_fetch(',
+              1,
+          )
+          text = text.replace(
+              '            pages_fetched += 1\n            stat["paginas_categoria"] += 1',
+              '            stat["paginas_categoria"] += 1',
+              1,
+          )
 
           path.write_text(text, encoding='utf-8')
           PY
