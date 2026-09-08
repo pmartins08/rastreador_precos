@@ -48,6 +48,11 @@ class DummyTracker:
     def __init__(self):
         self._GPU_GUARD_INSTALLED = False
         self.score_allow_unknown = self._score
+        self.select_with_cache = self._select_with_cache
+
+    @staticmethod
+    def _select_with_cache(items, _spec_cache, max_items, _weights, _settings):
+        return items[:max_items]
 
     @staticmethod
     def _score(spec, price, weights, settings):
@@ -129,6 +134,43 @@ class GpuGuardTests(unittest.TestCase):
         self.assertEqual((kind, model), ("integrada", "radeon 890m"))
         self.assertEqual(models, ["radeon 890m"])
         self.assertEqual(gpu_guard.igpu_score(model), 31.0)
+
+    def test_cache_is_upgraded_from_current_title_without_refetch(self):
+        _scraper, tracker = self._modules()
+        items = [
+            {
+                "url": "https://example.test/hp-omnibook",
+                "titulo": "HP OmniBook X Flip | Intel Arc 140V | 32GB",
+            }
+        ]
+        spec_cache = {
+            items[0]["url"]: {
+                "gpu_tipo": "integrada",
+                "gpu_modelo": None,
+                "evidencias": {},
+                "fontes": {},
+            }
+        }
+        selected = tracker.select_with_cache(
+            items, spec_cache, 1, self.weights, self.settings
+        )
+        self.assertEqual(len(selected), 1)
+        cached = spec_cache[items[0]["url"]]
+        self.assertEqual(cached["gpu_modelo"], "intel arc graphics 140v")
+        self.assertEqual(cached["fontes"]["gpu_modelo"], "gpu_guard_v887")
+
+    def test_existing_evidence_can_upgrade_cached_igpu(self):
+        scraper, tracker = self._modules()
+        spec = {
+            "gpu_tipo": "integrada",
+            "gpu_modelo": None,
+            "evidencias": {"gpu": "Intel Arc Graphics 130V"},
+            "fontes": {},
+        }
+        assessment = tracker.score_allow_unknown(spec, 1000, self.weights, self.settings)
+        self.assertEqual(spec["gpu_modelo"], "intel arc graphics 130v")
+        self.assertTrue(assessment["gpu_tier_guard"]["confirmed"])
+        self.assertEqual(assessment["gpu_tier_guard"]["performance_class"], 28.0)
 
     def test_igpu_scale_stays_below_rtx_3050_class(self):
         self.assertLess(max(gpu_guard.IGPU_BASE.values()), 38.0)
