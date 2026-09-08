@@ -115,7 +115,8 @@
       "timeout_ms": 12000,
       "parent_climb": 7,
       "target_candidates": 45,
-      "sitemap_probe_limit": 8,
+      "sitemap_probe_limit": 6,
+      "max_sitemaps": 4,
       "product_path_hints": ["/portatil-asus-", "/portatil-lenovo-", "/portatil-hp-"],
       "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     },
@@ -133,16 +134,22 @@
       "timeout_ms": 12000,
       "parent_climb": 7,
       "target_candidates": 60,
+      "sitemap_enabled": false,
       "product_path_hints": ["/produto/", "/product/", "/computadores-portateis/", "/portatil/"],
       "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     },
     {
       "loja": "Radio Popular",
-      "url": "https://www.radiopopular.pt/pesquisa/laptop",
+      "url": "https://www.radiopopular.pt/categoria/computadores-portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "target_candidates": 45,
-      "sitemap_probe_limit": 5,
+      "target_candidates": 50,
+      "sitemap_enabled": false,
+      "extra_discovery_urls": [
+        "https://www.radiopopular.pt/categoria/computadores-portateis?pf-filters=%28%28brand+eq+%27ASUS%27%29",
+        "https://www.radiopopular.pt/categoria/computadores-portateis?pf-filters=%28%28brand+eq+%27Lenovo%27%29",
+        "https://www.radiopopular.pt/categoria/computadores-portateis?pf-filters=%28%28brand+eq+%27HP%27%29"
+      ],
       "product_path_hints": ["/produto/", "/product/", "/portatil/", "/laptop/"]
     },
     {
@@ -159,8 +166,11 @@
       "url": "https://www.fnac.pt/Portateis-Windows/n1334091",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "target_candidates": 45,
-      "sitemap_probe_limit": 5,
+      "target_candidates": 60,
+      "max_category_pages": 4,
+      "pagination_start": 2,
+      "pagination_template": "https://www.fnac.pt/Portateis-Windows/n1334091?PageIndex={page}",
+      "sitemap_enabled": false,
       "product_path_hints": ["/a/", "/a-", "/produto/", "/computador-portatil", "/portatil"]
     },
     {
