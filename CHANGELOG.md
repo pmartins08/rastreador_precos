@@ -1,6 +1,6 @@
 # Changelog
 
-Este ficheiro resume alterações de produto/arquitetura relevantes. O detalhe histórico continua preservado no Git e nas métricas das runs.
+Este ficheiro resume alterações de produto e arquitetura relevantes. O detalhe histórico continua preservado no Git, nas validações e nas métricas das runs.
 
 ## 8.8.7 — iGPU Intelligence
 
@@ -10,7 +10,16 @@ Este ficheiro resume alterações de produto/arquitetura relevantes. O detalhe h
 - iGPU mapeada passa a contar como GPU confirmada para o gate de Ouro/Diamante; iGPU genérica continua limitada a Prata.
 - O ajuste recalcula apenas a componente Gaming correspondente ao delta entre o fallback integrado=15 e a nova classe explícita.
 - Cache V8.8.6 é migrada progressivamente por título/evidência técnica sem invalidar CPU, RAM, ecrã ou voltar a abrir a ficha desnecessariamente.
-- CI passa a validar automaticamente branches `feature/v8.8.*` para evitar configuração manual por release.
+- Parser passa a reconhecer nomenclaturas reais como `Intel® Arc™ de 140 V`.
+
+### Consolidação pós-release
+
+- README reescrito para refletir o estado real da V8.8.7 e deixar histórico detalhado no changelog/docs.
+- Documentação separada em arquitetura, operação, roadmap, calibração e validações de release.
+- Compatibilidade de versões/estado centralizada em `version.py`; `version_guard.py` passa a consumir essa fonte única.
+- CI deixa de manter listas manuais de ficheiros Python e valida automaticamente branches `feature/**`, `fix/**`, `chore/**` e `refactor/**`.
+- Workflow de produção usa `compileall`, valida `config.json` e deixa de executar scraping quando o commit altera apenas documentação/estado.
+- `.gitignore` e documentação de `data/` foram completados.
 
 ## 8.8.6 — GPU confidence & coverage efficiency
 
