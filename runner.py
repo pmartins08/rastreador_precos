@@ -1,23 +1,22 @@
 from __future__ import annotations
 
-import logging
 import re
 import sys
 
 import scraper
-from brain_guard import VERSION, install as install_brain_guard
+from brain_guard import install as install_brain_guard
+from historical_guard import install as install_historical_guard
 from market_guard import install as install_market_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
+from promotion_guard import install as install_promotion_guard
+from version import VERSION
+from version_guard import install as install_version_guard
 
 
 # ---------------------------------------------------------------------------
 # Fallback genérico label -> valor
 # ---------------------------------------------------------------------------
 
-# Algumas lojas (nomeadamente Darty) apresentam especificações como uma sequência
-# visual de rótulo/valor sem <table>, <dl> ou classes semânticas previsvisíveis.
-# Esta camada tem confiança 0.90: qualquer tabela/dl/label_value estruturado do
-# scraper base continua a ganhar no algoritmo best().
 _BASE_PAIRS = scraper.pairs
 
 _LINEAR_LABELS = {
@@ -47,8 +46,6 @@ def _linear_spec_pairs(soup) -> list[tuple]:
         value = strings[index + 1].strip()
         normalized = scraper.norm(value)
 
-        # Darty apresenta alguns números sem unidade; normalizamos apenas quando
-        # o rótulo torna a unidade inequívoca.
         if key == "refresh" and re.fullmatch(r"\d{2,3}", normalized):
             value = f"{value} Hz"
         elif key == "weight" and re.fullmatch(r"\d(?:[.,]\d{1,2})?", normalized):
@@ -60,8 +57,6 @@ def _linear_spec_pairs(soup) -> list[tuple]:
 
         out.append((key, label, value, "linear_label", 0.90))
 
-        # "Tipo de Ecrã" pode transportar também painel e brilho. Guardamos
-        # essas evidências separadamente para o cérebro não perder informação.
         if scraper.norm(label) == "tipo de ecra":
             if re.search(r"\b(?:oled|ips|va|tn|mini[- ]?led)\b", normalized):
                 out.append(("panel", label, value, "linear_label", 0.90))
@@ -76,10 +71,8 @@ def _pairs_with_linear_fallback(soup) -> list[tuple]:
 
 scraper.pairs = _pairs_with_linear_fallback
 
-
-# Ordem intencional: correções técnicas entram primeiro; price_guard envolve o
-# cérebro já corrigido e acrescenta confiança/bónus de preço; market_guard atua
-# depois sobre a decisão operacional cross-store.
+# O cérebro base é deliberadamente preservado. As correções entram por camadas
+# pequenas, testáveis e independentes.
 install_brain_guard(scraper)
 install_price_guard(scraper)
 
@@ -99,8 +92,6 @@ def _enhanced_page_identifiers(soup) -> dict:
         return out
 
     text = " ".join(soup.stripped_strings)
-    # Padrão público usado pela Darty:
-    # ID PRODUTO: T00166546 | 0199271125540 | Lenovo
     match = re.search(
         r"ID\s+PRODUTO\s*:\s*[^|]{1,60}\|\s*(\d{8}|\d{12,14})\s*\|",
         text,
@@ -112,30 +103,17 @@ def _enhanced_page_identifiers(soup) -> dict:
 
 
 tracker.page_identifiers = _enhanced_page_identifiers
+
+# Camadas operacionais: versão pública, descoberta promocional, contexto de
+# mercado e histórico. Nenhuma delas substitui o cérebro V8.
+install_version_guard(tracker)
+install_promotion_guard(tracker)
 install_market_guard(scraper, tracker)
-tracker.VERSION = VERSION
-tracker.COMPATIBLE_STATE_VERSIONS.add(VERSION)
-
-
-class _VersionLogFilter(logging.Filter):
-    """Compatibilidade enquanto mensagens antigas do tracker não são dinâmicas."""
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        if isinstance(record.msg, str):
-            record.msg = record.msg.replace("V8.8.1", f"V{VERSION}")
-        return True
-
-
-tracker.LOGGER.addFilter(_VersionLogFilter())
+install_historical_guard(tracker)
 
 
 def _safe_page_price(soup, structured_price: float | None = None) -> float | None:
-    """Preço da ficha por evidência forte ou, em último caso, primeiro preço visível seguro.
-
-    O fallback existe sobretudo para lojas como a PCDiga, onde o preço atual pode
-    estar num nó de texto sem uma classe semântica. Nunca escolhe o menor valor da
-    página e rejeita contextos de PVPR, preço antigo, desconto e financiamento.
-    """
+    """Preço da ficha por evidência forte ou primeiro preço visível seguro."""
     evidence = page_price_evidence(soup, scraper)
     if evidence.get("price") is not None:
         return float(evidence["price"])
@@ -161,8 +139,6 @@ def _safe_page_price(soup, structured_price: float | None = None) -> float | Non
     return None
 
 
-# O tracker continua responsável por toda a operação; as camadas são instaladas
-# aqui num único composition root.
 tracker.preferred_page_price = _safe_page_price
 
 main = tracker.main
