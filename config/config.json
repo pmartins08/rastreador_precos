@@ -6,15 +6,15 @@
     "alerta_min_tier": "OURO",
     "alerta_queda_preco_eur": 5.0,
     "heartbeat_ntfy": true,
-    "max_candidates_per_store": 60,
+    "max_candidates_per_store": 80,
     "max_category_pages": 4,
-    "max_sitemap_urls_per_store": 100,
+    "max_sitemap_urls_per_store": 120,
     "sitemap_supplement_below": 24,
     "sitemap_probe_limit": 6,
-    "max_evaluated_per_run": 180,
-    "max_detail_fetches_per_run": 70,
-    "max_requests_per_run": 240,
-    "max_requests_per_store": 50,
+    "max_evaluated_per_run": 240,
+    "max_detail_fetches_per_run": 90,
+    "max_requests_per_run": 300,
+    "max_requests_per_store": 60,
     "bronze_value_min": 70.0,
     "prata_value_min": 90.0,
     "ouro_value_min": 110.0,
@@ -23,7 +23,10 @@
     "max_segment_routes": 4,
     "cross_store_alert_min_eur": 50.0,
     "cross_store_alert_min_pct": 5.0,
-    "max_identity_refreshes_per_run": 16
+    "max_identity_refreshes_per_run": 16,
+    "exceptional_deal_bonus_max": 15.0,
+    "price_confirmation_tolerance_eur": 5.0,
+    "price_confirmation_tolerance_pct": 1.5
   },
   "weights": {
     "gpu_base": {
@@ -76,8 +79,8 @@
       "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "target_candidates": 60,
-      "sitemap_probe_limit": 16,
+      "target_candidates": 80,
+      "sitemap_probe_limit": 24,
       "max_sitemaps": 6,
       "product_path_hints": [
         "/portatil-asus-",
@@ -105,7 +108,7 @@
       "url": "https://www.pccomponentes.pt/categorias/computadores-portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "target_candidates": 60,
+      "target_candidates": 80,
       "product_path_hints": [
         "/portateis/",
         "/produto/",
@@ -139,7 +142,7 @@
       "url": "https://www.globaldata.pt/computadores/computadores-portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "target_candidates": 90,
+      "target_candidates": 100,
       "sitemap_enabled": false,
       "product_path_hints": [
         "/produto/",
@@ -158,7 +161,7 @@
       "url": "https://www.radiopopular.pt/categoria/computadores-portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "target_candidates": 50,
+      "target_candidates": 60,
       "sitemap_enabled": false,
       "product_path_hints": [
         "/produto/",
@@ -186,7 +189,7 @@
       "url": "https://chip7.pt/computadores/portateis",
       "timeout_ms": 9000,
       "parent_climb": 7,
-      "target_candidates": 45,
+      "target_candidates": 60,
       "product_path_hints": [
         "/produto/",
         "/product/",
@@ -206,7 +209,7 @@
       "url": "https://www.fnac.pt/Portateis-Windows/n1334091",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "target_candidates": 60,
+      "target_candidates": 80,
       "max_category_pages": 4,
       "pagination_start": 2,
       "pagination_template": "https://www.fnac.pt/Portateis-Windows/n1334091?PageIndex={page}",
@@ -224,7 +227,7 @@
       "url": "https://www.worten.pt/informatica-e-acessorios/computadores/computadores-portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
-      "target_candidates": 60,
+      "target_candidates": 80,
       "product_path_hints": [
         "/produto/",
         "/computadores-portateis/",
