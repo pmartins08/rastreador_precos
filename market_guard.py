@@ -4,7 +4,7 @@ from collections import defaultdict
 from statistics import median
 
 
-VERSION = "8.8.2"
+VERSION = "8.8.4"
 
 
 def _normal_id(value: object) -> str:
@@ -21,13 +21,85 @@ def _exact_key(item: dict) -> str | None:
     return None
 
 
+def _price_close(left: float, right: float, settings: dict) -> bool:
+    abs_tol = float(settings.get("price_confirmation_tolerance_eur", 5.0))
+    pct_tol = float(settings.get("price_confirmation_tolerance_pct", 1.5)) / 100.0
+    return abs(float(left) - float(right)) <= max(
+        abs_tol, max(float(left), float(right)) * pct_tol
+    )
+
+
+def _page_price_is_high(spec: dict, price: float, settings: dict) -> bool:
+    confirmed = spec.get("price_confirmed")
+    confidence = str(spec.get("price_page_confidence") or "UNKNOWN").upper()
+    return (
+        confirmed is not None
+        and confidence == "HIGH"
+        and _price_close(float(price), float(confirmed), settings)
+    )
+
+
+def _without_market_veto(spec: dict) -> dict:
+    """Cópia da spec sem consenso de mercado que conflita com a ficha HIGH.
+
+    O mercado continua registado como contexto, mas não pode sobrepor-se a uma
+    ficha do próprio comerciante confirmada por múltiplas famílias de sinais.
+    """
+    adjusted = dict(spec)
+    for field in (
+        "market_price_confirmed",
+        "market_price_confidence",
+        "market_price_sources",
+        "market_price_source_count",
+        "market_price_identifier",
+        "market_price_conflict",
+        "market_price_disagreement",
+        "market_disagreement_identifier",
+        "market_disagreement_prices",
+        "market_disagreement_stores",
+        "market_disagreement_spread_eur",
+        "market_disagreement_spread_pct",
+    ):
+        adjusted.pop(field, None)
+    return adjusted
+
+
+def _score_verified_market_outlier(
+    original_score_allow_unknown,
+    spec: dict,
+    price: float,
+    weights: dict,
+    settings: dict,
+    *,
+    context: str,
+) -> dict:
+    result = original_score_allow_unknown(
+        _without_market_veto(spec), price, weights, settings
+    )
+    if result.get("status") == "ACEITE":
+        result["market_outlier_verified"] = True
+        result["market_outlier_context"] = context
+        if spec.get("market_price_confirmed") is not None:
+            result["market_reference_price"] = spec.get("market_price_confirmed")
+            result["market_reference_sources"] = list(
+                spec.get("market_price_sources") or []
+            )
+        result.setdefault("alertas", []).append(
+            "Preço da própria ficha confirmado com confiança HIGH; diverge do "
+            "mercado, mas é tratado como promoção/outlier verificado em vez de "
+            "ser rejeitado automaticamente."
+        )
+    return result
+
+
 def mark_unresolved_market_disagreements(records: list[dict], settings: dict) -> dict:
     """Marca conflitos extremos entre lojas para o mesmo EAN/MPN.
 
     Esta camada só atua quando ainda não existe um cluster de pelo menos duas
     lojas concordantes produzido pelo market evidence normal. Com duas lojas a
     mostrar preços radicalmente diferentes não tentamos adivinhar qual está
-    certa: ambas ficam em quarentena até surgir confirmação adicional.
+    certa: ofertas sem evidência HIGH da própria ficha ficam em quarentena até
+    surgir confirmação adicional.
     """
     fields = (
         "market_price_disagreement",
@@ -61,10 +133,11 @@ def mark_unresolved_market_disagreements(records: list[dict], settings: dict) ->
             continue
 
         # Se o tracker já encontrou duas lojas concordantes, o conflito fica
-        # resolvido pelo market_price_confirmed e o outlier é tratado pelo
-        # price_guard existente.
+        # resolvido pelo market_price_confirmed e o eventual outlier é tratado
+        # no score. Uma ficha HIGH pode continuar a provar uma promoção real.
         if any(
-            str((member.get("spec") or {}).get("market_price_confidence") or "").upper() == "HIGH"
+            str((member.get("spec") or {}).get("market_price_confidence") or "").upper()
+            == "HIGH"
             for member in members
         ):
             continue
@@ -128,7 +201,18 @@ def install(scraper_module, tracker_module) -> None:
         return summary
 
     def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict) -> dict:
+        page_high = _page_price_is_high(spec, price, settings)
+
         if spec.get("market_price_disagreement"):
+            if page_high:
+                return _score_verified_market_outlier(
+                    original_score_allow_unknown,
+                    spec,
+                    price,
+                    weights,
+                    settings,
+                    context="unresolved_disagreement",
+                )
             prices = spec.get("market_disagreement_prices") or {}
             detail = ", ".join(
                 f"{store} {float(value):.2f}€" for store, value in sorted(prices.items())
@@ -144,6 +228,21 @@ def install(scraper_module, tracker_module) -> None:
                     + " É necessária confirmação adicional antes de pontuar ou alertar."
                 ],
             }
+
+        # Um cluster de outras lojas é excelente evidência quando a ficha atual
+        # é fraca. Mas não deve transformar uma promoção real num falso negativo:
+        # se o comerciante confirma diretamente o seu preço por múltiplos sinais,
+        # a evidência primária da ficha tem precedência.
+        if spec.get("market_price_conflict") and page_high:
+            return _score_verified_market_outlier(
+                original_score_allow_unknown,
+                spec,
+                price,
+                weights,
+                settings,
+                context="exact_market_outlier",
+            )
+
         return original_score_allow_unknown(spec, price, weights, settings)
 
     tracker_module.apply_exact_market_price_evidence = apply_market_evidence
