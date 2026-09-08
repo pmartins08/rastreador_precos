@@ -529,5 +529,15 @@ class TrackerTests(unittest.TestCase):
             self.assertFalse(tracker.maybe_alert_cross_store(history, group, {"alerta_min_tier": "OURO", "cross_store_alert_min_eur": 50, "cross_store_alert_min_pct": 5}))
 
 
+    def test_identity_refresh_only_for_unchecked_missing_strong_id(self):
+        self.assertTrue(tracker.needs_identity_refresh({"url": "x", "ean": None, "mpn": None}))
+        self.assertFalse(tracker.needs_identity_refresh({"url": "x", "ean": "4711636176743"}))
+        self.assertFalse(tracker.needs_identity_refresh({"url": "x", "identity_checked_at": "2026-09-08T00:00:00Z"}))
+
+    def test_identity_refresh_ignores_empty_metadata(self):
+        self.assertFalse(tracker.needs_identity_refresh({}))
+        self.assertFalse(tracker.needs_identity_refresh(None))
+
+
 if __name__ == "__main__":
     unittest.main()
