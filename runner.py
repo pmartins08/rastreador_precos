@@ -3,14 +3,16 @@ from __future__ import annotations
 import sys
 
 import scraper
-from price_guard import BAD_PRICE_CONTEXT, VERSION, install, page_price_evidence
+from market_guard import VERSION, install as install_market_guard
+from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 
 
-install(scraper)
+install_price_guard(scraper)
 
 import tracker
 
 
+install_market_guard(scraper, tracker)
 tracker.VERSION = VERSION
 tracker.COMPATIBLE_STATE_VERSIONS.add(VERSION)
 
@@ -47,8 +49,8 @@ def _safe_page_price(soup, structured_price: float | None = None) -> float | Non
     return None
 
 
-# O tracker continua responsável por toda a operação; a V8.8 instala aqui a
-# camada de preço e a compatibilidade de estado num único entrypoint.
+# O tracker continua responsável por toda a operação; as camadas de preço e
+# desacordo de mercado são instaladas aqui num único composition root.
 tracker.preferred_page_price = _safe_page_price
 
 main = tracker.main
