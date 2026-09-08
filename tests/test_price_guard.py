@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 import price_guard
 import runner
 import scraper
+import tracker
 
 
 class PriceGuardV88Tests(unittest.TestCase):
@@ -226,6 +227,22 @@ class PriceGuardV88Tests(unittest.TestCase):
         self.assertEqual(result["status"], "QUARENTENA")
         self.assertEqual(result["price_status"], "PRICE_CONFLICT")
 
+
+
+class PriceRefreshV881Tests(unittest.TestCase):
+    def test_cached_low_price_without_current_confirmation_is_refreshed(self):
+        previous = {"specs": {"price_confirmed": 1199.0, "price_page_confidence": "HIGH"}}
+        item = {"preco": 1199.0}
+        self.assertTrue(tracker.needs_price_refresh(previous, item, {"budget_soft": 1300}))
+
+    def test_price_change_forces_refresh(self):
+        previous = {"specs": {
+            "price_confirmed": 1299.0,
+            "price_page_confidence": "HIGH",
+            "price_checked_at": "2026-09-08T12:00:00Z",
+        }}
+        item = {"preco": 999.0}
+        self.assertTrue(tracker.needs_price_refresh(previous, item, {"budget_soft": 1300}))
 
 
 if __name__ == "__main__":

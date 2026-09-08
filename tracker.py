@@ -23,8 +23,8 @@ from curl_cffi import requests
 import scraper
 
 
-VERSION = "8.7.1"
-COMPATIBLE_STATE_VERSIONS = {"8.5", "8.6", "8.6.1", "8.7", "8.7.1"}
+VERSION = "8.8.1"
+COMPATIBLE_STATE_VERSIONS = {"8.5", "8.6", "8.6.1", "8.7", "8.7.1", "8.8", "8.8.1"}
 BASE = Path(__file__).resolve().parent
 CONFIG_PATH = BASE / "config" / "config.json"
 HISTORY_PATH = BASE / "data" / "history.json"
@@ -927,6 +927,7 @@ def _empty_store_stats() -> dict:
         "avaliados": 0,
         "detalhes_live": 0,
         "identity_refreshes": 0,
+        "price_refreshes": 0,
         "cache_reutilizada": 0,
         "aceites": 0,
         "rejeitados": 0,
@@ -1574,6 +1575,46 @@ def needs_identity_refresh(previous_meta: dict | None) -> bool:
     return not bool(previous_meta.get("identity_checked_at"))
 
 
+
+def needs_price_refresh(previous_meta: dict | None, item: dict, settings: dict, *, current_time: datetime | None = None) -> bool:
+    """Preço atual é volátil e não deve herdar confiança indefinidamente da cache de hardware."""
+    if not isinstance(previous_meta, dict) or not previous_meta:
+        return False
+    try:
+        current_price = float(item.get("preco"))
+    except (TypeError, ValueError):
+        return False
+    soft = float(settings.get("budget_soft", 1300.0))
+    if current_price >= soft:
+        return False
+
+    previous_spec = previous_meta.get("specs") if isinstance(previous_meta.get("specs"), dict) else {}
+    confirmed = previous_spec.get("price_confirmed")
+    confidence = str(previous_spec.get("price_page_confidence") or "UNKNOWN").upper()
+    checked_at = previous_spec.get("price_checked_at")
+    if confirmed is None or confidence != "HIGH" or not checked_at:
+        return True
+
+    try:
+        confirmed_value = float(confirmed)
+    except (TypeError, ValueError):
+        return True
+    tolerance = max(
+        float(settings.get("price_confirmation_tolerance_eur", 5.0)),
+        max(current_price, confirmed_value) * float(settings.get("price_confirmation_tolerance_pct", 1.5)) / 100.0,
+    )
+    if abs(current_price - confirmed_value) > tolerance:
+        return True
+
+    try:
+        stamp = datetime.fromisoformat(str(checked_at).replace("Z", "+00:00"))
+        now = current_time or datetime.now(timezone.utc)
+        age_hours = max(0.0, (now - stamp).total_seconds() / 3600.0)
+    except (TypeError, ValueError):
+        return True
+    return age_hours >= float(settings.get("price_confirmation_ttl_hours", 24.0))
+
+
 def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict) -> dict:
     adjusted = dict(spec)
     if adjusted.get("teclado_pt") == "desconhecido":
@@ -1623,7 +1664,7 @@ def send_heartbeat(run: dict) -> bool:
         f"V{VERSION} operacional\n"
         f"Lojas acessíveis: {stores_ok}/{len(run['stores'])} | bloqueadas: {blocked}\n"
         f"Descobertos: {run['total_candidates']} | avaliados: {run['total_evaluated']} | aceites: {run['total_accepted']}\n"
-        f"Detalhes live: {run['detail_fetches']} | cache: {run['cache_reused']} | identidade: {run.get('identity_refreshes', 0)}\n"
+        f"Detalhes live: {run['detail_fetches']} | cache: {run['cache_reused']} | identidade: {run.get('identity_refreshes', 0)} | preço: {run.get('price_refreshes', 0)}\n"
         f"Matching: {len(matching.get('groups', []))} grupos | exatos: {matching.get('exact_pairs', 0)} | fortes: {matching.get('strong_pairs', 0)}\n"
         f"Pedidos HTTP: {run['access_requests']} | tempo: {run['runtime_seconds']:.1f}s\n"
         f"D/O/P/B: {run['tiers']['DIAMANTE']}/{run['tiers']['OURO']}/{run['tiers']['PRATA']}/{run['tiers']['BRONZE']}"
@@ -1947,7 +1988,7 @@ def main() -> dict:
         unique.setdefault((item["loja"], item["url"]), item)
     selected = select_with_cache(list(unique.values()), spec_cache, max_evaluated, weights, settings)
     LOGGER.info(
-        "Pré-ranking V8.7.1 | descobertos=%d | selecionados=%d | limite=%d | detalhe_max=%d",
+        "Pré-ranking V8.8.1 | descobertos=%d | selecionados=%d | limite=%d | detalhe_max=%d",
         len(unique),
         len(selected),
         max_evaluated,
@@ -1982,12 +2023,29 @@ def main() -> dict:
         if reserve_detail_slot():
             to_fetch.append(item)
 
+    max_price_refreshes = max(0, int(settings.get("max_price_refreshes_per_run", 12)))
+    price_refresh_candidates = sorted(
+        [
+            (candidate_priority(original, weights, settings), original, cached_item, previous_meta)
+            for original, cached_item, previous_meta in cached_pending
+            if needs_price_refresh(previous_meta, original, settings)
+        ],
+        key=lambda row: -row[0],
+    )
+    price_refresh_urls = set()
+    price_fetch: list[tuple[dict, dict]] = []
+    for _, original, cached_item, _ in price_refresh_candidates:
+        if len(price_fetch) >= max_price_refreshes or not reserve_detail_slot():
+            break
+        price_refresh_urls.add(original["url"])
+        price_fetch.append((original, cached_item))
+
     max_identity_refreshes = max(0, int(settings.get("max_identity_refreshes_per_run", 12)))
     refresh_candidates = sorted(
         [
             (candidate_priority(original, weights, settings), original, cached_item, previous_meta)
             for original, cached_item, previous_meta in cached_pending
-            if needs_identity_refresh(previous_meta)
+            if original["url"] not in price_refresh_urls and needs_identity_refresh(previous_meta)
         ],
         key=lambda row: -row[0],
     )
@@ -2000,7 +2058,7 @@ def main() -> dict:
         identity_fetch.append((original, cached_item))
 
     for original, cached_item, _ in cached_pending:
-        if original["url"] in refresh_urls:
+        if original["url"] in refresh_urls or original["url"] in price_refresh_urls:
             continue
         evaluated.append(cached_item)
         store = cached_item["loja"]
@@ -2011,6 +2069,8 @@ def main() -> dict:
         futures = {}
         for item in to_fetch:
             futures[executor.submit(enrich, item, config)] = ("new", None)
+        for item, cached_item in price_fetch:
+            futures[executor.submit(enrich, item, config)] = ("price", cached_item)
         for item, cached_item in identity_fetch:
             futures[executor.submit(enrich, item, config)] = ("identity", cached_item)
 
@@ -2018,7 +2078,7 @@ def main() -> dict:
             mode, cached_fallback = futures[future]
             item, error = future.result()
             if error.get("error"):
-                if mode == "identity" and cached_fallback is not None:
+                if mode in {"identity", "price"} and cached_fallback is not None:
                     # Falha de rede/acesso nao conta como identidade verificada; pode
                     # voltar a ser tentada numa run futura dentro do limite progressivo.
                     fallback = dict(cached_fallback)
@@ -2034,6 +2094,9 @@ def main() -> dict:
                 item["detail_source"] = "identity_refresh"
                 item["identity_checked_at"] = item.get("identity_checked_at") or now_iso()
                 stats[store]["identity_refreshes"] += 1
+            elif mode == "price":
+                item["detail_source"] = "price_refresh"
+                stats[store]["price_refreshes"] += 1
             evaluated.append(item)
             stats[store]["avaliados"] += 1
             stats[store]["detalhes_live"] += 1
@@ -2091,6 +2154,7 @@ def main() -> dict:
     )
     alerts += cross_store_alerts
     identity_refreshes = sum(row.get("identity_refreshes", 0) for row in stats.values())
+    price_refreshes = sum(row.get("price_refreshes", 0) for row in stats.values())
     runtime = round(time.monotonic() - RUN_STARTED, 2)
     run = {
         "timestamp": now_iso(),
@@ -2107,6 +2171,7 @@ def main() -> dict:
         "requests_by_store": dict(sorted(REQUESTS_BY_STORE.items())),
         "detail_fetches": DETAIL_FETCHES_USED,
         "identity_refreshes": identity_refreshes,
+        "price_refreshes": price_refreshes,
         "cache_reused": sum(row["cache_reutilizada"] for row in stats.values()),
         "runtime_seconds": runtime,
         "tiers": tiers,
@@ -2124,7 +2189,7 @@ def main() -> dict:
     save_json(LEARNING_PATH, LEARNING)
 
     LOGGER.info(
-        "V8.7.1 | Lojas=%d | Descobertos=%d | Avaliados=%d | Aceites=%d | Pedidos=%d | "
+        "V8.8.1 | Lojas=%d | Descobertos=%d | Avaliados=%d | Aceites=%d | Pedidos=%d | "
         "Detalhes=%d | Cache=%d | Tempo=%.1fs | Heartbeat=%s | D=%d O=%d P=%d B=%d",
         len(stats),
         run["total_candidates"],

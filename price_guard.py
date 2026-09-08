@@ -4,9 +4,10 @@ import json
 from collections import defaultdict
 from statistics import median
 from typing import Any
+from datetime import datetime, timezone
 
 
-VERSION = "8.8"
+VERSION = "8.8.1"
 
 # Estes valores NÃO são mínimos de compra. São apenas limiares de suspeita:
 # abaixo deles, um negócio extraordinário precisa de confirmação forte antes
@@ -401,6 +402,7 @@ def install(scraper_module) -> None:
         result["price_page_confidence"] = evidence["confidence"]
         result["price_evidence_sources"] = evidence["sources"]
         result["price_evidence_count"] = evidence["source_count"]
+        result["price_checked_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         result["price_evidence_signals"] = evidence["signals"]
         if evidence["conflicts"]:
             result.setdefault("conflitos", []).append(

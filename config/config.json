@@ -26,7 +26,9 @@
     "max_identity_refreshes_per_run": 16,
     "exceptional_deal_bonus_max": 15.0,
     "price_confirmation_tolerance_eur": 5.0,
-    "price_confirmation_tolerance_pct": 1.5
+    "price_confirmation_tolerance_pct": 1.5,
+    "max_price_refreshes_per_run": 12,
+    "price_confirmation_ttl_hours": 24
   },
   "weights": {
     "gpu_base": {
