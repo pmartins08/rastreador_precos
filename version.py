@@ -4,4 +4,4 @@ Os módulos podem manter compatibilidade com estados antigos, mas o runtime e os
 workflows devem expor sempre este valor como versão corrente.
 """
 
-VERSION = "8.8.6"
+VERSION = "8.8.7"

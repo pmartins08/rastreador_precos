@@ -2,9 +2,19 @@
 
 Este ficheiro resume alterações de produto/arquitetura relevantes. O detalhe histórico continua preservado no Git e nas métricas das runs.
 
+## 8.8.7 — iGPU Intelligence
+
+- GPU Guard passa a reconhecer modelos integrados explícitos em vez de reduzir todas as iGPUs ao fallback genérico de 15 pontos.
+- Primeira tabela conservadora: Intel Arc Graphics 140V/130V e AMD Radeon 890M/880M/860M/780M/760M/680M.
+- A escala é ancorada ao mapa já existente: RTX 2050 = 30 e RTX 3050 = 38; nenhuma iGPU desta primeira tabela ultrapassa a classe RTX 3050.
+- iGPU mapeada passa a contar como GPU confirmada para o gate de Ouro/Diamante; iGPU genérica continua limitada a Prata.
+- O ajuste recalcula apenas a componente Gaming correspondente ao delta entre o fallback integrado=15 e a nova classe explícita.
+- Cache V8.8.6 é migrada progressivamente por título/evidência técnica sem invalidar CPU, RAM, ecrã ou voltar a abrir a ficha desnecessariamente.
+- CI passa a validar automaticamente branches `feature/v8.8.*` para evitar configuração manual por release.
+
 ## 8.8.6 — GPU confidence & coverage efficiency
 
-- Ouro e Diamante passam a exigir GPU dedicada identificada por modelo e mapeada no cérebro.
+- Ouro e Diamante passam a exigir GPU confirmada por modelo e por uma classe conhecida pelo sistema.
 - GPUs desconhecidas, dedicadas não mapeadas e integradas sem classe explícita mantêm o Value bruto, mas ficam limitadas a Prata.
 - Promo Intelligence passa a aprender rendimento e perde prioridade quando uma rota promocional demonstra baixa eficiência.
 - Worten passa a reconhecer o padrão atual `/produtos/` nas URLs descobertas via sitemap.
