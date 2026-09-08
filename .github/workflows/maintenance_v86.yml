@@ -37,15 +37,12 @@ jobs:
 
           path = Path('data/maintenance_v86.py')
           text = path.read_text(encoding='utf-8')
-
-          # Substituições regex devem inserir o texto literalmente.
           text = text.replace(
               'new, count = re.subn(pattern, replacement, text, count=1, flags=re.S)',
               'new, count = re.subn(pattern, lambda _match: replacement, text, count=1, flags=re.S)',
               1,
           )
 
-          # Corrige o teste HTML que estava dentro de uma raw string com o mesmo delimitador.
           lines = text.splitlines()
           for index, line in enumerate(lines):
               if "html = '''<script type=\"application/ld+json\">" in line:
@@ -53,7 +50,6 @@ jobs:
                   lines[index] = line[:len(line) - len(line.lstrip())] + 'html = ' + repr(payload)
           text = '\n'.join(lines) + '\n'
 
-          # Qualquer tracker = replace_once(...) tem de receber tracker como primeiro argumento.
           lines = text.splitlines()
           fixed = []
           for index, line in enumerate(lines):
@@ -64,7 +60,6 @@ jobs:
                       fixed.append('    tracker,')
           text = '\n'.join(fixed) + '\n'
 
-          # Cada rota pública aprende acesso separadamente.
           old = '''        segment_response, _, segment_access = adaptive_fetch(
               route["url"], config, 7, store=store, method="category_variant"
           )'''
@@ -73,15 +68,11 @@ jobs:
               route["url"], config, 7, store=store, method=access_method
           )'''
           text = text.replace(old, new, 1)
-
-          # Limita explicitamente quantos fallbacks públicos uma loja explora por run.
           text = text.replace(
               '    for route in discovery_routes(cat, store):',
               '    for route in discovery_routes(cat, store)[:int(settings.get("max_segment_routes", 4))]:',
               1,
           )
-
-          # Paginação limitada por tentativas, não só por sucessos.
           text = text.replace(
               '    pages_fetched = 0\n    while pagination_queue and pages_fetched < max(0, max_pages - 1)',
               '    pages_attempted = 0\n    while pagination_queue and pages_attempted < max(0, max_pages - 1)',
@@ -97,13 +88,33 @@ jobs:
               '            stat["paginas_categoria"] += 1',
               1,
           )
-
           path.write_text(text, encoding='utf-8')
           PY
           python -m py_compile data/maintenance_v86.py
 
       - name: Aplicar V8.6
         run: python data/maintenance_v86.py
+
+      - name: Alinhar regressão de probe mode
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_tracker.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''        b["attempts"] = 40
+          b["blocks"] = 40
+          b["successes"] = 0
+          for profile in tracker.PROFILES:'''
+          new = '''        b["attempts"] = 40
+          b["blocks"] = 40
+          b["successes"] = 0
+          b["methods"]["category"] = {"attempts": 12, "successes": 0, "blocks": 12, "errors": 0}
+          for profile in tracker.PROFILES:'''
+          if old not in text:
+              raise SystemExit('fixture probe mode não encontrada')
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
 
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
