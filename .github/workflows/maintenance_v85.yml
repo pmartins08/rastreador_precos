@@ -30,6 +30,25 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Atualizar fixture V8.5 do merge
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_tracker.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              '{"timestamp": "2026-01-01T00:00:00Z", "url": "https://x/1", "price": 1000}',
+              '{"timestamp": "2026-01-01T00:00:00Z", "tracker_version": "8.5", "url": "https://x/1", "price": 1000}',
+              1,
+          )
+          text = text.replace(
+              '{"timestamp": "2026-01-02T00:00:00Z", "url": "https://x/1", "price": 900}',
+              '{"timestamp": "2026-01-02T00:00:00Z", "tracker_version": "8.5", "url": "https://x/1", "price": 900}',
+              1,
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Aplicar consolidação V8.5
         run: python data/maintenance_v85.py
 
