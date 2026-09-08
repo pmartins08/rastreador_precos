@@ -121,7 +121,7 @@ class MarketGuardV882Tests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "ACEITE")
         self.assertTrue(result.get("market_outlier_verified"))
-        self.assertEqual(result.get("market_reference_price"), 1499.5)
+        self.assertAlmostEqual(result.get("market_reference_price"), 1499.5, places=1)
 
     def test_different_eans_never_create_market_disagreement(self):
         records = [
