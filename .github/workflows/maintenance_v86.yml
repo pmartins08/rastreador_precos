@@ -88,6 +88,22 @@ jobs:
               '            stat["paginas_categoria"] += 1',
               1,
           )
+
+          # O GITHUB_TOKEN deste job não tem permissão de workflows. O workflow
+          # principal é atualizado diretamente depois desta migração validada.
+          workflow_block = '''workflow_path = ROOT / ".github" / "workflows" / "tracker.yml"
+          workflow = workflow_path.read_text(encoding="utf-8")
+          workflow = workflow.replace("V8.5", "V8.6").replace("v85", "v86")
+          workflow_path.write_text(workflow, encoding="utf-8")'''
+          if workflow_block not in text:
+              raise SystemExit('bloco de workflow principal não encontrado')
+          text = text.replace(workflow_block, '# tracker.yml será atualizado externamente após validação', 1)
+          text = text.replace(
+              'for rel in ("data/maintenance_v86.py", ".github/workflows/maintenance_v86.yml"):',
+              'for rel in ("data/maintenance_v86.py",):',
+              1,
+          )
+
           path.write_text(text, encoding='utf-8')
           PY
           python -m py_compile data/maintenance_v86.py
@@ -127,10 +143,10 @@ jobs:
           python -m py_compile scraper.py tracker.py tests/test_tracker.py
           python -m unittest discover -s tests -p 'test_tracker.py' -v
 
-      - name: Persistir V8.6
+      - name: Persistir código V8.6
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add tracker.py scraper.py config/config.json tests/test_tracker.py README.md data/maintenance_v86.py
           git commit -m "feat: evoluir tracker para V8.6 [skip maintenance]"
           git push origin HEAD:main
