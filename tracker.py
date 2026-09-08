@@ -1615,6 +1615,46 @@ def needs_price_refresh(previous_meta: dict | None, item: dict, settings: dict, 
     return age_hours >= float(settings.get("price_confirmation_ttl_hours", 24.0))
 
 
+
+def needs_price_refresh(previous_meta: dict | None, item: dict, settings: dict, *, current_time: datetime | None = None) -> bool:
+    """Preço atual é volátil e não deve herdar confiança indefinidamente da cache de hardware."""
+    if not isinstance(previous_meta, dict) or not previous_meta:
+        return False
+    try:
+        current_price = float(item.get("preco"))
+    except (TypeError, ValueError):
+        return False
+    soft = float(settings.get("budget_soft", 1300.0))
+    if current_price >= soft:
+        return False
+
+    previous_spec = previous_meta.get("specs") if isinstance(previous_meta.get("specs"), dict) else {}
+    confirmed = previous_spec.get("price_confirmed")
+    confidence = str(previous_spec.get("price_page_confidence") or "UNKNOWN").upper()
+    checked_at = previous_spec.get("price_checked_at")
+    if confirmed is None or confidence != "HIGH" or not checked_at:
+        return True
+
+    try:
+        confirmed_value = float(confirmed)
+    except (TypeError, ValueError):
+        return True
+    tolerance = max(
+        float(settings.get("price_confirmation_tolerance_eur", 5.0)),
+        max(current_price, confirmed_value) * float(settings.get("price_confirmation_tolerance_pct", 1.5)) / 100.0,
+    )
+    if abs(current_price - confirmed_value) > tolerance:
+        return True
+
+    try:
+        stamp = datetime.fromisoformat(str(checked_at).replace("Z", "+00:00"))
+        now = current_time or datetime.now(timezone.utc)
+        age_hours = max(0.0, (now - stamp).total_seconds() / 3600.0)
+    except (TypeError, ValueError):
+        return True
+    return age_hours >= float(settings.get("price_confirmation_ttl_hours", 24.0))
+
+
 def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict) -> dict:
     adjusted = dict(spec)
     if adjusted.get("teclado_pt") == "desconhecido":
@@ -2040,6 +2080,23 @@ def main() -> dict:
         price_refresh_urls.add(original["url"])
         price_fetch.append((original, cached_item))
 
+    max_price_refreshes = max(0, int(settings.get("max_price_refreshes_per_run", 12)))
+    price_refresh_candidates = sorted(
+        [
+            (candidate_priority(original, weights, settings), original, cached_item, previous_meta)
+            for original, cached_item, previous_meta in cached_pending
+            if needs_price_refresh(previous_meta, original, settings)
+        ],
+        key=lambda row: -row[0],
+    )
+    price_refresh_urls = set()
+    price_fetch: list[tuple[dict, dict]] = []
+    for _, original, cached_item, _ in price_refresh_candidates:
+        if len(price_fetch) >= max_price_refreshes or not reserve_detail_slot():
+            break
+        price_refresh_urls.add(original["url"])
+        price_fetch.append((original, cached_item))
+
     max_identity_refreshes = max(0, int(settings.get("max_identity_refreshes_per_run", 12)))
     refresh_candidates = sorted(
         [
@@ -2071,6 +2128,8 @@ def main() -> dict:
             futures[executor.submit(enrich, item, config)] = ("new", None)
         for item, cached_item in price_fetch:
             futures[executor.submit(enrich, item, config)] = ("price", cached_item)
+        for item, cached_item in price_fetch:
+            futures[executor.submit(enrich, item, config)] = ("price", cached_item)
         for item, cached_item in identity_fetch:
             futures[executor.submit(enrich, item, config)] = ("identity", cached_item)
 
@@ -2094,6 +2153,9 @@ def main() -> dict:
                 item["detail_source"] = "identity_refresh"
                 item["identity_checked_at"] = item.get("identity_checked_at") or now_iso()
                 stats[store]["identity_refreshes"] += 1
+            elif mode == "price":
+                item["detail_source"] = "price_refresh"
+                stats[store]["price_refreshes"] += 1
             elif mode == "price":
                 item["detail_source"] = "price_refresh"
                 stats[store]["price_refreshes"] += 1
@@ -2155,6 +2217,7 @@ def main() -> dict:
     alerts += cross_store_alerts
     identity_refreshes = sum(row.get("identity_refreshes", 0) for row in stats.values())
     price_refreshes = sum(row.get("price_refreshes", 0) for row in stats.values())
+    price_refreshes = sum(row.get("price_refreshes", 0) for row in stats.values())
     runtime = round(time.monotonic() - RUN_STARTED, 2)
     run = {
         "timestamp": now_iso(),
@@ -2171,6 +2234,7 @@ def main() -> dict:
         "requests_by_store": dict(sorted(REQUESTS_BY_STORE.items())),
         "detail_fetches": DETAIL_FETCHES_USED,
         "identity_refreshes": identity_refreshes,
+        "price_refreshes": price_refreshes,
         "price_refreshes": price_refreshes,
         "cache_reused": sum(row["cache_reutilizada"] for row in stats.values()),
         "runtime_seconds": runtime,

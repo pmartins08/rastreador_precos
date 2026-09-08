@@ -5,6 +5,7 @@ from collections import defaultdict
 from statistics import median
 from typing import Any
 from datetime import datetime, timezone
+from datetime import datetime, timezone
 
 
 VERSION = "8.8.1"
@@ -402,6 +403,7 @@ def install(scraper_module) -> None:
         result["price_page_confidence"] = evidence["confidence"]
         result["price_evidence_sources"] = evidence["sources"]
         result["price_evidence_count"] = evidence["source_count"]
+        result["price_checked_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         result["price_checked_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         result["price_evidence_signals"] = evidence["signals"]
         if evidence["conflicts"]:
