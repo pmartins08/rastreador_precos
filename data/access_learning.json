@@ -1,1542 +1,1639 @@
 {
-  "schema_version": 2,
-  "updated_at": "2026-09-08T18:52:51.691130Z",
   "stores": {
-    "PCDiga": {
+    "Radio Popular": {
+      "last_updated": "2026-09-08T19:17:23.658001Z",
+      "blocks": 0,
       "profiles": {
         "chrome146": {
-          "blocks": 5,
-          "successes": 1,
-          "errors": 0,
-          "attempts": 6
+          "blocks": 0,
+          "attempts": 2,
+          "successes": 2,
+          "errors": 0
         },
-        "chrome131": {
-          "blocks": 9,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 9
-        },
-        "safari17_0": {
-          "blocks": 37,
-          "successes": 140,
-          "errors": 3,
-          "attempts": 177
-        },
-        "edge101": {
-          "blocks": 1,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 1
-        },
-        "safari260": {
-          "blocks": 1,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 1
-        },
-        "firefox147": {
-          "blocks": 84,
-          "successes": 545,
-          "errors": 3,
-          "attempts": 622
-        },
-        "chrome124": {
-          "blocks": 6,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 6
-        }
-      },
-      "methods": {
-        "robots": 33,
-        "product": 448,
-        "category_variant": 2,
-        "category_variant:lenovo_brand": 21,
-        "sitemap": 190,
-        "product_fallback:publojas.pcdiga.com": 7,
-        "page": 86,
-        "category": 37
-      },
-      "blocks": 141,
-      "last_updated": "2026-09-08T18:48:58.722154Z",
-      "successes": 679,
-      "errors": {
-        "http_404": 6
-      },
-      "discovery": {
-        "sitemap": {
-          "last_updated": "2026-09-08T18:48:58.979224Z",
-          "ema_yield": 0.6376,
-          "last_yield": 0.6875,
-          "attempts": 20,
-          "requests": 513,
-          "new_candidates": 252
-        },
-        "category": {
-          "last_updated": "2026-09-08T18:48:45.356353Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
-          "requests": 21,
-          "new_candidates": 0
-        },
-        "segment:lenovo_brand": {
-          "last_updated": "2026-09-08T18:48:46.081735Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
-          "requests": 23,
-          "new_candidates": 0
-        }
-      },
-      "attempts": 820,
-      "contexts": {
-        "robots": {
-          "chrome146": {
-            "blocks": 0,
-            "successes": 1,
-            "errors": 0,
-            "attempts": 1,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 0,
-            "successes": 1,
-            "errors": 0,
-            "attempts": 1,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 0,
-            "successes": 30,
-            "errors": 0,
-            "attempts": 30,
-            "results": {}
-          }
-        },
-        "product": {
-          "none": {
-            "blocks": 0,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 0,
-            "results": {
-              "access_failed": 1
-            }
-          },
-          "safari17_0": {
-            "blocks": 10,
-            "successes": 46,
-            "errors": 1,
-            "attempts": 56,
-            "results": {
-              "no_product_or_price": 15,
-              "valid_product": 31,
-              "access_failed": 2
-            }
-          },
-          "edge101": {
-            "blocks": 1,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 1,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 1,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 1,
-            "results": {
-              "access_failed": 1
-            }
-          },
-          "firefox147": {
-            "blocks": 50,
-            "successes": 346,
-            "errors": 2,
-            "attempts": 390,
-            "results": {
-              "no_product_or_price": 70,
-              "valid_product": 277
-            }
-          }
-        },
-        "category_variant": {
-          "firefox147": {
-            "blocks": 0,
-            "successes": 2,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          }
-        },
-        "category_variant:lenovo_brand": {
-          "firefox147": {
-            "blocks": 3,
-            "successes": 6,
-            "errors": 0,
-            "attempts": 9,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 1,
-            "successes": 11,
-            "errors": 0,
-            "attempts": 12,
-            "results": {}
-          }
-        },
-        "sitemap": {
-          "chrome146": {
-            "blocks": 5,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 5,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 15,
-            "successes": 14,
-            "errors": 0,
-            "attempts": 29,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 29,
-            "successes": 127,
-            "errors": 0,
-            "attempts": 152,
-            "results": {}
-          }
-        },
-        "product_fallback:publojas.pcdiga.com": {
-          "firefox147": {
-            "blocks": 0,
-            "successes": 5,
-            "errors": 1,
-            "attempts": 6,
-            "results": {
-              "valid_product": 5
-            }
-          },
-          "safari17_0": {
-            "attempts": 1,
-            "successes": 0,
-            "blocks": 1,
-            "errors": 0,
-            "results": {
-              "access_failed": 1
-            }
-          }
-        },
-        "page": {
-          "chrome131": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        },
-        "category": {
-          "firefox147": {
-            "blocks": 3,
-            "successes": 30,
-            "errors": 0,
-            "attempts": 33,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 3,
-            "successes": 1,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          }
-        }
-      }
-    },
-    "Globaldata": {
-      "profiles": {
         "chrome131": {
           "blocks": 0,
-          "successes": 600,
-          "errors": 3,
-          "attempts": 603
+          "attempts": 415,
+          "successes": 388,
+          "errors": 28
         }
-      },
-      "methods": {
-        "product": 433,
-        "category_page": 79,
-        "page": 58,
-        "category": 33
-      },
-      "blocks": 0,
-      "last_updated": "2026-09-08T18:51:15.741001Z",
-      "successes": 600,
-      "errors": {
-        "request_error": 3
       },
       "discovery": {
-        "category": {
-          "last_updated": "2026-09-08T18:49:01.701045Z",
-          "ema_yield": 36.9931,
-          "last_yield": 38.0,
-          "attempts": 20,
-          "requests": 20,
-          "new_candidates": 717
-        },
-        "pagination": {
-          "last_updated": "2026-09-08T18:49:08.389114Z",
-          "ema_yield": 25.167,
-          "last_yield": 26.0,
-          "attempts": 55,
-          "requests": 55,
-          "new_candidates": 1165
-        }
-      },
-      "attempts": 603,
-      "contexts": {
-        "product": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 430,
-            "errors": 3,
-            "attempts": 433,
-            "results": {
-              "valid_product": 463
-            }
-          }
-        },
-        "category_page": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 79,
-            "errors": 0,
-            "attempts": 79,
-            "results": {}
-          }
-        },
-        "page": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 34,
-            "errors": 0,
-            "attempts": 34,
-            "results": {}
-          }
-        },
-        "category": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 33,
-            "errors": 0,
-            "attempts": 33,
-            "results": {}
-          }
-        }
-      }
-    },
-    "CHIP7": {
-      "profiles": {
-        "chrome146": {
-          "blocks": 22,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 22
-        },
-        "chrome131": {
-          "blocks": 36,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 36
-        },
-        "safari17_0": {
-          "blocks": 32,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 32
-        },
-        "edge101": {
-          "blocks": 15,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 15
-        },
-        "safari260": {
-          "blocks": 17,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 17
-        },
-        "firefox147": {
-          "blocks": 17,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 17
-        },
-        "chrome124": {
-          "blocks": 14,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 14
-        }
-      },
-      "methods": {
-        "robots": 9,
-        "category_page": 62,
-        "sitemap": 40,
-        "page": 9,
-        "category": 33
-      },
-      "blocks": 153,
-      "last_updated": "2026-09-08T18:49:24.358384Z",
-      "successes": 0,
-      "errors": {},
-      "discovery": {
-        "category": {
-          "last_updated": "2026-09-08T18:49:24.251573Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
-          "requests": 20,
-          "new_candidates": 0
-        },
-        "pagination": {
-          "last_updated": "2026-09-08T18:49:24.358416Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 60,
-          "requests": 62,
-          "new_candidates": 0
-        }
-      },
-      "attempts": 153,
-      "contexts": {
-        "robots": {
-          "chrome146": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        },
-        "category_page": {
-          "chrome146": {
-            "blocks": 11,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 11,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 14,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 14,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 13,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 13,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 6,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 6,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 10,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 10,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 8,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 8,
-            "results": {}
-          }
-        },
-        "sitemap": {
-          "safari17_0": {
-            "blocks": 1,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 1,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 6,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 6,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        },
-        "page": {
-          "chrome131": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        },
-        "category": {
-          "chrome146": {
-            "blocks": 8,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 8,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 5,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 5,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 4,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 6,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 6,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 7,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 7,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        }
-      }
-    },
-    "PcComponentes": {
-      "profiles": {
-        "chrome146": {
-          "blocks": 27,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 27
-        },
-        "chrome131": {
-          "blocks": 36,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 36
-        },
-        "safari17_0": {
-          "blocks": 34,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 34
-        },
-        "edge101": {
-          "blocks": 17,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 17
-        },
-        "safari260": {
-          "blocks": 23,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 23
-        },
-        "firefox147": {
-          "blocks": 30,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 30
-        },
-        "chrome124": {
-          "blocks": 14,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 14
-        }
-      },
-      "methods": {
-        "robots": 9,
-        "category_variant:legacy_category": 20,
-        "category_variant:hp_brand": 20,
-        "category_variant": 10,
-        "category_variant:lenovo_brand": 20,
-        "sitemap": 40,
-        "page": 9,
-        "category": 33,
-        "category_variant:asus_brand": 20
-      },
-      "blocks": 181,
-      "last_updated": "2026-09-08T18:48:59.217802Z",
-      "successes": 0,
-      "errors": {},
-      "discovery": {
-        "segment:hp_brand": {
-          "last_updated": "2026-09-08T18:48:59.176931Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
-          "requests": 23,
-          "new_candidates": 0
-        },
-        "segment:lenovo_brand": {
-          "last_updated": "2026-09-08T18:48:59.217843Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
+        "segment:tradicionais": {
+          "last_yield": 6.0,
           "requests": 22,
-          "new_candidates": 0
+          "last_updated": "2026-09-08T19:15:30.759542Z",
+          "ema_yield": 6.0,
+          "new_candidates": 126,
+          "attempts": 21
         },
-        "segment:asus_brand": {
-          "last_updated": "2026-09-08T18:48:59.151382Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
-          "requests": 23,
-          "new_candidates": 0
-        },
-        "category": {
-          "last_updated": "2026-09-08T18:48:59.131943Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
-          "requests": 20,
-          "new_candidates": 0
-        },
-        "segment:legacy_category": {
-          "last_updated": "2026-09-08T18:48:59.199513Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
+        "segment:gaming": {
+          "last_yield": 15.0,
           "requests": 22,
-          "new_candidates": 0
-        }
-      },
-      "attempts": 181,
-      "contexts": {
-        "robots": {
-          "chrome146": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        },
-        "category_variant:legacy_category": {
-          "chrome146": {
-            "blocks": 6,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 6,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 2,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 4,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 2,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        },
-        "category_variant:hp_brand": {
-          "chrome146": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 2,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 4,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 2,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 6,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 6,
-            "results": {}
-          }
-        },
-        "category_variant": {
-          "chrome146": {
-            "blocks": 2,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 4,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 1,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 1,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        },
-        "category_variant:lenovo_brand": {
-          "chrome146": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 4,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 2,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 2,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 6,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 6,
-            "results": {}
-          }
-        },
-        "sitemap": {
-          "safari17_0": {
-            "blocks": 1,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 1,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 6,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 6,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        },
-        "page": {
-          "chrome131": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
+          "last_updated": "2026-09-08T19:15:20.911191Z",
+          "ema_yield": 15.0,
+          "new_candidates": 315,
+          "attempts": 21
         },
         "category": {
-          "chrome146": {
-            "blocks": 7,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 7,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 5,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 5,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 4,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 6,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 6,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 8,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 8,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
+          "last_yield": 14.0,
+          "requests": 21,
+          "last_updated": "2026-09-08T19:15:18.387093Z",
+          "ema_yield": 14.0,
+          "new_candidates": 294,
+          "attempts": 21
         },
-        "category_variant:asus_brand": {
-          "chrome146": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 2,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 4,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 2,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 6,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 6,
-            "results": {}
-          }
-        }
-      }
-    },
-    "Worten": {
-      "profiles": {
-        "chrome146": {
-          "blocks": 54,
-          "successes": 103,
-          "errors": 0,
-          "attempts": 157
-        },
-        "chrome131": {
-          "blocks": 22,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 22
-        },
-        "safari17_0": {
-          "blocks": 10,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 10
-        },
-        "edge101": {
-          "blocks": 10,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 10
-        },
-        "safari260": {
-          "blocks": 20,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 20
-        },
-        "firefox147": {
-          "blocks": 21,
-          "successes": 0,
-          "errors": 0,
+        "segment:hibridos": {
+          "last_yield": 9.0,
+          "requests": 21,
+          "last_updated": "2026-09-08T19:15:23.398037Z",
+          "ema_yield": 9.0,
+          "new_candidates": 189,
           "attempts": 21
         }
       },
-      "methods": {
-        "robots": 21,
-        "product": 66,
-        "sitemap": 82,
-        "page": 31,
-        "category": 40
-      },
-      "blocks": 137,
-      "last_updated": "2026-09-08T18:49:39.173825Z",
-      "successes": 103,
-      "errors": {},
-      "discovery": {
-        "category": {
-          "last_updated": "2026-09-08T18:49:36.407104Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
-          "requests": 20,
-          "new_candidates": 0
-        },
-        "sitemap": {
-          "last_updated": "2026-09-08T18:49:39.174102Z",
-          "ema_yield": 0.0,
-          "last_yield": 0.0,
-          "attempts": 20,
-          "requests": 166,
-          "new_candidates": 0
-        }
-      },
-      "attempts": 240,
-      "contexts": {
-        "robots": {
-          "chrome146": {
-            "blocks": 0,
-            "successes": 21,
-            "errors": 0,
-            "attempts": 21,
-            "results": {}
-          }
-        },
-        "product": {
-          "chrome146": {
-            "blocks": 33,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 33,
-            "results": {
-              "access_failed": 27
-            }
-          },
-          "chrome131": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {
-              "access_failed": 3
-            }
-          },
-          "none": {
-            "blocks": 0,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 0,
-            "results": {
-              "access_failed": 8
-            }
-          },
-          "safari17_0": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {
-              "access_failed": 3
-            }
-          },
-          "edge101": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {
-              "access_failed": 3
-            }
-          },
-          "safari260": {
-            "blocks": 12,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 12,
-            "results": {
-              "access_failed": 12
-            }
-          },
-          "firefox147": {
-            "blocks": 12,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 12,
-            "results": {
-              "access_failed": 12
-            }
-          }
-        },
-        "sitemap": {
-          "chrome146": {
-            "blocks": 0,
-            "successes": 82,
-            "errors": 0,
-            "attempts": 82,
-            "results": {}
-          }
-        },
-        "page": {
-          "chrome146": {
-            "blocks": 12,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 12,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 15,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 15,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 4,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          }
-        },
-        "category": {
-          "chrome146": {
-            "blocks": 9,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 9,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 4,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 4,
-            "results": {}
-          },
-          "safari17_0": {
-            "blocks": 7,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 7,
-            "results": {}
-          },
-          "edge101": {
-            "blocks": 7,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 7,
-            "results": {}
-          },
-          "safari260": {
-            "blocks": 8,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 8,
-            "results": {}
-          },
-          "firefox147": {
-            "blocks": 5,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 5,
-            "results": {}
-          }
-        }
-      }
-    },
-    "ASUS": {
-      "profiles": {
-        "chrome146": {
-          "blocks": 0,
-          "successes": 1,
-          "errors": 2,
-          "attempts": 3
-        },
-        "chrome131": {
-          "blocks": 0,
-          "successes": 13,
-          "errors": 3,
-          "attempts": 16
-        }
-      },
-      "methods": {
-        "robots": 2,
-        "sitemap": 14,
-        "page": 1,
-        "category": 2
-      },
-      "blocks": 0,
-      "last_updated": "2026-09-08T01:21:26.769632Z",
-      "successes": 14,
+      "successes": 389,
+      "attempts": 417,
       "errors": {
-        "request_error": 5
+        "request_error": 28
       },
-      "discovery": {},
-      "attempts": 19,
       "contexts": {
-        "robots": {
+        "category_variant:tradicionais": {
           "chrome131": {
             "blocks": 0,
-            "successes": 2,
-            "errors": 0,
-            "attempts": 2,
-            "results": {}
-          }
-        },
-        "sitemap": {
-          "chrome146": {
-            "blocks": 0,
-            "successes": 1,
-            "errors": 2,
-            "attempts": 3,
-            "results": {}
-          },
-          "chrome131": {
-            "blocks": 0,
-            "successes": 9,
-            "errors": 2,
-            "attempts": 11,
-            "results": {}
-          }
-        },
-        "page": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 1,
-            "errors": 0,
-            "attempts": 1,
-            "results": {}
-          }
-        },
-        "category": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 1,
+            "attempts": 20,
+            "successes": 19,
             "errors": 1,
-            "attempts": 2,
-            "results": {}
-          }
-        }
-      }
-    },
-    "FNAC": {
-      "profiles": {
-        "chrome146": {
-          "blocks": 5,
-          "successes": 1,
-          "errors": 0,
-          "attempts": 6
-        },
-        "chrome131": {
-          "blocks": 4,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 4
-        },
-        "safari17_0": {
-          "blocks": 0,
-          "successes": 2,
-          "errors": 0,
-          "attempts": 2
-        },
-        "firefox147": {
-          "blocks": 0,
-          "successes": 431,
-          "errors": 0,
-          "attempts": 431
-        },
-        "chrome124": {
-          "blocks": 1,
-          "successes": 0,
-          "errors": 0,
-          "attempts": 1
-        }
-      },
-      "methods": {
-        "robots": 2,
-        "product": 292,
-        "category_page": 93,
-        "sitemap": 17,
-        "page": 7,
-        "category": 33
-      },
-      "blocks": 10,
-      "last_updated": "2026-09-08T18:51:14.523621Z",
-      "successes": 434,
-      "errors": {},
-      "discovery": {
-        "category": {
-          "last_updated": "2026-09-08T18:49:27.106417Z",
-          "ema_yield": 18.0,
-          "last_yield": 18.0,
-          "attempts": 20,
-          "requests": 20,
-          "new_candidates": 360
-        },
-        "pagination": {
-          "last_updated": "2026-09-08T18:49:36.287894Z",
-          "ema_yield": 16.0959,
-          "last_yield": 16.0,
-          "attempts": 60,
-          "requests": 60,
-          "new_candidates": 960
-        }
-      },
-      "attempts": 444,
-      "contexts": {
-        "robots": {
-          "firefox147": {
-            "blocks": 0,
-            "successes": 1,
-            "errors": 0,
-            "attempts": 1,
-            "results": {}
-          },
-          "chrome146": {
-            "blocks": 0,
-            "successes": 1,
-            "errors": 0,
-            "attempts": 1,
-            "results": {}
-          }
-        },
-        "product": {
-          "firefox147": {
-            "blocks": 0,
-            "successes": 292,
-            "errors": 0,
-            "attempts": 292,
-            "results": {
-              "valid_product": 292
-            }
-          }
-        },
-        "category_page": {
-          "firefox147": {
-            "blocks": 0,
-            "successes": 93,
-            "errors": 0,
-            "attempts": 93,
             "results": {}
           }
         },
         "sitemap": {
-          "firefox147": {
+          "chrome131": {
             "blocks": 0,
-            "successes": 12,
-            "errors": 0,
-            "attempts": 12,
-            "results": {}
-          },
-          "chrome146": {
-            "blocks": 5,
-            "successes": 0,
-            "errors": 0,
             "attempts": 5,
+            "successes": 5,
+            "errors": 0,
             "results": {}
           }
         },
         "page": {
           "chrome131": {
-            "blocks": 3,
-            "successes": 0,
-            "errors": 0,
-            "attempts": 3,
-            "results": {}
-          }
-        },
-        "category": {
-          "firefox147": {
             "blocks": 0,
-            "successes": 33,
-            "errors": 0,
-            "attempts": 33,
-            "results": {}
-          }
-        }
-      }
-    },
-    "Radio Popular": {
-      "profiles": {
-        "chrome146": {
-          "blocks": 0,
-          "successes": 2,
-          "errors": 0,
-          "attempts": 2
-        },
-        "chrome131": {
-          "blocks": 0,
-          "successes": 377,
-          "errors": 26,
-          "attempts": 402
-        }
-      },
-      "methods": {
-        "robots": 1,
-        "product": 283,
-        "category_variant:gaming": 19,
-        "category_variant": 15,
-        "category_variant:hibridos": 18,
-        "sitemap": 5,
-        "page": 11,
-        "category": 33,
-        "category_variant:tradicionais": 19
-      },
-      "blocks": 0,
-      "last_updated": "2026-09-08T18:51:57.401230Z",
-      "successes": 378,
-      "errors": {
-        "request_error": 26
-      },
-      "discovery": {
-        "segment:gaming": {
-          "last_updated": "2026-09-08T18:49:13.877613Z",
-          "ema_yield": 15.0,
-          "last_yield": 15.0,
-          "attempts": 20,
-          "requests": 21,
-          "new_candidates": 300
-        },
-        "segment:tradicionais": {
-          "last_updated": "2026-09-08T18:49:24.041208Z",
-          "ema_yield": 6.0,
-          "last_yield": 6.0,
-          "attempts": 20,
-          "requests": 21,
-          "new_candidates": 120
-        },
-        "segment:hibridos": {
-          "last_updated": "2026-09-08T18:49:21.245027Z",
-          "ema_yield": 9.0,
-          "last_yield": 9.0,
-          "attempts": 20,
-          "requests": 20,
-          "new_candidates": 180
-        },
-        "category": {
-          "last_updated": "2026-09-08T18:49:11.390831Z",
-          "ema_yield": 14.0,
-          "last_yield": 14.0,
-          "attempts": 20,
-          "requests": 20,
-          "new_candidates": 280
-        }
-      },
-      "attempts": 404,
-      "contexts": {
-        "robots": {
-          "chrome131": {
-            "blocks": 0,
+            "attempts": 1,
             "successes": 1,
             "errors": 0,
-            "attempts": 1,
             "results": {}
           }
         },
         "product": {
           "chrome146": {
             "blocks": 0,
+            "attempts": 2,
             "successes": 2,
             "errors": 0,
-            "attempts": 2,
             "results": {
               "valid_product": 2
             }
           },
           "chrome131": {
             "blocks": 0,
-            "successes": 258,
-            "errors": 24,
-            "attempts": 281,
+            "attempts": 290,
+            "successes": 265,
+            "errors": 26,
             "results": {
-              "valid_product": 258
+              "valid_product": 265
             }
           }
         },
         "category_variant:gaming": {
           "chrome131": {
             "blocks": 0,
-            "successes": 18,
+            "attempts": 20,
+            "successes": 19,
             "errors": 1,
-            "attempts": 19,
-            "results": {}
-          }
-        },
-        "category_variant": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 15,
-            "errors": 0,
-            "attempts": 15,
-            "results": {}
-          }
-        },
-        "category_variant:hibridos": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 18,
-            "errors": 0,
-            "attempts": 18,
-            "results": {}
-          }
-        },
-        "sitemap": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 5,
-            "errors": 0,
-            "attempts": 5,
-            "results": {}
-          }
-        },
-        "page": {
-          "chrome131": {
-            "blocks": 0,
-            "successes": 1,
-            "errors": 0,
-            "attempts": 1,
             "results": {}
           }
         },
         "category": {
           "chrome131": {
             "blocks": 0,
-            "successes": 33,
+            "attempts": 34,
+            "successes": 34,
             "errors": 0,
-            "attempts": 33,
             "results": {}
           }
         },
-        "category_variant:tradicionais": {
+        "category_variant": {
           "chrome131": {
             "blocks": 0,
-            "successes": 18,
-            "errors": 1,
+            "attempts": 15,
+            "successes": 15,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_variant:hibridos": {
+          "chrome131": {
+            "blocks": 0,
             "attempts": 19,
+            "successes": 19,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "robots": {
+          "chrome131": {
+            "blocks": 0,
+            "attempts": 1,
+            "successes": 1,
+            "errors": 0,
             "results": {}
           }
         }
+      },
+      "methods": {
+        "category_variant:tradicionais": 20,
+        "sitemap": 5,
+        "page": 11,
+        "product": 292,
+        "category_variant:gaming": 20,
+        "category": 34,
+        "category_variant": 15,
+        "category_variant:hibridos": 19,
+        "robots": 1
+      }
+    },
+    "PcComponentes": {
+      "last_updated": "2026-09-08T19:15:00.640893Z",
+      "blocks": 186,
+      "profiles": {
+        "chrome131": {
+          "blocks": 36,
+          "attempts": 36,
+          "successes": 0,
+          "errors": 0
+        },
+        "safari260": {
+          "blocks": 27,
+          "attempts": 27,
+          "successes": 0,
+          "errors": 0
+        },
+        "chrome124": {
+          "blocks": 14,
+          "attempts": 14,
+          "successes": 0,
+          "errors": 0
+        },
+        "chrome146": {
+          "blocks": 27,
+          "attempts": 27,
+          "successes": 0,
+          "errors": 0
+        },
+        "safari17_0": {
+          "blocks": 34,
+          "attempts": 34,
+          "successes": 0,
+          "errors": 0
+        },
+        "edge101": {
+          "blocks": 18,
+          "attempts": 18,
+          "successes": 0,
+          "errors": 0
+        },
+        "firefox147": {
+          "blocks": 30,
+          "attempts": 30,
+          "successes": 0,
+          "errors": 0
+        }
+      },
+      "discovery": {
+        "segment:lenovo_brand": {
+          "last_yield": 0.0,
+          "requests": 23,
+          "last_updated": "2026-09-08T19:15:00.640938Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        },
+        "segment:hp_brand": {
+          "last_yield": 0.0,
+          "requests": 24,
+          "last_updated": "2026-09-08T19:15:00.576613Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        },
+        "segment:asus_brand": {
+          "last_yield": 0.0,
+          "requests": 24,
+          "last_updated": "2026-09-08T19:15:00.542258Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        },
+        "category": {
+          "last_yield": 0.0,
+          "requests": 21,
+          "last_updated": "2026-09-08T19:15:00.495800Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        },
+        "segment:legacy_category": {
+          "last_yield": 0.0,
+          "requests": 23,
+          "last_updated": "2026-09-08T19:15:00.608548Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        }
+      },
+      "successes": 0,
+      "attempts": 186,
+      "errors": {},
+      "contexts": {
+        "category_variant:asus_brand": {
+          "chrome131": {
+            "blocks": 2,
+            "attempts": 2,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari260": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome146": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 2,
+            "attempts": 2,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 6,
+            "attempts": 6,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "sitemap": {
+          "safari17_0": {
+            "blocks": 1,
+            "attempts": 1,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 6,
+            "attempts": 6,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "page": {
+          "chrome131": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_variant:hp_brand": {
+          "chrome131": {
+            "blocks": 2,
+            "attempts": 2,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari260": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome146": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 2,
+            "attempts": 2,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 6,
+            "attempts": 6,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_variant:lenovo_brand": {
+          "chrome131": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari260": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome146": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 2,
+            "attempts": 2,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 2,
+            "attempts": 2,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 6,
+            "attempts": 6,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category": {
+          "chrome131": {
+            "blocks": 5,
+            "attempts": 5,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari260": {
+            "blocks": 8,
+            "attempts": 8,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome146": {
+            "blocks": 7,
+            "attempts": 7,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 7,
+            "attempts": 7,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_variant": {
+          "chrome131": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari260": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome146": {
+            "blocks": 2,
+            "attempts": 2,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 1,
+            "attempts": 1,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_variant:legacy_category": {
+          "chrome131": {
+            "blocks": 2,
+            "attempts": 2,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari260": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome146": {
+            "blocks": 6,
+            "attempts": 6,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 2,
+            "attempts": 2,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "robots": {
+          "chrome146": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        }
+      },
+      "methods": {
+        "category_variant:asus_brand": 21,
+        "sitemap": 40,
+        "page": 9,
+        "category_variant:hp_brand": 21,
+        "category_variant:lenovo_brand": 21,
+        "category": 34,
+        "category_variant": 10,
+        "category_variant:legacy_category": 21,
+        "robots": 9
+      }
+    },
+    "PCDiga": {
+      "last_updated": "2026-09-08T19:15:00.102428Z",
+      "blocks": 148,
+      "profiles": {
+        "chrome131": {
+          "blocks": 9,
+          "attempts": 9,
+          "successes": 0,
+          "errors": 0
+        },
+        "safari260": {
+          "blocks": 1,
+          "attempts": 1,
+          "successes": 0,
+          "errors": 0
+        },
+        "chrome124": {
+          "blocks": 6,
+          "attempts": 6,
+          "successes": 0,
+          "errors": 0
+        },
+        "chrome146": {
+          "blocks": 5,
+          "attempts": 6,
+          "successes": 1,
+          "errors": 0
+        },
+        "safari17_0": {
+          "blocks": 38,
+          "attempts": 184,
+          "successes": 146,
+          "errors": 3
+        },
+        "edge101": {
+          "blocks": 1,
+          "attempts": 1,
+          "successes": 0,
+          "errors": 0
+        },
+        "firefox147": {
+          "blocks": 90,
+          "attempts": 655,
+          "successes": 572,
+          "errors": 3
+        }
+      },
+      "discovery": {
+        "segment:lenovo_brand": {
+          "last_yield": 0.0,
+          "requests": 24,
+          "last_updated": "2026-09-08T19:14:46.974401Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        },
+        "category": {
+          "last_yield": 0.0,
+          "requests": 22,
+          "last_updated": "2026-09-08T19:14:46.482342Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        },
+        "sitemap": {
+          "last_yield": 0.6875,
+          "requests": 551,
+          "last_updated": "2026-09-08T19:15:00.330494Z",
+          "ema_yield": 0.6376,
+          "new_candidates": 274,
+          "attempts": 21
+        }
+      },
+      "successes": 712,
+      "attempts": 860,
+      "errors": {
+        "http_404": 6
+      },
+      "contexts": {
+        "sitemap": {
+          "chrome146": {
+            "blocks": 5,
+            "attempts": 5,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 15,
+            "attempts": 30,
+            "successes": 15,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 30,
+            "attempts": 158,
+            "successes": 132,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "page": {
+          "chrome131": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "product": {
+          "safari260": {
+            "blocks": 1,
+            "attempts": 1,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 1
+            }
+          },
+          "none": {
+            "blocks": 0,
+            "attempts": 0,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 1
+            }
+          },
+          "safari17_0": {
+            "blocks": 11,
+            "attempts": 61,
+            "successes": 50,
+            "errors": 1,
+            "results": {
+              "access_failed": 2,
+              "valid_product": 34,
+              "no_product_or_price": 16
+            }
+          },
+          "edge101": {
+            "blocks": 1,
+            "attempts": 1,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 55,
+            "attempts": 414,
+            "successes": 365,
+            "errors": 2,
+            "results": {
+              "valid_product": 295,
+              "no_product_or_price": 71
+            }
+          }
+        },
+        "category_variant:lenovo_brand": {
+          "firefox147": {
+            "blocks": 3,
+            "attempts": 9,
+            "successes": 6,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 1,
+            "attempts": 13,
+            "successes": 12,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category": {
+          "firefox147": {
+            "blocks": 3,
+            "attempts": 34,
+            "successes": 31,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 3,
+            "attempts": 4,
+            "successes": 1,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_variant": {
+          "firefox147": {
+            "blocks": 0,
+            "attempts": 2,
+            "successes": 2,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "robots": {
+          "chrome146": {
+            "blocks": 0,
+            "attempts": 1,
+            "successes": 1,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 0,
+            "attempts": 1,
+            "successes": 1,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 0,
+            "attempts": 31,
+            "successes": 31,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "product_fallback:publojas.pcdiga.com": {
+          "firefox147": {
+            "blocks": 0,
+            "attempts": 7,
+            "successes": 6,
+            "errors": 1,
+            "results": {
+              "valid_product": 6
+            }
+          },
+          "safari17_0": {
+            "blocks": 1,
+            "attempts": 1,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 1
+            }
+          }
+        }
+      },
+      "methods": {
+        "sitemap": 197,
+        "page": 86,
+        "product": 477,
+        "category_variant:lenovo_brand": 22,
+        "category": 38,
+        "category_variant": 2,
+        "robots": 34,
+        "product_fallback:publojas.pcdiga.com": 8
+      }
+    },
+    "CHIP7": {
+      "last_updated": "2026-09-08T19:16:13.877289Z",
+      "blocks": 157,
+      "profiles": {
+        "chrome131": {
+          "blocks": 36,
+          "attempts": 36,
+          "successes": 0,
+          "errors": 0
+        },
+        "safari260": {
+          "blocks": 18,
+          "attempts": 18,
+          "successes": 0,
+          "errors": 0
+        },
+        "chrome124": {
+          "blocks": 14,
+          "attempts": 14,
+          "successes": 0,
+          "errors": 0
+        },
+        "chrome146": {
+          "blocks": 23,
+          "attempts": 23,
+          "successes": 0,
+          "errors": 0
+        },
+        "safari17_0": {
+          "blocks": 33,
+          "attempts": 33,
+          "successes": 0,
+          "errors": 0
+        },
+        "edge101": {
+          "blocks": 16,
+          "attempts": 16,
+          "successes": 0,
+          "errors": 0
+        },
+        "firefox147": {
+          "blocks": 17,
+          "attempts": 17,
+          "successes": 0,
+          "errors": 0
+        }
+      },
+      "discovery": {
+        "pagination": {
+          "last_yield": 0.0,
+          "requests": 65,
+          "last_updated": "2026-09-08T19:16:13.877335Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 63
+        },
+        "category": {
+          "last_yield": 0.0,
+          "requests": 21,
+          "last_updated": "2026-09-08T19:16:13.758843Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        }
+      },
+      "successes": 0,
+      "attempts": 157,
+      "errors": {},
+      "contexts": {
+        "sitemap": {
+          "safari17_0": {
+            "blocks": 1,
+            "attempts": 1,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 6,
+            "attempts": 6,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "page": {
+          "chrome131": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_page": {
+          "chrome131": {
+            "blocks": 14,
+            "attempts": 14,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari260": {
+            "blocks": 11,
+            "attempts": 11,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome146": {
+            "blocks": 12,
+            "attempts": 12,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 14,
+            "attempts": 14,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 6,
+            "attempts": 6,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 8,
+            "attempts": 8,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category": {
+          "chrome131": {
+            "blocks": 5,
+            "attempts": 5,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari260": {
+            "blocks": 7,
+            "attempts": 7,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome146": {
+            "blocks": 8,
+            "attempts": 8,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 7,
+            "attempts": 7,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "robots": {
+          "chrome146": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        }
+      },
+      "methods": {
+        "sitemap": 40,
+        "page": 9,
+        "category_page": 65,
+        "category": 34,
+        "robots": 9
+      }
+    },
+    "Worten": {
+      "last_updated": "2026-09-08T19:16:32.204859Z",
+      "blocks": 141,
+      "profiles": {
+        "chrome131": {
+          "blocks": 22,
+          "attempts": 22,
+          "successes": 0,
+          "errors": 0
+        },
+        "safari260": {
+          "blocks": 20,
+          "attempts": 20,
+          "successes": 0,
+          "errors": 0
+        },
+        "chrome146": {
+          "blocks": 57,
+          "attempts": 165,
+          "successes": 108,
+          "errors": 0
+        },
+        "safari17_0": {
+          "blocks": 11,
+          "attempts": 11,
+          "successes": 0,
+          "errors": 0
+        },
+        "edge101": {
+          "blocks": 10,
+          "attempts": 10,
+          "successes": 0,
+          "errors": 0
+        },
+        "firefox147": {
+          "blocks": 21,
+          "attempts": 21,
+          "successes": 0,
+          "errors": 0
+        }
+      },
+      "discovery": {
+        "sitemap": {
+          "last_yield": 0.0,
+          "requests": 174,
+          "last_updated": "2026-09-08T19:16:32.205127Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        },
+        "category": {
+          "last_yield": 0.0,
+          "requests": 21,
+          "last_updated": "2026-09-08T19:16:28.861524Z",
+          "ema_yield": 0.0,
+          "new_candidates": 0,
+          "attempts": 21
+        }
+      },
+      "successes": 108,
+      "attempts": 249,
+      "errors": {},
+      "contexts": {
+        "sitemap": {
+          "chrome146": {
+            "blocks": 0,
+            "attempts": 86,
+            "successes": 86,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "page": {
+          "chrome146": {
+            "blocks": 12,
+            "attempts": 12,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome131": {
+            "blocks": 15,
+            "attempts": 15,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "product": {
+          "chrome131": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 3
+            }
+          },
+          "safari260": {
+            "blocks": 12,
+            "attempts": 12,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 12
+            }
+          },
+          "none": {
+            "blocks": 0,
+            "attempts": 0,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 8
+            }
+          },
+          "chrome146": {
+            "blocks": 36,
+            "attempts": 36,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 30
+            }
+          },
+          "safari17_0": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 3
+            }
+          },
+          "edge101": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 3
+            }
+          },
+          "firefox147": {
+            "blocks": 12,
+            "attempts": 12,
+            "successes": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 12
+            }
+          }
+        },
+        "category": {
+          "chrome131": {
+            "blocks": 4,
+            "attempts": 4,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari260": {
+            "blocks": 8,
+            "attempts": 8,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "chrome146": {
+            "blocks": 9,
+            "attempts": 9,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "blocks": 8,
+            "attempts": 8,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "edge101": {
+            "blocks": 7,
+            "attempts": 7,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 5,
+            "attempts": 5,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "robots": {
+          "chrome146": {
+            "blocks": 0,
+            "attempts": 22,
+            "successes": 22,
+            "errors": 0,
+            "results": {}
+          }
+        }
+      },
+      "methods": {
+        "sitemap": 86,
+        "page": 31,
+        "product": 69,
+        "category": 41,
+        "robots": 22
+      }
+    },
+    "ASUS": {
+      "last_updated": "2026-09-08T01:21:26.769632Z",
+      "blocks": 0,
+      "profiles": {
+        "chrome146": {
+          "blocks": 0,
+          "attempts": 3,
+          "successes": 1,
+          "errors": 2
+        },
+        "chrome131": {
+          "blocks": 0,
+          "attempts": 16,
+          "successes": 13,
+          "errors": 3
+        }
+      },
+      "discovery": {},
+      "successes": 14,
+      "attempts": 19,
+      "errors": {
+        "request_error": 5
+      },
+      "contexts": {
+        "sitemap": {
+          "chrome146": {
+            "blocks": 0,
+            "attempts": 3,
+            "successes": 1,
+            "errors": 2,
+            "results": {}
+          },
+          "chrome131": {
+            "blocks": 0,
+            "attempts": 11,
+            "successes": 9,
+            "errors": 2,
+            "results": {}
+          }
+        },
+        "page": {
+          "chrome131": {
+            "blocks": 0,
+            "attempts": 1,
+            "successes": 1,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category": {
+          "chrome131": {
+            "blocks": 0,
+            "attempts": 2,
+            "successes": 1,
+            "errors": 1,
+            "results": {}
+          }
+        },
+        "robots": {
+          "chrome131": {
+            "blocks": 0,
+            "attempts": 2,
+            "successes": 2,
+            "errors": 0,
+            "results": {}
+          }
+        }
+      },
+      "methods": {
+        "sitemap": 14,
+        "page": 1,
+        "category": 2,
+        "robots": 2
+      }
+    },
+    "Darty": {
+      "attempts": 41,
+      "successes": 41,
+      "blocks": 0,
+      "errors": {},
+      "profiles": {
+        "chrome131": {
+          "attempts": 41,
+          "successes": 41,
+          "blocks": 0,
+          "errors": 0
+        }
+      },
+      "methods": {
+        "category": 1,
+        "category_variant:computadores_portateis": 1,
+        "robots": 1,
+        "sitemap": 8,
+        "product": 30
+      },
+      "contexts": {
+        "category": {
+          "chrome131": {
+            "attempts": 1,
+            "successes": 1,
+            "blocks": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_variant:computadores_portateis": {
+          "chrome131": {
+            "attempts": 1,
+            "successes": 1,
+            "blocks": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "robots": {
+          "chrome131": {
+            "attempts": 1,
+            "successes": 1,
+            "blocks": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "sitemap": {
+          "chrome131": {
+            "attempts": 8,
+            "successes": 8,
+            "blocks": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "product": {
+          "chrome131": {
+            "attempts": 30,
+            "successes": 30,
+            "blocks": 0,
+            "errors": 0,
+            "results": {
+              "valid_product": 30
+            }
+          }
+        }
+      },
+      "discovery": {
+        "category": {
+          "attempts": 1,
+          "requests": 1,
+          "new_candidates": 0,
+          "last_yield": 0.0,
+          "ema_yield": 0.0,
+          "last_updated": "2026-09-08T19:15:31.767418Z"
+        },
+        "segment:computadores_portateis": {
+          "attempts": 1,
+          "requests": 1,
+          "new_candidates": 0,
+          "last_yield": 0.0,
+          "ema_yield": 0.0,
+          "last_updated": "2026-09-08T19:15:32.929409Z"
+        },
+        "sitemap": {
+          "attempts": 1,
+          "requests": 39,
+          "new_candidates": 30,
+          "last_yield": 0.7692,
+          "ema_yield": 0.7692,
+          "last_updated": "2026-09-08T19:16:13.626061Z"
+        }
+      },
+      "last_updated": "2026-09-08T19:16:12.862757Z"
+    },
+    "Globaldata": {
+      "last_updated": "2026-09-08T19:17:55.814619Z",
+      "blocks": 0,
+      "profiles": {
+        "chrome131": {
+          "blocks": 0,
+          "attempts": 624,
+          "successes": 621,
+          "errors": 3
+        }
+      },
+      "discovery": {
+        "pagination": {
+          "last_yield": 26.0,
+          "requests": 58,
+          "last_updated": "2026-09-08T19:15:10.283186Z",
+          "ema_yield": 25.167,
+          "new_candidates": 1210,
+          "attempts": 58
+        },
+        "category": {
+          "last_yield": 38.0,
+          "requests": 21,
+          "last_updated": "2026-09-08T19:15:04.033294Z",
+          "ema_yield": 36.9952,
+          "new_candidates": 754,
+          "attempts": 21
+        }
+      },
+      "successes": 621,
+      "attempts": 624,
+      "errors": {
+        "request_error": 3
+      },
+      "contexts": {
+        "page": {
+          "chrome131": {
+            "blocks": 0,
+            "attempts": 34,
+            "successes": 34,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_page": {
+          "chrome131": {
+            "blocks": 0,
+            "attempts": 82,
+            "successes": 82,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "product": {
+          "chrome131": {
+            "blocks": 0,
+            "attempts": 450,
+            "successes": 447,
+            "errors": 3,
+            "results": {
+              "valid_product": 480
+            }
+          }
+        },
+        "category": {
+          "chrome131": {
+            "blocks": 0,
+            "attempts": 34,
+            "successes": 34,
+            "errors": 0,
+            "results": {}
+          }
+        }
+      },
+      "methods": {
+        "page": 58,
+        "category_page": 82,
+        "product": 450,
+        "category": 34
+      }
+    },
+    "FNAC": {
+      "last_updated": "2026-09-08T19:17:09.004505Z",
+      "blocks": 10,
+      "profiles": {
+        "chrome131": {
+          "blocks": 4,
+          "attempts": 4,
+          "successes": 0,
+          "errors": 0
+        },
+        "chrome124": {
+          "blocks": 1,
+          "attempts": 1,
+          "successes": 0,
+          "errors": 0
+        },
+        "chrome146": {
+          "blocks": 5,
+          "attempts": 6,
+          "successes": 1,
+          "errors": 0
+        },
+        "safari17_0": {
+          "blocks": 0,
+          "attempts": 2,
+          "successes": 2,
+          "errors": 0
+        },
+        "firefox147": {
+          "blocks": 0,
+          "attempts": 444,
+          "successes": 444,
+          "errors": 0
+        }
+      },
+      "discovery": {
+        "pagination": {
+          "last_yield": 16.0,
+          "requests": 63,
+          "last_updated": "2026-09-08T19:16:28.712503Z",
+          "ema_yield": 16.0959,
+          "new_candidates": 1008,
+          "attempts": 63
+        },
+        "category": {
+          "last_yield": 18.0,
+          "requests": 21,
+          "last_updated": "2026-09-08T19:16:16.826351Z",
+          "ema_yield": 18.0,
+          "new_candidates": 378,
+          "attempts": 21
+        }
+      },
+      "successes": 447,
+      "attempts": 457,
+      "errors": {},
+      "contexts": {
+        "sitemap": {
+          "chrome146": {
+            "blocks": 5,
+            "attempts": 5,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 0,
+            "attempts": 12,
+            "successes": 12,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "page": {
+          "chrome131": {
+            "blocks": 3,
+            "attempts": 3,
+            "successes": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "category_page": {
+          "firefox147": {
+            "blocks": 0,
+            "attempts": 96,
+            "successes": 96,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "product": {
+          "firefox147": {
+            "blocks": 0,
+            "attempts": 301,
+            "successes": 301,
+            "errors": 0,
+            "results": {
+              "valid_product": 301
+            }
+          }
+        },
+        "category": {
+          "firefox147": {
+            "blocks": 0,
+            "attempts": 34,
+            "successes": 34,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "robots": {
+          "chrome146": {
+            "blocks": 0,
+            "attempts": 1,
+            "successes": 1,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
+            "blocks": 0,
+            "attempts": 1,
+            "successes": 1,
+            "errors": 0,
+            "results": {}
+          }
+        }
+      },
+      "methods": {
+        "sitemap": 17,
+        "page": 7,
+        "category_page": 96,
+        "product": 301,
+        "category": 34,
+        "robots": 2
       }
     }
-  }
+  },
+  "schema_version": 2,
+  "updated_at": "2026-09-08T19:18:00.008796Z"
 }
