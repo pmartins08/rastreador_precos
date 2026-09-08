@@ -112,7 +112,7 @@ jobs:
               out.append(line)
               if inside and 'b["successes"] = 0' in line and not inserted:
                   indent = line[:len(line) - len(line.lstrip())]
-                  out.append(indent + 'b["methods"]["category"] = {"attempts": 12, "successes": 0, "blocks": 12, "errors": 0}')
+                  out.append(indent + 'b["contexts"]["category"] = {"chrome131": {"attempts": 12, "successes": 0, "blocks": 12, "errors": 0}}')
                   inserted = True
           if not inserted:
               raise SystemExit('não foi possível atualizar fixture probe mode')
