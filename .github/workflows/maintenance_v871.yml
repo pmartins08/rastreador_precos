@@ -46,6 +46,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           rm -f data/maintenance_v871.py
-          git add scraper.py tracker.py config/config.json .github/workflows/tracker.yml tests/test_tracker.py data/history.json data/maintenance_v871.py
+          git checkout -- .github/workflows/tracker.yml
+          git add scraper.py tracker.py config/config.json tests/test_tracker.py data/history.json data/maintenance_v871.py
           git commit -m "feat: preco seguro e escala V8.7.1 [skip maintenance]"
           git push origin HEAD:main
