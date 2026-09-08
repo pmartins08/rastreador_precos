@@ -15,6 +15,7 @@ BASE = Path(__file__).resolve().parent
 PRICE_HISTORY_PATH = BASE / "data" / "price_history.json"
 
 _STATE: dict = {}
+_BASELINE_STATE: dict = {}
 _CURRENT_ALERT_CONTEXT: dict | None = None
 
 
@@ -40,6 +41,10 @@ def _save(path: Path, data: dict) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     tmp.replace(path)
+
+
+def _clone(data: dict) -> dict:
+    return json.loads(json.dumps(data))
 
 
 def _normal_id(value: object) -> str:
@@ -242,7 +247,7 @@ def compact(state: dict, *, today: date | None = None, window_days: int = WINDOW
     for key, raw in (state.get("identities") or {}).items():
         if not isinstance(raw, dict):
             continue
-        entry = json.loads(json.dumps(raw))
+        entry = _clone(raw)
         _prune_entry(entry, day, window_days)
         if entry.get("days"):
             out["identities"][key] = entry
@@ -267,11 +272,7 @@ def _merge_day(left: dict, right: dict) -> dict:
 
 
 def merge_price_history(current: dict, run_state: dict) -> dict:
-    """Merge idempotente pensado para o retry do GitHub Actions.
-
-    Para o mesmo dia escolhe máximos monotónicos de soma/amostras para não
-    duplicar observações quando o mesmo estado é reaplicado num retry.
-    """
+    """Merge idempotente pensado para retries do GitHub Actions."""
     left = compact(current)
     right = compact(run_state)
     out = {"schema_version": SCHEMA_VERSION, "updated_at": now_iso(), "identities": {}}
@@ -317,8 +318,8 @@ def install(tracker_module) -> None:
     base_main = tracker_module.main
 
     def record_offer(history, item, spec, assessment, tier):
-        global _STATE
-        context = historical_context(_STATE, item, float(item["preco"]))
+        global _STATE, _BASELINE_STATE
+        context = historical_context(_BASELINE_STATE, item, float(item["preco"]))
         assessment["historical_price"] = context
         previous, key = base_record_offer(history, item, spec, assessment, tier)
         entries = history.get("offers", {}).get(key, [])
@@ -345,13 +346,27 @@ def install(tracker_module) -> None:
             _CURRENT_ALERT_CONTEXT = None
 
     def main():
-        global _STATE
-        _STATE = _load(PRICE_HISTORY_PATH)
+        global _STATE, _BASELINE_STATE
+        _STATE = compact(_load(PRICE_HISTORY_PATH))
+        _BASELINE_STATE = _clone(_STATE)
         run = base_main()
         _STATE = compact(_STATE)
         _save(PRICE_HISTORY_PATH, _STATE)
         if isinstance(run, dict):
-            run["price_history_identities"] = len(_STATE.get("identities", {}))
+            count = len(_STATE.get("identities", {}))
+            run["price_history_identities"] = count
+            # O tracker base já persistiu a run. Acrescentamos apenas esta métrica
+            # ao registo mais recente para ficar disponível na apresentação futura.
+            try:
+                history = tracker_module.load_json(tracker_module.HISTORY_PATH)
+                runs = (history.get("learning", {}) or {}).get("runs", [])
+                if runs and isinstance(runs[-1], dict):
+                    runs[-1]["price_history_identities"] = count
+                    tracker_module.save_json(tracker_module.HISTORY_PATH, history)
+            except Exception:
+                tracker_module.LOGGER.warning(
+                    "Histórico de preços guardado, mas a métrica da run não foi anexada ao history.json"
+                )
         return run
 
     tracker_module.record_offer = record_offer
