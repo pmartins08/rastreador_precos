@@ -1,4 +1,4 @@
-# Rastreador de Preços — V8.8
+# Rastreador de Preços — V8.8.2
 
 Motor de inteligência de mercado para portáteis ASUS, Lenovo e HP em Portugal. O sistema combina descoberta de catálogo, acesso adaptativo, extração técnica, scoring orientado ao uso FEUP + gaming, validação reforçada de preços, matching cross-store, histórico, cache e notificações ntfy.
 
@@ -6,19 +6,21 @@ Motor de inteligência de mercado para portáteis ASUS, Lenovo e HP em Portugal.
 
 ```text
 scraper.py                  cérebro V8: parsing de hardware + scoring técnico
-price_guard.py              V8.8: confiança de preço, quarentena e bónus de oportunidade
+price_guard.py              confiança de preço, quarentena e bónus de oportunidade
+market_guard.py             V8.8.2: consenso/desacordo de preço por EAN/MPN
 tracker.py                  acesso, descoberta, cache, matching, histórico, alertas e heartbeat
-runner.py                   composition root V8.8
+runner.py                   composition root das camadas V8.8.x
 config/config.json          limites, lojas, pesos, tiers e parâmetros de segurança
 tests/test_tracker.py       regressões do cérebro, acesso, matching e estado
 tests/test_price_guard.py   regressões de preço e oportunidades excecionais
+tests/test_market_guard.py  regressões de desacordo de mercado
 data/history.json           ofertas/configurações recentes e estado de alertas
 data/access_learning.json   aprendizagem por loja, método e perfil
 .github/workflows/tracker.yml
 requirements.txt
 ```
 
-A separação é intencional: `scraper.py` mede a adequação técnica, `price_guard.py` decide se o preço é confiável e como valorizar uma oportunidade excecional, e `tracker.py` decide como observar o mercado de forma eficiente. O `runner.py` apenas compõe estas camadas; não contém lógica de negócio duplicada.
+A separação é intencional: `scraper.py` mede a adequação técnica, `price_guard.py` decide se o preço individual é confiável, `market_guard.py` impede decisões quando lojas com o mesmo identificador exato discordam de forma extrema, e `tracker.py` decide como observar o mercado. O `runner.py` apenas compõe estas camadas.
 
 ## Universo
 
@@ -62,6 +64,14 @@ Abaixo do budget soft, um preço confirmado com confiança **HIGH** pode receber
 
 A evidência de preço é **efémera por run**. CPU/GPU/RAM/ecrã podem ser reutilizados da cache, mas `price_confirmed`, confiança de página e confirmação de mercado não são tratados como specs permanentes. Isto impede que um preço confirmado ontem bloqueie legitimamente uma promoção nova hoje.
 
+## V8.8.2 — desacordo de mercado
+
+Quando duas ou mais lojas mostram o **mesmo EAN/MPN** mas ainda não existe um cluster de pelo menos duas lojas com preços concordantes, a V8.8.2 mede a dispersão. Se a diferença for simultaneamente muito grande em euros e em percentagem, o sistema não tenta adivinhar qual loja está certa.
+
+O grupo recebe `MARKET_DISAGREEMENT` e as ofertas envolvidas ficam em quarentena até surgir evidência adicional. Isto cobre casos como uma loja apresentar ~325 € e outra ~999 € para o mesmo EAN sem consenso suficiente. Se uma terceira loja confirmar um dos preços, a lógica normal de market evidence resolve o cluster e apenas o verdadeiro outlier fica em conflito.
+
+Esta regra é deliberadamente conservadora: é preferível atrasar um alerta raro durante uma run do que promover um preço incompatível como Ouro/Diamante.
+
 ## Descoberta e capacidade
 
 O tracker pode combinar:
@@ -75,7 +85,7 @@ O tracker pode combinar:
 
 O sistema aprende o rendimento de descoberta (`novos candidatos / request`) por loja e método.
 
-Budgets atuais da V8.8:
+Budgets atuais:
 
 - até **240 avaliações** por run;
 - até **90 detail fetches**;
@@ -111,7 +121,7 @@ Só EXATO/FORTE formam grupos automáticos. Para **confirmar preço**, a regra �
 
 ## Cache e identidade progressiva
 
-Specs já conhecidas podem ser reutilizadas sem ocupar o orçamento de fichas novas. A folga de detail fetches pode refrescar gradualmente até 16 ofertas cached por run que ainda não tenham EAN/MPN. Produtos novos mantêm prioridade.
+Specs já conhecidas podem ser reutilizadas sem ocupar o orçamento de fichas novas. A folga de detail fetches pode refrescar gradualmente ofertas cached que ainda não tenham EAN/MPN ou cuja evidência de preço precise de atualização. Produtos novos mantêm prioridade.
 
 Cada URL guarda `identity_checked_at`, evitando voltar a abrir indefinidamente uma ficha já verificada sem identificador forte.
 
@@ -139,11 +149,11 @@ Existem sinais independentes:
 ## Testes
 
 ```bash
-python -m py_compile scraper.py tracker.py price_guard.py runner.py tests/test_tracker.py tests/test_price_guard.py
+python -m py_compile scraper.py tracker.py price_guard.py market_guard.py runner.py tests/test_tracker.py tests/test_price_guard.py tests/test_market_guard.py
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-A suite cobre preços PT/EU, o caso 4.999 € vs 499 €, preço antigo/desconto/mensalidade, confirmação multissinal, confirmação cross-store exata, expiração da evidência de preço na cache, Diamante excecional, CPU/GPU/VRAM/TGP/M.2, JSON-LD, IDs fortes, variantes, cache, paginação, budgets, probe mode, heartbeat, matching e merge concorrente.
+A suite cobre preços PT/EU, o caso 4.999 € vs 499 €, preço antigo/desconto/mensalidade, confirmação multissinal, confirmação cross-store exata, desacordo extremo sem consenso, expiração da evidência de preço na cache, Diamante excecional, CPU/GPU/VRAM/TGP/M.2, JSON-LD, IDs fortes, variantes, cache, paginação, budgets, probe mode, heartbeat, matching e merge concorrente.
 
 ## Execução
 
