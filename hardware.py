@@ -13,7 +13,7 @@ CPU_PATTERNS = [
 
 
 def cpu(text: str, normalizer) -> tuple[str | None, str | None, str | None]:
-    """Classifica CPU mantendo os tiers V8, mas cobrindo grafias reais como i7-1255U."""
+    """Classifica CPU mantendo os tiers V8, mas cobrindo as grafias comerciais atuais."""
     normalized = normalizer(text)
     for pattern in CPU_PATTERNS:
         match = re.search(pattern, normalized)
@@ -23,9 +23,15 @@ def cpu(text: str, normalizer) -> tuple[str | None, str | None, str | None]:
 
         tier = (
             "tier_1"
-            if re.search(r"(?:ultra\s+9|core\s+i9(?:[\s-]|$)|\bi9-|ryzen(?:\s+ai)?\s+9)", model)
+            if re.search(
+                r"(?:ultra\s+9|core\s+9(?:\s|$)|core\s+i9(?:[\s-]|$)|\bi9-|ryzen(?:\s+ai)?\s+9)",
+                model,
+            )
             else "tier_2"
-            if re.search(r"(?:ultra\s+7|core\s+i7(?:[\s-]|$)|\bi7-|ryzen(?:\s+ai)?\s+7)", model)
+            if re.search(
+                r"(?:ultra\s+7|core\s+7(?:\s|$)|core\s+i7(?:[\s-]|$)|\bi7-|ryzen(?:\s+ai)?\s+7)",
+                model,
+            )
             else "tier_3"
         )
 
