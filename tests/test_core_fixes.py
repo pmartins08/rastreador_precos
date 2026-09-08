@@ -7,6 +7,14 @@ import runner  # aplica brain_runtime antes dos testes
 import scraper
 from catalog import candidate_from_card
 from pricing import parse_price_value, prices
+from response_classification import classify
+
+
+class FakeResponse:
+    def __init__(self, status_code=200, text="", content_type="text/html"):
+        self.status_code = status_code
+        self.text = text
+        self.headers = {"Content-Type": content_type}
 
 
 class CoreFixesTests(unittest.TestCase):
@@ -20,6 +28,12 @@ class CoreFixesTests(unittest.TestCase):
         _, tier, cpu_class = scraper.cpu("Intel i9-14900HX")
         self.assertEqual(tier, "tier_1")
         self.assertEqual(cpu_class, "hx")
+
+    def test_intel_core_7_is_tier_two(self):
+        model, tier, cpu_class = scraper.cpu("Intel Core 7 150U")
+        self.assertEqual(model, "core 7 150u")
+        self.assertEqual(tier, "tier_2")
+        self.assertEqual(cpu_class, "u_ultra")
 
     def test_ryzen_u_class(self):
         _, tier, cpu_class = scraper.cpu("AMD Ryzen 7 7840U")
@@ -78,6 +92,10 @@ class CoreFixesTests(unittest.TestCase):
     def test_subbrand_without_parent_is_supported(self):
         self.assertEqual(scraper.brand("ROG Zephyrus G16")[0], "asus")
         self.assertTrue(scraper.eligible("ROG Zephyrus G16 RTX 5070"))
+
+    def test_xml_is_not_parsed_as_html(self):
+        response = FakeResponse(200, "<?xml version='1.0'?><urlset></urlset>", "text/plain")
+        self.assertEqual(classify(response), ("http_success", False))
 
 
 if __name__ == "__main__":
