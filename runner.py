@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 import scraper
 from price_guard import BAD_PRICE_CONTEXT, VERSION, install, page_price_evidence
 
@@ -45,13 +47,16 @@ def _safe_page_price(soup, structured_price: float | None = None) -> float | Non
     return None
 
 
-# O tracker continua responsável por toda a operação; a V8.8 apenas substitui
-# o seletor de preço da ficha por uma versão que preserva promoções reais sem
-# voltar ao antigo erro de usar descontos/mensalidades como preço do portátil.
+# O tracker continua responsável por toda a operação; a V8.8 instala aqui a
+# camada de preço e a compatibilidade de estado num único entrypoint.
 tracker.preferred_page_price = _safe_page_price
 
 main = tracker.main
+merge_cli = tracker.merge_cli
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "merge-state":
+        merge_cli(sys.argv[2:])
+    else:
+        main()
