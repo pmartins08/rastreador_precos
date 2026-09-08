@@ -19,7 +19,8 @@
     "prata_value_min": 90.0,
     "ouro_value_min": 110.0,
     "diamante_value_min": 125.0,
-    "preco_minimo_global": 250.0
+    "preco_minimo_global": 250.0,
+    "max_segment_routes": 4
   },
   "weights": {
     "gpu_base": {
@@ -84,18 +85,46 @@
         "article",
         "div[class*='product']",
         "li[class*='product']"
+      ],
+      "extra_discovery_urls": [
+        {
+          "label": "lenovo_brand",
+          "url": "https://www.pcdiga.com/portateis-lenovo"
+        }
       ]
     },
     {
       "loja": "PcComponentes",
-      "url": "https://www.pccomponentes.pt/categorias/portateis",
+      "url": "https://www.pccomponentes.pt/categorias/computadores-portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
       "target_candidates": 60,
       "product_path_hints": [
         "/portateis/",
         "/produto/",
-        "/product/"
+        "/product/",
+        "/asus-",
+        "/lenovo-",
+        "/hp-"
+      ],
+      "sitemap_enabled": false,
+      "extra_discovery_urls": [
+        {
+          "label": "legacy_category",
+          "url": "https://www.pccomponentes.pt/categorias/portateis"
+        },
+        {
+          "label": "asus_brand",
+          "url": "https://www.pccomponentes.pt/marcas/asus/portateis"
+        },
+        {
+          "label": "lenovo_brand",
+          "url": "https://www.pccomponentes.pt/marcas/lenovo/portateis"
+        },
+        {
+          "label": "hp_brand",
+          "url": "https://www.pccomponentes.pt/marcas/hp/portateis"
+        }
       ]
     },
     {
@@ -129,6 +158,20 @@
         "/product/",
         "/portatil/",
         "/laptop/"
+      ],
+      "extra_discovery_urls": [
+        {
+          "label": "tradicionais",
+          "url": "https://www.radiopopular.pt/categoria/portateis-tradicionais-1"
+        },
+        {
+          "label": "gaming",
+          "url": "https://www.radiopopular.pt/categoria/portateis-gaming-3"
+        },
+        {
+          "label": "hibridos",
+          "url": "https://www.radiopopular.pt/categoria/portateis-hibridos"
+        }
       ]
     },
     {
@@ -146,7 +189,10 @@
         "article",
         "div[class*='product']",
         "li[class*='product']"
-      ]
+      ],
+      "max_category_pages": 4,
+      "pagination_start": 2,
+      "pagination_template": "https://chip7.pt/computadores/portateis?category.hierarchicalMenu%5Bcategories.lvl0%5D%5B0%5D=Computadores&category.hierarchicalMenu%5Bcategories.lvl0%5D%5B1%5D=Port%C3%A1teis&category.page={page}"
     },
     {
       "loja": "FNAC",
@@ -183,7 +229,9 @@
         "article",
         "div[class*='product']",
         "li[class*='product']"
-      ]
+      ],
+      "sitemap_probe_limit": 3,
+      "max_sitemaps": 4
     }
   ]
 }

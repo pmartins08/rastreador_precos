@@ -1,4 +1,4 @@
-# Rastreador de Preços — V8.5
+# Rastreador de Preços — V8.6
 
 Motor de inteligência de mercado para portáteis ASUS, Lenovo e HP em Portugal. O sistema combina descoberta de catálogo, acesso adaptativo, extração técnica, scoring orientado ao uso FEUP + gaming, histórico, cache e notificações ntfy.
 
@@ -65,23 +65,23 @@ A ordem de confiança é:
 1. SKU / part number / EAN quando disponível;
 2. caso contrário, uma assinatura conservadora que inclui título + CPU + GPU + RAM + SSD + ecrã.
 
-A V8.5 guarda esta assinatura como metadata, mas ainda não funde automaticamente ofertas entre lojas. Uma futura comparação cross-store só será ativada quando a identidade for suficientemente forte para evitar misturar variantes próximas.
+A V8.6 executa matching cross-store conservador em quatro níveis: **EXATO** (EAN/MPN), **FORTE** (model code + CPU/GPU/RAM/SSD), **PROVÁVEL** (apenas para revisão) e **NÃO FUNDIR** quando existe conflito técnico. Só EXATO/FORTE formam grupos automáticos de ofertas e nunca alteram o histórico individual de cada loja.
 
 ## Acesso adaptativo
 
 O tracker aprende por loja + método + perfil de browser. Fontes persistentemente bloqueadas entram em `probe mode`, recebendo uma tentativa barata em vez de desperdiçar dezenas de requests.
 
-A aprendizagem de acesso é persistida em `data/access_learning.json` e não é apagada quando o histórico de preços é compactado.
+A aprendizagem de acesso é persistida em `data/access_learning.json` e não é apagada quando o histórico de preços é compactado. A V8.6 aprende também o **rendimento de descoberta** (novos candidatos por request) por método/segmento e usa esse histórico para ordenar rotas alternativas mais produtivas.
 
 ## Histórico
 
-O histórico V8.5 é automaticamente compactado:
+O histórico V8.6 é automaticamente compactado:
 
-- remove formatos e observações pré-V8.5;
+- remove formatos e observações pré-V8.6;
 - normaliza chaves por URL;
 - mantém apenas observações recentes necessárias para preço/cache;
 - preserva estado de alertas válido;
-- mantém apenas as runs V8.5 recentes.
+- mantém apenas as runs V8.6 recentes.
 
 ## ntfy
 

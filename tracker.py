@@ -23,7 +23,8 @@ from curl_cffi import requests
 import scraper
 
 
-VERSION = "8.5"
+VERSION = "8.6"
+COMPATIBLE_STATE_VERSIONS = {"8.5", "8.6"}
 BASE = Path(__file__).resolve().parent
 CONFIG_PATH = BASE / "config" / "config.json"
 HISTORY_PATH = BASE / "data" / "history.json"
@@ -79,6 +80,7 @@ def new_bucket() -> dict:
         "profiles": {},
         "methods": {},
         "contexts": {},
+        "discovery": {},
         "last_updated": None,
     }
 
@@ -98,6 +100,7 @@ def load_learning() -> dict:
         store.setdefault("profiles", {})
         store.setdefault("methods", {})
         store.setdefault("contexts", {})
+        store.setdefault("discovery", {})
         store.setdefault("last_updated", None)
     return data
 
@@ -145,6 +148,72 @@ def record_result(store: str, method: str, profile: str, result: str) -> None:
         results[result] = int(results.get(result, 0)) + 1
 
 
+def discovery_bucket(store: str, method: str) -> dict:
+    return bucket(store).setdefault("discovery", {}).setdefault(
+        method,
+        {
+            "attempts": 0,
+            "requests": 0,
+            "new_candidates": 0,
+            "last_yield": 0.0,
+            "ema_yield": 0.0,
+            "last_updated": None,
+        },
+    )
+
+
+def record_discovery_yield(store: str, method: str, requests_spent: int, new_candidates: int) -> None:
+    if requests_spent <= 0:
+        return
+    with LOCK:
+        stats = discovery_bucket(store, method)
+        current_yield = max(0, int(new_candidates)) / max(1, int(requests_spent))
+        attempts = int(stats.get("attempts", 0))
+        previous_ema = float(stats.get("ema_yield", 0.0))
+        stats["attempts"] = attempts + 1
+        stats["requests"] = int(stats.get("requests", 0)) + int(requests_spent)
+        stats["new_candidates"] = int(stats.get("new_candidates", 0)) + max(0, int(new_candidates))
+        stats["last_yield"] = round(current_yield, 4)
+        stats["ema_yield"] = round(current_yield if attempts == 0 else 0.70 * previous_ema + 0.30 * current_yield, 4)
+        stats["last_updated"] = now_iso()
+
+
+def discovery_score(store: str, method: str) -> float:
+    stats = bucket(store).get("discovery", {}).get(method, {})
+    attempts = int(stats.get("attempts", 0))
+    if attempts <= 0:
+        return 1.0  # exploração inicial
+    requests_count = max(1, int(stats.get("requests", 0)))
+    lifetime = int(stats.get("new_candidates", 0)) / requests_count
+    recent = float(stats.get("ema_yield", lifetime))
+    return round(0.55 * lifetime + 0.45 * recent, 4)
+
+
+def discovery_routes(cat: dict, store: str) -> list[dict]:
+    routes = []
+    for index, raw in enumerate(cat.get("extra_discovery_urls", [])):
+        if isinstance(raw, str):
+            route = {"url": raw, "label": f"segment_{index + 1}"}
+        elif isinstance(raw, dict) and raw.get("url"):
+            route = {"url": str(raw["url"]), "label": str(raw.get("label") or f"segment_{index + 1}")}
+        else:
+            continue
+        route["method_key"] = f"segment:{route['label']}"
+        route["yield_score"] = discovery_score(store, route["method_key"])
+        routes.append(route)
+    return sorted(routes, key=lambda route: (-route["yield_score"], route["label"]))
+
+
+def _record_discovery_stat(stat: dict, store: str, method: str, requests_before: int, candidates_before: int, candidates_after: int) -> None:
+    spent = max(0, int(REQUESTS_BY_STORE.get(store, 0)) - int(requests_before))
+    gained = max(0, int(candidates_after) - int(candidates_before))
+    entry = stat["rendimento_descoberta"].setdefault(method, {"requests": 0, "new_candidates": 0, "yield": 0.0})
+    entry["requests"] += spent
+    entry["new_candidates"] += gained
+    entry["yield"] = round(entry["new_candidates"] / max(1, entry["requests"]), 3)
+    record_discovery_yield(store, method, spent, gained)
+
+
 def _rate(stats: dict) -> tuple[float, int]:
     attempts = int(stats.get("attempts", 0))
     if attempts <= 0:
@@ -184,6 +253,12 @@ def _method_totals(store: str, method: str) -> tuple[int, int, int]:
 
 
 def access_mode(store: str, method: str) -> str:
+    # Um método novo deve ter uma oportunidade real de exploração mesmo quando
+    # métodos antigos da mesma loja foram bloqueados.
+    attempts, successes, blocks = _method_totals(store, method)
+    if attempts == 0:
+        return "normal"
+
     b = bucket(store)
     total_attempts = int(b.get("attempts", 0))
     total_successes = int(b.get("successes", 0))
@@ -192,10 +267,10 @@ def access_mode(store: str, method: str) -> str:
         total_attempts >= 30
         and total_successes == 0
         and total_blocks / max(1, total_attempts) >= 0.90
+        and attempts >= 3
     ):
         return "probe"
 
-    attempts, successes, blocks = _method_totals(store, method)
     if attempts >= 12 and successes == 0 and blocks / max(1, attempts) >= 0.85:
         return "probe"
     return "normal"
@@ -551,7 +626,7 @@ def discover_sitemap_urls(
     max_sitemaps: int = 8,
 ) -> list[str]:
     store = cat["loja"]
-    if access_mode(store, "category") == "probe":
+    if access_mode(store, "sitemap") == "probe":
         return []
 
     origin = f"{urlparse(cat['url']).scheme}://{urlparse(cat['url']).netloc}"
@@ -598,14 +673,66 @@ def discover_sitemap_urls(
     ]
 
 
+def jsonld_primary_product(soup: BeautifulSoup, page_url: str = "", title_hint: str = "") -> dict:
+    products = scraper.jsonld_products(soup)
+    if not products:
+        return {}
+
+    def clean_url(value: object) -> str:
+        if not value:
+            return ""
+        parsed = urlparse(str(value))
+        return parsed._replace(query="", fragment="").geturl().rstrip("/").lower()
+
+    target_url = clean_url(page_url)
+    if target_url:
+        for product in products:
+            if clean_url(product.get("url")) == target_url:
+                return product
+
+    hint = scraper.norm(title_hint)
+    if hint:
+        for product in products:
+            candidate = scraper.norm(product.get("titulo", ""))
+            if candidate and (candidate == hint or candidate in hint or hint in candidate):
+                return product
+
+    return next((product for product in products if product.get("preco") is not None), products[0])
+
+
 def jsonld_price_title(soup: BeautifulSoup) -> tuple[float | None, str | None]:
-    data = scraper.jsonld_products(soup)
-    if not data:
+    product = jsonld_primary_product(soup)
+    if not product:
         return None, None
-    for item in data:
-        if item.get("preco") is not None:
-            return float(item["preco"]), item.get("titulo")
-    return None, data[0].get("titulo")
+    price = product.get("preco")
+    return (float(price) if price is not None else None), product.get("titulo")
+
+
+def gtin_valid(value: object) -> bool:
+    digits = re.sub(r"\D", "", str(value or ""))
+    if len(digits) not in {8, 12, 13, 14}:
+        return False
+    body = [int(char) for char in digits[:-1]]
+    check = int(digits[-1])
+    total = sum(number * (3 if index % 2 == 0 else 1) for index, number in enumerate(reversed(body)))
+    return (10 - total % 10) % 10 == check
+
+
+def page_identifiers(soup: BeautifulSoup) -> dict:
+    text = " ".join(soup.stripped_strings)
+    out = {}
+    ean = re.search(r"(?:c[oó]digo\s*)?(?:ean|gtin(?:-?1[234])?)\s*[:#-]?\s*([0-9][0-9\s-]{6,20})", text, re.I)
+    if ean:
+        digits = re.sub(r"\D", "", ean.group(1))
+        if gtin_valid(digits):
+            out["ean"] = digits
+    mpn = re.search(r"(?:part[- ]?number|part\s*number|mpn|p\s*/\s*n)\s*[:#-]?\s*([A-Z0-9][A-Z0-9._/#-]{4,})", text, re.I)
+    if mpn:
+        out["mpn"] = mpn.group(1).strip().rstrip(".,;:")
+    sku = re.search(r"\bsku\s*[:#-]?\s*([A-Z0-9][A-Z0-9._/#-]{4,})", text, re.I)
+    if sku:
+        out["sku"] = sku.group(1).strip().rstrip(".,;:")
+    return out
 
 
 def enrich(item: dict, config: dict) -> tuple[dict, dict]:
@@ -619,7 +746,9 @@ def enrich(item: dict, config: dict) -> tuple[dict, dict]:
 
     soup = BeautifulSoup(response.text, "html.parser")
     text = soup.get_text(" ", strip=True)
-    price_ld, title_ld = jsonld_price_title(soup)
+    structured = jsonld_primary_product(soup, str(response.url), item.get("titulo", ""))
+    price_ld = float(structured["preco"]) if structured.get("preco") is not None else None
+    title_ld = structured.get("titulo")
     page_title = soup.title.get_text(" ", strip=True) if soup.title else ""
     h1 = soup.find("h1")
     real_title = (
@@ -634,6 +763,12 @@ def enrich(item: dict, config: dict) -> tuple[dict, dict]:
     result = dict(item)
     if real_title and scraper.eligible(real_title):
         result["titulo"] = real_title
+
+    identifiers = page_identifiers(soup)
+    for field in ("ean", "mpn", "sku"):
+        value = structured.get(field) or identifiers.get(field) or result.get(field)
+        if value:
+            result[field] = str(value).strip()
 
     price = price_ld if price_ld is not None else item.get("preco")
     if price is None:
@@ -678,8 +813,17 @@ def _empty_store_stats() -> dict:
             "paginacao": 0,
             "sitemap": 0,
         },
+        "rendimento_descoberta": {},
         "acesso": {},
     }
+
+
+def _discover_html(response, route_cat: dict, target: int, candidates: dict[str, dict], source: str, stat: dict) -> int:
+    before = len(candidates)
+    for item in scraper.discover_category(response.text, route_cat, target):
+        if _merge_candidate(candidates, item, source):
+            stat["fontes_descoberta"][source] += 1
+    return len(candidates) - before
 
 
 def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dict]:
@@ -694,6 +838,11 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
     sitemap_enabled = bool(cat.get("sitemap_enabled", True))
 
     candidates: dict[str, dict] = {}
+    pagination_queue: deque[tuple[str, str]] = deque()
+    visited = set()
+
+    before_requests = REQUESTS_BY_STORE.get(store, 0)
+    before_candidates = len(candidates)
     response, profile, access = adaptive_fetch(
         cat["url"],
         config,
@@ -701,87 +850,86 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
         store=store,
         method="category",
     )
+    primary_ok = bool(response and response.status_code < 400)
     stat["acesso"] = {
         "perfil_categoria": profile,
         "resultado": access,
         "modo": access_mode(store, "category"),
     }
-    if not response or response.status_code >= 400:
-        stat["bloqueada"] = True
-        stat["candidatos"] = 0
-        return [], stat
+    if primary_ok:
+        stat["paginas_categoria"] = 1
+        _discover_html(response, cat, target, candidates, "categoria", stat)
+        for page_url in pagination_urls(response.text, cat["url"], cat["url"], max_pages * 3):
+            pagination_queue.append((page_url, cat["url"]))
+    _record_discovery_stat(stat, store, "category", before_requests, before_candidates, len(candidates))
 
-    stat["paginas_categoria"] = 1
-    for item in scraper.discover_category(response.text, cat, target):
-        if _merge_candidate(candidates, item, "categoria"):
-            stat["fontes_descoberta"]["categoria"] += 1
+    # Templates confirmados podem funcionar mesmo que a landing principal esteja bloqueada.
+    for page_url in configured_pagination_urls(cat, max_pages):
+        pagination_queue.append((page_url, cat["url"]))
 
-    # Segmentos/filtros públicos específicos. Ex.: marca dentro da categoria Radio Popular.
-    for segment_url in cat.get("extra_discovery_urls", []):
+    # Fallbacks/segmentos públicos são tentados mesmo quando a categoria principal falha.
+    for route in discovery_routes(cat, store)[:int(settings.get("max_segment_routes", 4))]:
         if len(candidates) >= target or not budget_available(store):
             break
+        before_requests = REQUESTS_BY_STORE.get(store, 0)
+        before_candidates = len(candidates)
         segment_response, _, segment_access = adaptive_fetch(
-            segment_url, config, 7, store=store, method="category_variant"
+            route["url"], config, 7, store=store, method="category_variant"
         )
-        if not segment_response or segment_response.status_code >= 400:
-            continue
-        stat["segmentos_categoria"] += 1
-        segment_cat = dict(cat)
-        segment_cat["url"] = segment_url
-        before = len(candidates)
-        for item in scraper.discover_category(segment_response.text, segment_cat, target):
-            if _merge_candidate(candidates, item, "segmento"):
-                stat["fontes_descoberta"]["segmento"] += 1
-        LOGGER.info(
-            "Segmento | %s | +%d | candidatos=%d | acesso=%s",
-            store,
-            len(candidates) - before,
-            len(candidates),
-            segment_access,
+        if segment_response and segment_response.status_code < 400:
+            stat["segmentos_categoria"] += 1
+            segment_cat = dict(cat)
+            segment_cat["url"] = route["url"]
+            gained = _discover_html(segment_response, segment_cat, target, candidates, "segmento", stat)
+            for page_url in pagination_urls(segment_response.text, route["url"], route["url"], max_pages * 2):
+                pagination_queue.append((page_url, route["url"]))
+            LOGGER.info(
+                "Segmento | %s | %s | +%d | candidatos=%d | acesso=%s | yield_hist=%.2f",
+                store, route["label"], gained, len(candidates), segment_access, route["yield_score"],
+            )
+        _record_discovery_stat(
+            stat, store, route["method_key"], before_requests, before_candidates, len(candidates)
         )
 
-    # Paginação: primeiro links reais descobertos; depois templates públicos confirmados em config.
-    initial_pages = pagination_urls(response.text, cat["url"], cat["url"], max_pages * 3)
-    initial_pages.extend(configured_pagination_urls(cat, max_pages))
-    queue = deque(dict.fromkeys(initial_pages))
-    visited = {cat["url"].rstrip("/")}
-    while queue and stat["paginas_categoria"] < max_pages and len(candidates) < target and budget_available(store):
-        page_url = queue.popleft()
+    # Paginação real ou templates públicos, com deduplicação entre categoria e segmentos.
+    pages_attempted = 0
+    while pagination_queue and pages_attempted < max(0, max_pages - 1) and len(candidates) < target and budget_available(store):
+        page_url, base_url = pagination_queue.popleft()
         marker = page_url.rstrip("/")
-        if marker in visited:
+        if marker in visited or marker == cat["url"].rstrip("/"):
             continue
         visited.add(marker)
+        pages_attempted += 1
+        before_requests = REQUESTS_BY_STORE.get(store, 0)
+        before_candidates = len(candidates)
         page_response, _, page_access = adaptive_fetch(
             page_url, config, 7, store=store, method="category_page"
         )
-        if not page_response or page_response.status_code >= 400:
-            continue
-        stat["paginas_categoria"] += 1
-        page_cat = dict(cat)
-        page_cat["url"] = page_url
-        before = len(candidates)
-        for item in scraper.discover_category(page_response.text, page_cat, target):
-            if _merge_candidate(candidates, item, "paginacao"):
-                stat["fontes_descoberta"]["paginacao"] += 1
-        for discovered in pagination_urls(page_response.text, page_url, cat["url"], max_pages * 3):
-            if discovered.rstrip("/") not in visited:
-                queue.append(discovered)
-        LOGGER.info(
-            "Paginação | %s | página=%d | +%d | candidatos=%d | acesso=%s",
-            store,
-            stat["paginas_categoria"],
-            len(candidates) - before,
-            len(candidates),
-            page_access,
+        if page_response and page_response.status_code < 400:
+            stat["paginas_categoria"] += 1
+            page_cat = dict(cat)
+            page_cat["url"] = page_url
+            gained = _discover_html(page_response, page_cat, target, candidates, "paginacao", stat)
+            for discovered in pagination_urls(page_response.text, page_url, base_url, max_pages * 2):
+                if discovered.rstrip("/") not in visited:
+                    pagination_queue.append((discovered, base_url))
+            LOGGER.info(
+                "Paginação | %s | página=%d | +%d | candidatos=%d | acesso=%s",
+                store, stat["paginas_categoria"], gained, len(candidates), page_access,
+            )
+        _record_discovery_stat(
+            stat, store, "pagination", before_requests, before_candidates, len(candidates)
         )
 
-    # Sitemap apenas onde existe retorno útil comprovado ou ausência de melhor catálogo público.
+    # Sitemap é um método independente: bloqueio da categoria não o desativa.
     if (
         sitemap_enabled
         and len(candidates) < min(target, sitemap_threshold)
-        and access_mode(store, "category") != "probe"
+        and access_mode(store, "sitemap") != "probe"
         and budget_available(store)
     ):
+        before_requests = REQUESTS_BY_STORE.get(store, 0)
+        before_candidates = len(candidates)
         sitemap_urls_found = discover_sitemap_urls(
             cat,
             config,
@@ -813,8 +961,10 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
                     if _merge_candidate(candidates, item, "sitemap"):
                         stat["fontes_descoberta"]["sitemap"] += 1
                         stat["detalhes_live"] += 1
+        _record_discovery_stat(stat, store, "sitemap", before_requests, before_candidates, len(candidates))
 
     stat["candidatos"] = len(candidates)
+    stat["bloqueada"] = not primary_ok and stat["segmentos_categoria"] == 0 and len(candidates) == 0
     return list(candidates.values()), stat
 
 
@@ -888,17 +1038,25 @@ def select_for_evaluation(
 
 
 
-def configuration_signature(item: dict, spec: dict) -> str:
-    """Identidade conservadora de uma configuração, nunca apenas da família.
+def _normal_id(value: object) -> str:
+    return re.sub(r"[^a-z0-9]", "", scraper.norm(value or ""))
 
-    SKU/MPN/EAN vencem quando existem. Sem um identificador forte, a assinatura
-    inclui o título e hardware crítico. Esta chave é apenas metadata por agora:
-    não fazemos deduplicação cross-store automática sem confirmação suficiente.
-    """
-    for field in ("sku", "mpn", "ean"):
+
+def _model_codes(title: str) -> set[str]:
+    codes = set()
+    for raw in re.findall(r"\b[A-Z0-9]{2,}(?:[-_][A-Z0-9]{2,})+\b", str(title or "").upper()):
+        compact = raw.replace("_", "-")
+        if not compact.startswith(("RTX-", "DDR-")):
+            codes.add(compact)
+    return codes
+
+
+def configuration_signature(item: dict, spec: dict) -> str:
+    """Identidade local conservadora de uma configuração."""
+    for field in ("ean", "mpn", "sku"):
         raw = item.get(field)
         if raw:
-            return f"{field}:{scraper.norm(raw)}"
+            return f"{field}:{_normal_id(raw)}"
 
     fields = [
         scraper.norm(item.get("titulo", "")),
@@ -912,6 +1070,154 @@ def configuration_signature(item: dict, spec: dict) -> str:
         f"hz:{spec.get('ecra_hz') if spec.get('ecra_hz') is not None else '?'}",
     ]
     return "cfg:" + "|".join(fields)
+
+
+def _spec_equal(left: object, right: object) -> bool:
+    if isinstance(left, str) or isinstance(right, str):
+        return scraper.norm(left or "") == scraper.norm(right or "")
+    return left == right
+
+
+def match_configurations(left_item: dict, left_spec: dict, right_item: dict, right_spec: dict) -> dict:
+    """Compara variantes entre lojas. Só EXATO/FORTE podem ser fundidos automaticamente."""
+    left_brand, right_brand = left_spec.get("marca"), right_spec.get("marca")
+    if left_brand and right_brand and left_brand != right_brand:
+        return {"level": "SEM_MATCH", "reason": "marca diferente"}
+
+    left_ean, right_ean = _normal_id(left_item.get("ean")), _normal_id(right_item.get("ean"))
+    if left_ean and right_ean:
+        if left_ean == right_ean:
+            return {"level": "EXATO", "reason": "EAN/GTIN idêntico", "identifier": left_ean}
+        return {"level": "NAO_FUNDIR", "reason": "EAN/GTIN diferente"}
+
+    left_mpn, right_mpn = _normal_id(left_item.get("mpn")), _normal_id(right_item.get("mpn"))
+    if left_mpn and right_mpn:
+        if left_mpn == right_mpn:
+            return {"level": "EXATO", "reason": "MPN/part number idêntico", "identifier": left_mpn}
+        return {"level": "NAO_FUNDIR", "reason": "MPN/part number diferente"}
+
+    critical = ("cpu_modelo", "gpu_modelo", "ram_gb", "armazenamento_tb", "ecra_res", "ecra_hz")
+    known_equal = 0
+    for field in critical:
+        left_value, right_value = left_spec.get(field), right_spec.get(field)
+        if left_value is not None and right_value is not None:
+            if not _spec_equal(left_value, right_value):
+                return {"level": "NAO_FUNDIR", "reason": f"configuração difere em {field}"}
+            known_equal += 1
+
+    left_codes = _model_codes(left_item.get("titulo", ""))
+    right_codes = _model_codes(right_item.get("titulo", ""))
+    shared_codes = left_codes & right_codes
+    same_sku = bool(_normal_id(left_item.get("sku")) and _normal_id(left_item.get("sku")) == _normal_id(right_item.get("sku")))
+
+    core_fields = ("cpu_modelo", "gpu_modelo", "ram_gb", "armazenamento_tb")
+    core_complete = all(
+        left_spec.get(field) is not None
+        and right_spec.get(field) is not None
+        and _spec_equal(left_spec.get(field), right_spec.get(field))
+        for field in core_fields
+    )
+    if shared_codes and core_complete:
+        return {
+            "level": "FORTE",
+            "reason": "model code + CPU/GPU/RAM/SSD coincidem",
+            "model_code": sorted(shared_codes)[0],
+        }
+    if same_sku and core_complete:
+        return {"level": "FORTE", "reason": "SKU + configuração técnica coincidem"}
+    if shared_codes and known_equal >= 2:
+        return {
+            "level": "PROVAVEL",
+            "reason": "model code coincide mas faltam campos para fusão automática",
+            "model_code": sorted(shared_codes)[0],
+        }
+    if known_equal >= 5 and left_brand and right_brand:
+        return {"level": "PROVAVEL", "reason": "assinatura técnica muito próxima sem ID forte"}
+    return {"level": "SEM_MATCH", "reason": "evidência insuficiente"}
+
+
+def build_cross_store_matches(records: list[dict]) -> dict:
+    parent = list(range(len(records)))
+
+    def find(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left: int, right: int) -> None:
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    counts = {"EXATO": 0, "FORTE": 0, "PROVAVEL": 0, "NAO_FUNDIR": 0}
+    probable = []
+    for left in range(len(records)):
+        for right in range(left + 1, len(records)):
+            left_record, right_record = records[left], records[right]
+            if left_record["item"].get("loja") == right_record["item"].get("loja"):
+                continue
+            result = match_configurations(
+                left_record["item"], left_record["spec"], right_record["item"], right_record["spec"]
+            )
+            level = result["level"]
+            if level in counts:
+                counts[level] += 1
+            if level in {"EXATO", "FORTE"}:
+                union(left, right)
+            elif level == "PROVAVEL" and len(probable) < 20:
+                probable.append(
+                    {
+                        "left_store": left_record["item"]["loja"],
+                        "left_url": left_record["item"]["url"],
+                        "right_store": right_record["item"]["loja"],
+                        "right_url": right_record["item"]["url"],
+                        "reason": result["reason"],
+                    }
+                )
+
+    grouped = defaultdict(list)
+    for index, record in enumerate(records):
+        grouped[find(index)].append(record)
+
+    groups = []
+    for members in grouped.values():
+        stores = {member["item"]["loja"] for member in members}
+        if len(stores) < 2:
+            continue
+        offers = sorted(
+            [
+                {
+                    "loja": member["item"]["loja"],
+                    "url": member["item"]["url"],
+                    "titulo": member["item"]["titulo"],
+                    "price": float(member["item"]["preco"]),
+                    "tier": member.get("tier"),
+                    "value_score": member.get("assessment", {}).get("value_score"),
+                }
+                for member in members
+            ],
+            key=lambda offer: offer["price"],
+        )
+        groups.append(
+            {
+                "configuration_key": configuration_signature(members[0]["item"], members[0]["spec"]),
+                "stores": sorted(stores),
+                "best_store": offers[0]["loja"],
+                "best_price": offers[0]["price"],
+                "spread_eur": round(offers[-1]["price"] - offers[0]["price"], 2),
+                "offers": offers,
+            }
+        )
+    groups.sort(key=lambda group: (-len(group["stores"]), group["best_price"]))
+    return {
+        "exact_pairs": counts["EXATO"],
+        "strong_pairs": counts["FORTE"],
+        "probable_pairs": counts["PROVAVEL"],
+        "conflicting_pairs": counts["NAO_FUNDIR"],
+        "groups": groups[:30],
+        "probable_review": probable,
+    }
 
 
 def select_with_cache(
@@ -956,8 +1262,19 @@ def latest_specs_by_url(history: dict) -> dict[str, dict]:
             continue
         url = entry.get("url")
         specs = entry.get("specs")
-        if url and isinstance(specs, dict) and entry.get("tracker_version") == VERSION:
+        if url and isinstance(specs, dict) and entry.get("tracker_version") in COMPATIBLE_STATE_VERSIONS:
             out[url] = specs
+    return out
+
+
+def latest_offer_by_url(history: dict) -> dict[str, dict]:
+    out = {}
+    for entries in (history.get("offers", {}) or {}).values():
+        if not isinstance(entries, list) or not entries:
+            continue
+        entry = entries[-1]
+        if isinstance(entry, dict) and entry.get("url") and entry.get("tracker_version") in COMPATIBLE_STATE_VERSIONS:
+            out[entry["url"]] = entry
     return out
 
 
@@ -1005,16 +1322,18 @@ def ntfy_send(
 def send_heartbeat(run: dict) -> bool:
     stores_ok = sum(1 for stats in run["stores"].values() if not stats.get("bloqueada"))
     blocked = len(run["stores"]) - stores_ok
+    matching = run.get("matching", {})
     message = (
-        f"V8.5 operacional\n"
+        f"V{VERSION} operacional\n"
         f"Lojas acessíveis: {stores_ok}/{len(run['stores'])} | bloqueadas: {blocked}\n"
         f"Descobertos: {run['total_candidates']} | avaliados: {run['total_evaluated']} | aceites: {run['total_accepted']}\n"
         f"Detalhes live: {run['detail_fetches']} | cache: {run['cache_reused']}\n"
+        f"Matching: {len(matching.get('groups', []))} grupos | exatos: {matching.get('exact_pairs', 0)} | fortes: {matching.get('strong_pairs', 0)}\n"
         f"Pedidos HTTP: {run['access_requests']} | tempo: {run['runtime_seconds']:.1f}s\n"
         f"D/O/P/B: {run['tiers']['DIAMANTE']}/{run['tiers']['OURO']}/{run['tiers']['PRATA']}/{run['tiers']['BRONZE']}"
     )
     return ntfy_send(
-        "💓 Heartbeat Rastreador V8.5",
+        f"💓 Heartbeat Rastreador V{VERSION}",
         message,
         priority=2,
         tags=["heartbeat", "computer"],
@@ -1052,7 +1371,7 @@ def load_history() -> dict:
 
 
 def compact_history(history: dict, entries_per_url: int = 3, keep_runs: int = 8) -> dict:
-    """Remove legado pré-V8.5 sem perder cache recente, alertas e runs úteis."""
+    """Mantém estado compatível V8.5+ sem perder cache recente, alertas e runs úteis."""
     out = _history_base()
     grouped: dict[str, list[dict]] = defaultdict(list)
     offers = history.get("offers", {}) if isinstance(history.get("offers"), dict) else {}
@@ -1063,7 +1382,7 @@ def compact_history(history: dict, entries_per_url: int = 3, keep_runs: int = 8)
             if not isinstance(entry, dict):
                 continue
             url = entry.get("url")
-            if not url or entry.get("tracker_version") != VERSION:
+            if not url or entry.get("tracker_version") not in COMPATIBLE_STATE_VERSIONS:
                 continue
             grouped[str(url)].append(entry)
 
@@ -1080,7 +1399,7 @@ def compact_history(history: dict, entries_per_url: int = 3, keep_runs: int = 8)
     learning = history.get("learning", {}) if isinstance(history.get("learning"), dict) else {}
     runs = [
         run for run in (learning.get("runs", []) or [])
-        if isinstance(run, dict) and run.get("runner_version") == VERSION
+        if isinstance(run, dict) and run.get("runner_version") in COMPATIBLE_STATE_VERSIONS
     ]
     out["learning"]["runs"] = sorted(runs, key=_timestamp)[-keep_runs:]
     if isinstance(learning.get("stores"), dict):
@@ -1235,6 +1554,7 @@ def main() -> dict:
 
     history = compact_history(load_history())
     spec_cache = latest_specs_by_url(history)
+    offer_cache = latest_offer_by_url(history)
     all_items: list[dict] = []
     stats: dict[str, dict] = {}
 
@@ -1296,6 +1616,10 @@ def main() -> dict:
             cached_item = dict(item)
             cached_item["specs"] = cached
             cached_item["detail_source"] = "history_cache"
+            previous_meta = offer_cache.get(item["url"], {})
+            for field in ("ean", "mpn", "sku"):
+                if previous_meta.get(field) and not cached_item.get(field):
+                    cached_item[field] = previous_meta[field]
             evaluated.append(cached_item)
             stats[store]["avaliados"] += 1
             stats[store]["cache_reutilizada"] += 1
@@ -1318,6 +1642,7 @@ def main() -> dict:
     alerts = 0
     suppressed = 0
     current_ranked = []
+    match_records = []
 
     for item in evaluated:
         price = item.get("preco")
@@ -1340,7 +1665,9 @@ def main() -> dict:
         alerts += int(sent)
         suppressed += int(was_suppressed)
         current_ranked.append((assessment["value_score"], item, tier, assessment))
+        match_records.append({"item": item, "spec": spec, "assessment": assessment, "tier": tier})
 
+    matching = build_cross_store_matches(match_records)
     runtime = round(time.monotonic() - RUN_STARTED, 2)
     run = {
         "timestamp": now_iso(),
@@ -1358,6 +1685,7 @@ def main() -> dict:
         "cache_reused": sum(row["cache_reutilizada"] for row in stats.values()),
         "runtime_seconds": runtime,
         "tiers": tiers,
+        "matching": matching,
     }
 
     heartbeat_enabled = bool(settings.get("heartbeat_ntfy", True))
@@ -1371,7 +1699,7 @@ def main() -> dict:
     save_json(LEARNING_PATH, LEARNING)
 
     LOGGER.info(
-        "V8.5 | Lojas=%d | Descobertos=%d | Avaliados=%d | Aceites=%d | Pedidos=%d | "
+        "V8.6 | Lojas=%d | Descobertos=%d | Avaliados=%d | Aceites=%d | Pedidos=%d | "
         "Detalhes=%d | Cache=%d | Tempo=%.1fs | Heartbeat=%s | D=%d O=%d P=%d B=%d",
         len(stats),
         run["total_candidates"],
@@ -1398,6 +1726,17 @@ def main() -> dict:
             stat["aceites"],
             REQUESTS_BY_STORE.get(store, 0),
             stat["bloqueada"],
+        )
+    LOGGER.info(
+        "Matching | grupos=%d | exatos=%d | fortes=%d | prováveis=%d | conflitos=%d",
+        len(matching["groups"]), matching["exact_pairs"], matching["strong_pairs"],
+        matching["probable_pairs"], matching["conflicting_pairs"],
+    )
+    for group in matching["groups"][:5]:
+        LOGGER.info(
+            "MATCH | %s | melhor=%s %.2f€ | lojas=%s | spread=%.2f€",
+            group["configuration_key"], group["best_store"], group["best_price"],
+            ",".join(group["stores"]), group["spread_eur"],
         )
     for value, item, tier, assessment in sorted(current_ranked, reverse=True, key=lambda row: row[0])[:8]:
         LOGGER.info(

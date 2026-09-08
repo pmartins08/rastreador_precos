@@ -190,6 +190,7 @@ class TrackerTests(unittest.TestCase):
         b["attempts"] = 40
         b["blocks"] = 40
         b["successes"] = 0
+        b["contexts"]["category"] = {"chrome131": {"attempts": 12, "successes": 0, "blocks": 12, "errors": 0}}
         for profile in tracker.PROFILES:
             b["profiles"][profile] = {"attempts": 5, "successes": 0, "blocks": 5, "errors": 0}
         self.assertEqual(tracker.access_mode("BLOCK", "category"), "probe")
@@ -294,11 +295,11 @@ class TrackerTests(unittest.TestCase):
             tracker.candidate_priority(cheap, weights, settings),
         )
 
-    def test_cache_only_reuses_v85_entries(self):
+    def test_cache_reuses_compatible_v86_entries(self):
         history = {
             "offers": {
                 "old": [{"url": "https://x/old", "tracker_version": "8.4", "specs": {"ram_gb": 16}}],
-                "new": [{"url": "https://x/new", "tracker_version": "8.5", "specs": {"ram_gb": 32}}],
+                "new": [{"url": "https://x/new", "tracker_version": "8.6", "specs": {"ram_gb": 32}}],
             }
         }
         cache = tracker.latest_specs_by_url(history)
@@ -319,21 +320,22 @@ class TrackerTests(unittest.TestCase):
             tracker.configuration_signature(base, spec_5070),
         )
 
-    def test_configuration_signature_prefers_sku(self):
-        left = {"titulo": "ASUS TUF Gaming A16 RTX 5050", "sku": "FA608-ABC"}
-        right = {"titulo": "TUF A16 promoção", "sku": "FA608-ABC"}
+    def test_configuration_signature_prefers_strongest_identifier(self):
+        left = {"titulo": "ASUS TUF Gaming A16", "sku": "STORE-1", "mpn": "90NR0KS1-M00730", "ean": "4711636176743"}
+        right = {"titulo": "TUF A16 promoção", "sku": "STORE-2", "mpn": "90NR0KS1-M00730", "ean": "4711636176743"}
         self.assertEqual(
             tracker.configuration_signature(left, {}),
             tracker.configuration_signature(right, {}),
         )
+        self.assertTrue(tracker.configuration_signature(left, {}).startswith("ean:"))
 
-    def test_compact_history_keeps_only_current_v85(self):
+    def test_compact_history_keeps_compatible_v86(self):
         history = tracker._history_base()
         history["offers"] = {
             "legacy": [{"url": "https://x/old", "tracker_version": "8.4", "timestamp": "2026-01-01T00:00:00Z"}],
             "new": [
-                {"url": "https://x/new", "tracker_version": "8.5", "timestamp": "2026-01-01T00:00:00Z"},
-                {"url": "https://x/new", "tracker_version": "8.5", "timestamp": "2026-01-02T00:00:00Z"},
+                {"url": "https://x/new", "tracker_version": "8.6", "timestamp": "2026-01-01T00:00:00Z"},
+                {"url": "https://x/new", "tracker_version": "8.6", "timestamp": "2026-01-02T00:00:00Z"},
             ],
         }
         history["alert_state"] = {
@@ -392,10 +394,10 @@ class TrackerTests(unittest.TestCase):
         left = tracker._history_base()
         right = tracker._history_base()
         left["offers"] = {
-            "https://x/1": [{"timestamp": "2026-01-01T00:00:00Z", "tracker_version": "8.5", "url": "https://x/1", "price": 1000}]
+            "https://x/1": [{"timestamp": "2026-01-01T00:00:00Z", "tracker_version": "8.6", "url": "https://x/1", "price": 1000}]
         }
         right["offers"] = {
-            "https://x/1": [{"timestamp": "2026-01-02T00:00:00Z", "tracker_version": "8.5", "url": "https://x/1", "price": 900}]
+            "https://x/1": [{"timestamp": "2026-01-02T00:00:00Z", "tracker_version": "8.6", "url": "https://x/1", "price": 900}]
         }
         merged = tracker.merge_history(left, right)
         self.assertEqual(len(merged["offers"]["https://x/1"]), 2)
@@ -410,6 +412,81 @@ class TrackerTests(unittest.TestCase):
         urls, children = tracker.sitemap_parse(urlset, urlset.decode())
         self.assertEqual(urls, ["https://x/item"])
         self.assertEqual(children, [])
+
+    def test_discovery_yield_orders_productive_routes_first(self):
+        tracker.record_discovery_yield("YIELD", "segment:good", 2, 12)
+        tracker.record_discovery_yield("YIELD", "segment:bad", 2, 0)
+        routes = tracker.discovery_routes(
+            {"extra_discovery_urls": [
+                {"label": "bad", "url": "https://x/bad"},
+                {"label": "good", "url": "https://x/good"},
+            ]},
+            "YIELD",
+        )
+        self.assertEqual(routes[0]["label"], "good")
+        self.assertGreater(tracker.discovery_score("YIELD", "segment:good"), tracker.discovery_score("YIELD", "segment:bad"))
+
+    def test_blocked_primary_can_use_public_fallback_route(self):
+        blocked = type("Resp", (), {"status_code": 403, "text": "", "headers": {}})()
+        html = '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"ASUS TUF Gaming A16 RTX 5060 32GB 1TB","url":"https://example.com/asus-tuf-a16","offers":{"@type":"Offer","price":"1199.00","availability":"https://schema.org/InStock"}}</script>'
+        ok = type("Resp", (), {"status_code": 200, "text": html, "headers": {"Content-Type": "text/html"}})()
+
+        def fake_fetch(url, *_args, **_kwargs):
+            if url.endswith("/primary"):
+                return blocked, "chrome131", "http_403"
+            return ok, "firefox147", "http_success"
+
+        cat = {
+            "loja": "TEST",
+            "url": "https://example.com/primary",
+            "target_candidates": 10,
+            "sitemap_enabled": False,
+            "product_path_hints": ["/asus-"],
+            "extra_discovery_urls": [{"label": "asus", "url": "https://example.com/asus"}],
+        }
+        with patch.object(tracker, "adaptive_fetch", side_effect=fake_fetch):
+            items, stat = tracker.scan_store(cat, {"category_urls": [cat]}, {"max_category_pages": 1})
+        self.assertEqual(len(items), 1)
+        self.assertFalse(stat["bloqueada"])
+
+    def test_page_identifiers_validate_ean_and_part_number(self):
+        soup = BeautifulSoup("<div>Part-Number: 83JE01KTPG Código EAN: 199276826244</div>", "html.parser")
+        ids = tracker.page_identifiers(soup)
+        self.assertEqual(ids["mpn"], "83JE01KTPG")
+        self.assertEqual(ids["ean"], "199276826244")
+
+    def test_matching_exact_by_ean(self):
+        left_item = {"loja": "A", "titulo": "ASUS TUF A16", "ean": "4711636176743"}
+        right_item = {"loja": "B", "titulo": "ASUS TUF A16 outra descrição", "ean": "4711636176743"}
+        spec = scraper.specs("ASUS TUF Gaming A16 Ryzen 7 260 32GB 1TB RTX 5050 165Hz")
+        self.assertEqual(tracker.match_configurations(left_item, spec, right_item, spec)["level"], "EXATO")
+
+    def test_matching_never_merges_same_family_with_different_gpu_or_ssd(self):
+        left_item = {"loja": "A", "titulo": "ASUS TUF Gaming A16 FA608UH-R72B55CS2"}
+        right_item = {"loja": "B", "titulo": "ASUS TUF Gaming A16 FA608UH-R72B55CS2"}
+        left_spec = scraper.specs("ASUS TUF Gaming A16 Ryzen 7 260 32GB 512GB RTX 5050")
+        right_spec = scraper.specs("ASUS TUF Gaming A16 Ryzen 7 260 32GB 1TB RTX 5070")
+        result = tracker.match_configurations(left_item, left_spec, right_item, right_spec)
+        self.assertEqual(result["level"], "NAO_FUNDIR")
+
+    def test_matching_strong_requires_model_code_and_core_configuration(self):
+        left_item = {"loja": "A", "titulo": "ASUS TUF Gaming A16 FA608UH-R72B55CS2"}
+        right_item = {"loja": "B", "titulo": "Portátil ASUS FA608UH-R72B55CS2 promoção"}
+        spec = scraper.specs("ASUS TUF Gaming A16 Ryzen 7 260 32GB 1TB RTX 5050")
+        result = tracker.match_configurations(left_item, spec, right_item, spec)
+        self.assertEqual(result["level"], "FORTE")
+
+    def test_cross_store_groups_choose_cheapest_exact_offer(self):
+        spec = scraper.specs("ASUS TUF Gaming A16 Ryzen 7 260 32GB 1TB RTX 5050")
+        records = [
+            {"item": {"loja": "A", "url": "https://a/1", "titulo": "ASUS TUF A16", "preco": 1299, "ean": "4711636176743"}, "spec": spec, "assessment": {"value_score": 115}, "tier": "OURO"},
+            {"item": {"loja": "B", "url": "https://b/1", "titulo": "ASUS TUF A16", "preco": 1199, "ean": "4711636176743"}, "spec": spec, "assessment": {"value_score": 118}, "tier": "OURO"},
+        ]
+        summary = tracker.build_cross_store_matches(records)
+        self.assertEqual(summary["exact_pairs"], 1)
+        self.assertEqual(len(summary["groups"]), 1)
+        self.assertEqual(summary["groups"][0]["best_store"], "B")
+        self.assertEqual(summary["groups"][0]["spread_eur"], 100.0)
 
 
 if __name__ == "__main__":
