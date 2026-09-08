@@ -97,6 +97,27 @@ class BrainRegressionTests(unittest.TestCase):
         self.assertEqual(result[0]["preco"], 1299.99)
         self.assertTrue(result[0]["stock"])
 
+
+    def test_jsonld_carries_strong_identifiers(self):
+        payload = {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": "ASUS TUF Gaming A16 RTX 5060",
+            "url": "https://example.com/tuf",
+            "sku": "FA608UM-RV001W",
+            "mpn": "90NR0KV1-M00000",
+            "gtin13": "4711000000000",
+            "offers": {"@type": "Offer", "price": "1499,99"},
+        }
+        soup = BeautifulSoup(
+            f'<script type="application/ld+json">{json.dumps(payload)}</script>',
+            "html.parser",
+        )
+        row = scraper.jsonld_products(soup)[0]
+        self.assertEqual(row["sku"], "FA608UM-RV001W")
+        self.assertEqual(row["mpn"], "90NR0KV1-M00000")
+        self.assertEqual(row["ean"], "4711000000000")
+
     def test_card_ignores_monthly_installment(self):
         html = """
         <article>
@@ -119,6 +140,7 @@ class BrainRegressionTests(unittest.TestCase):
         self.assertEqual(scraper.value_score(100, 1300, settings), 136.0)
         self.assertEqual(scraper.value_score(75, 1300, settings), 113.2)
         self.assertEqual(scraper.tier_from_value(130, {}), "DIAMANTE")
+        self.assertEqual(scraper.tier_from_value(125, {"diamante_value_min": 125}), "DIAMANTE")
 
 
 class TrackerTests(unittest.TestCase):
@@ -283,6 +305,60 @@ class TrackerTests(unittest.TestCase):
         self.assertNotIn("https://x/old", cache)
         self.assertEqual(cache["https://x/new"]["ram_gb"], 32)
 
+
+    def test_configuration_signature_separates_same_family_variants(self):
+        base = {
+            "loja": "ASUS",
+            "url": "https://example.com/tuf-a16",
+            "titulo": "ASUS TUF Gaming A16",
+        }
+        spec_5050 = scraper.specs("ASUS TUF Gaming A16 Ryzen 7 260 32GB 512GB RTX 5050")
+        spec_5070 = scraper.specs("ASUS TUF Gaming A16 Ryzen 7 260 32GB 1TB RTX 5070")
+        self.assertNotEqual(
+            tracker.configuration_signature(base, spec_5050),
+            tracker.configuration_signature(base, spec_5070),
+        )
+
+    def test_configuration_signature_prefers_sku(self):
+        left = {"titulo": "ASUS TUF Gaming A16 RTX 5050", "sku": "FA608-ABC"}
+        right = {"titulo": "TUF A16 promoção", "sku": "FA608-ABC"}
+        self.assertEqual(
+            tracker.configuration_signature(left, {}),
+            tracker.configuration_signature(right, {}),
+        )
+
+    def test_compact_history_keeps_only_current_v85(self):
+        history = tracker._history_base()
+        history["offers"] = {
+            "legacy": [{"url": "https://x/old", "tracker_version": "8.4", "timestamp": "2026-01-01T00:00:00Z"}],
+            "new": [
+                {"url": "https://x/new", "tracker_version": "8.5", "timestamp": "2026-01-01T00:00:00Z"},
+                {"url": "https://x/new", "tracker_version": "8.5", "timestamp": "2026-01-02T00:00:00Z"},
+            ],
+        }
+        history["alert_state"] = {
+            "https://x/old": {"timestamp": "2026-01-01T00:00:00Z"},
+            "https://x/new": {"timestamp": "2026-01-02T00:00:00Z"},
+        }
+        compact = tracker.compact_history(history, entries_per_url=1)
+        self.assertNotIn("https://x/old", compact["offers"])
+        self.assertEqual(len(compact["offers"]["https://x/new"]), 1)
+        self.assertEqual(set(compact["alert_state"]), {"https://x/new"})
+
+    def test_select_with_cache_keeps_cached_and_prioritizes_new(self):
+        settings = {"budget_soft": 1300, "budget_hard": 1500}
+        weights = {"gpu_base": {"rtx 5070": 95}, "cpu_base": {"tier_2": 85}}
+        items = [
+            {"loja": "A", "url": "https://a/cached", "titulo": "ASUS Vivobook Core i7-1255U 16GB 512GB", "preco": 700},
+            {"loja": "A", "url": "https://a/strong", "titulo": "ASUS TUF Core 7 240H 32GB 1TB RTX 5070", "preco": 1399},
+            {"loja": "A", "url": "https://a/weak", "titulo": "ASUS Vivobook Core i7-1255U 16GB 512GB", "preco": 799},
+        ]
+        selected = tracker.select_with_cache(
+            items, {"https://a/cached": {"ram_gb": 16}}, 2, weights, settings
+        )
+        self.assertEqual(selected[0]["url"], "https://a/cached")
+        self.assertEqual(selected[1]["url"], "https://a/strong")
+
     def test_unknown_keyboard_wrapper_is_accepted(self):
         spec = scraper.specs("ASUS TUF Core 7 240H 16GB 1TB RTX 5060")
         result = tracker.score_allow_unknown(
@@ -316,10 +392,10 @@ class TrackerTests(unittest.TestCase):
         left = tracker._history_base()
         right = tracker._history_base()
         left["offers"] = {
-            "https://x/1": [{"timestamp": "2026-01-01T00:00:00Z", "url": "https://x/1", "price": 1000}]
+            "https://x/1": [{"timestamp": "2026-01-01T00:00:00Z", "tracker_version": "8.5", "url": "https://x/1", "price": 1000}]
         }
         right["offers"] = {
-            "https://x/1": [{"timestamp": "2026-01-02T00:00:00Z", "url": "https://x/1", "price": 900}]
+            "https://x/1": [{"timestamp": "2026-01-02T00:00:00Z", "tracker_version": "8.5", "url": "https://x/1", "price": 900}]
         }
         merged = tracker.merge_history(left, right)
         self.assertEqual(len(merged["offers"]["https://x/1"]), 2)

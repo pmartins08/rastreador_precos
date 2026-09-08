@@ -953,6 +953,14 @@ def jsonld_products(soup: BeautifulSoup) -> list[dict]:
                         "url": str(item_url).strip(),
                         "preco": price,
                         "stock": available,
+                        "sku": item.get("sku") or item.get("productID"),
+                        "mpn": item.get("mpn"),
+                        "ean": (
+                            item.get("gtin13")
+                            or item.get("gtin14")
+                            or item.get("gtin12")
+                            or item.get("gtin")
+                        ),
                     }
                     marker = (record["titulo"], record["url"], record["preco"])
                     if marker not in seen:

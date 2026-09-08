@@ -887,6 +887,65 @@ def select_for_evaluation(
     return selected
 
 
+
+def configuration_signature(item: dict, spec: dict) -> str:
+    """Identidade conservadora de uma configuração, nunca apenas da família.
+
+    SKU/MPN/EAN vencem quando existem. Sem um identificador forte, a assinatura
+    inclui o título e hardware crítico. Esta chave é apenas metadata por agora:
+    não fazemos deduplicação cross-store automática sem confirmação suficiente.
+    """
+    for field in ("sku", "mpn", "ean"):
+        raw = item.get(field)
+        if raw:
+            return f"{field}:{scraper.norm(raw)}"
+
+    fields = [
+        scraper.norm(item.get("titulo", "")),
+        str(spec.get("marca") or "?"),
+        str(spec.get("submarca") or "?"),
+        str(spec.get("cpu_modelo") or "?"),
+        str(spec.get("gpu_modelo") or spec.get("gpu_tipo") or "?"),
+        f"ram:{spec.get('ram_gb') if spec.get('ram_gb') is not None else '?'}",
+        f"ssd:{spec.get('armazenamento_tb') if spec.get('armazenamento_tb') is not None else '?'}",
+        f"res:{spec.get('ecra_res') or '?'}",
+        f"hz:{spec.get('ecra_hz') if spec.get('ecra_hz') is not None else '?'}",
+    ]
+    return "cfg:" + "|".join(fields)
+
+
+def select_with_cache(
+    items: list[dict],
+    spec_cache: dict[str, dict],
+    max_items: int,
+    weights: dict,
+    settings: dict,
+) -> list[dict]:
+    """Cache aumenta cobertura: cached primeiro, slots restantes para produtos novos."""
+    if max_items <= 0:
+        return []
+    cached = [
+        item for item in items
+        if item.get("specs") or (item.get("url") and item["url"] in spec_cache)
+    ]
+    cached_selected = select_for_evaluation(
+        cached, min(max_items, len(cached)), weights, settings
+    ) if cached else []
+    cached_keys = {(item["loja"], item["url"]) for item in cached_selected}
+    remaining_slots = max(0, max_items - len(cached_selected))
+    if remaining_slots == 0:
+        return cached_selected
+    uncached = [
+        item for item in items
+        if (item["loja"], item["url"]) not in cached_keys
+        and not item.get("specs")
+        and item.get("url") not in spec_cache
+    ]
+    return cached_selected + select_for_evaluation(
+        uncached, min(remaining_slots, len(uncached)), weights, settings
+    )
+
+
 def latest_specs_by_url(history: dict) -> dict[str, dict]:
     out = {}
     for entries in (history.get("offers", {}) or {}).values():
@@ -991,6 +1050,45 @@ def load_history() -> dict:
     return history
 
 
+
+def compact_history(history: dict, entries_per_url: int = 3, keep_runs: int = 8) -> dict:
+    """Remove legado pré-V8.5 sem perder cache recente, alertas e runs úteis."""
+    out = _history_base()
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    offers = history.get("offers", {}) if isinstance(history.get("offers"), dict) else {}
+    for entries in offers.values():
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            url = entry.get("url")
+            if not url or entry.get("tracker_version") != VERSION:
+                continue
+            grouped[str(url)].append(entry)
+
+    for url, entries in grouped.items():
+        out["offers"][url] = sorted(entries, key=_timestamp)[-entries_per_url:]
+
+    active_urls = set(out["offers"])
+    alerts = history.get("alert_state", {}) if isinstance(history.get("alert_state"), dict) else {}
+    out["alert_state"] = {
+        key: value for key, value in alerts.items()
+        if key in active_urls and isinstance(value, dict)
+    }
+
+    learning = history.get("learning", {}) if isinstance(history.get("learning"), dict) else {}
+    runs = [
+        run for run in (learning.get("runs", []) or [])
+        if isinstance(run, dict) and run.get("runner_version") == VERSION
+    ]
+    out["learning"]["runs"] = sorted(runs, key=_timestamp)[-keep_runs:]
+    if isinstance(learning.get("stores"), dict):
+        out["learning"]["stores"] = learning["stores"]
+    out["tracker_version"] = VERSION
+    return out
+
+
 def previous_for_url(history: dict, url: str) -> dict | None:
     direct = history.get("offers", {}).get(url)
     if isinstance(direct, list) and direct:
@@ -1027,6 +1125,10 @@ def record_offer(
             "tier": tier,
             "specs": spec,
             "url": url,
+            "configuration_key": configuration_signature(item, spec),
+            "sku": item.get("sku"),
+            "mpn": item.get("mpn"),
+            "ean": item.get("ean"),
         }
     )
     del entries[:-30]
@@ -1131,7 +1233,7 @@ def main() -> dict:
     min_price = float(settings.get("preco_minimo_global", 250))
     hard = float(settings.get("budget_hard", 1500))
 
-    history = load_history()
+    history = compact_history(load_history())
     spec_cache = latest_specs_by_url(history)
     all_items: list[dict] = []
     stats: dict[str, dict] = {}
@@ -1172,7 +1274,7 @@ def main() -> dict:
     unique: dict[tuple[str, str], dict] = {}
     for item in all_items:
         unique.setdefault((item["loja"], item["url"]), item)
-    selected = select_for_evaluation(list(unique.values()), max_evaluated, weights, settings)
+    selected = select_with_cache(list(unique.values()), spec_cache, max_evaluated, weights, settings)
     LOGGER.info(
         "Pré-ranking V8.5 | descobertos=%d | selecionados=%d | limite=%d | detalhe_max=%d",
         len(unique),
@@ -1395,7 +1497,7 @@ def merge_history(current: dict, run_state: dict) -> dict:
         (current.get("learning", {}) or {}).get("stores", {}),
         (run_state.get("learning", {}) or {}).get("stores", {}),
     )
-    return out
+    return compact_history(out)
 
 
 def merge_access_learning(current: dict, run_state: dict) -> dict:

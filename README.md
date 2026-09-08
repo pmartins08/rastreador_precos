@@ -1,156 +1,106 @@
-# Rastreador de Preços — V8.4
+# Rastreador de Preços — V8.5
 
-Rastreador de portáteis orientado a **valor real**, não apenas ao preço mais baixo. O projeto recolhe ofertas de lojas portuguesas, extrai hardware, aplica o cérebro de scoring V8, aprende quais estratégias de acesso funcionam por loja e envia alertas via ntfy apenas quando existe uma oportunidade relevante.
+Motor de inteligência de mercado para portáteis ASUS, Lenovo e HP em Portugal. O sistema combina descoberta de catálogo, acesso adaptativo, extração técnica, scoring orientado ao uso FEUP + gaming, histórico, cache e notificações ntfy.
 
-## Objetivo
-
-O universo automático está limitado a portáteis novos das marcas:
-
-- **ASUS** — ROG, TUF, Vivobook, Zenbook, ExpertBook, ProArt
-- **Lenovo** — Legion, LOQ, IdeaPad, ThinkPad, ThinkBook, Yoga
-- **HP** — OMEN, Victus, OmniBook, EliteBook, ProBook, Envy, Pavilion
-
-Apple e equipamentos recondicionados/usados/outlet ficam fora do universo.
-
-## Arquitetura
+## Estrutura
 
 ```text
-GitHub Actions
-    |
-    v
-runner.py                  # entrypoint e bootstrap
-    |
-    +--> brain_runtime.py  # correções de parsing compatíveis com o V8
-    |      +--> brands.py
-    |      +--> hardware.py
-    |      +--> pricing.py
-    |      +--> structured_data.py
-    |      +--> catalog.py
-    |
-    +--> runner_v84.py     # acesso adaptativo, descoberta, prioridade e alertas
-    |
-    +--> scraper.py        # cérebro V8: extração estruturada + scoring
-
-state_merge.py             # persistência segura entre runs
-tests/                     # regressões do cérebro e da camada adaptativa
-config/config.json         # lojas, limites, tiers e pesos
+scraper.py                  cérebro V8: parsing de hardware + scoring
+tracker.py                  acesso, descoberta, cache, histórico, alertas e heartbeat
+config/config.json          limites, lojas, pesos e tiers
+tests/test_tracker.py       regressões do cérebro e do tracker
+data/history.json           preços/configurações recentes e estado de alertas
+data/access_learning.json   aprendizagem de acesso por loja/método/browser
+.github/workflows/tracker.yml
+requirements.txt
 ```
 
-### 1. Cérebro V8
+A divisão é intencional: `scraper.py` decide **o que vale a pena**; `tracker.py` decide **como observar o mercado de forma eficiente**.
 
-O scoring continua baseado nas dimensões FEUP, Gaming, Longevidade e Portabilidade. A fórmula de ranking e os pesos não são alterados pela camada V8.4.
+## Universo
 
-O `brain_runtime.py` aplica apenas correções de interpretação antes da execução: formatos reais de CPU, preços PT/EU, submarcas, JSON-LD e cartões de catálogo.
+Apenas equipamento novo das famílias:
 
-### 2. Acesso adaptativo
+- ASUS — ROG, TUF, Vivobook, Zenbook, ExpertBook, ProArt
+- Lenovo — Legion, LOQ, IdeaPad, ThinkPad, ThinkBook, Yoga
+- HP — OMEN, Victus, OmniBook, EliteBook, ProBook, Envy, Pavilion
 
-A V8.4 aprende por **loja + método + perfil de browser**. O histórico global de cada browser também serve de prior quando um método ainda não tem dados suficientes.
+Apple, usados, recondicionados e outlet ficam excluídos.
 
-Lojas persistentemente bloqueadas entram em `probe mode`: recebem uma tentativa barata por run em vez de consumir dezenas de pedidos repetindo estratégias que já provaram não funcionar.
+## Scoring
 
-Existem dois fusíveis:
+O cérebro V8 mantém as dimensões FEUP, Gaming, Longevidade e Portabilidade. O Value Score combina ranking técnico/adequação com preço.
 
-- orçamento global de pedidos por run;
-- orçamento máximo por loja.
-
-A execução também tem deadline interno e timeout do próprio job no GitHub Actions.
-
-### 3. Descoberta e pré-ranking
-
-A descoberta combina, quando disponível:
-
-1. JSON-LD / dados estruturados;
-2. cartões de produto;
-3. links dentro da categoria;
-4. robots.txt + sitemaps como fallback.
-
-Os produtos não são enriquecidos simplesmente do mais barato para o mais caro. Existe um **pré-ranking de potencial** baseado no hardware já visível no título e no preço, com quota por loja para evitar que uma única fonte ocupe todo o orçamento.
-
-### 4. Fontes de preço vs. fontes de referência
-
-As lojas de preço atuais estão em `category_urls` no `config.json`.
-
-A página oficial ASUS está em `reference_sources`: é útil para validar modelos/especificações, mas não é tratada como loja de preço porque o catálogo português não expõe PVP de forma suficientemente fiável para o rastreador automático.
-
-### 5. Qualidade e teclado
-
-A extração dá prioridade a tabelas técnicas e pares label→value. O título é fallback, não uma fonte equivalente a uma ficha técnica.
-
-Teclado explicitamente não-PT é rejeitado. Teclado desconhecido pode continuar no ranking, mas a incerteza continua refletida na qualidade/confiança dos dados.
-
-## Value Score e tiers
-
-Configuração atual:
+Tiers atuais:
 
 | Tier | Value mínimo |
 |---|---:|
 | Bronze | 70 |
 | Prata | 90 |
 | Ouro | 110 |
-| Diamante | 130 |
+| Diamante | 125 |
 
-Os alertas ntfy estão configurados para **Ouro ou Diamante**.
+Diamante é deliberadamente raro: representa uma combinação excecional de adequação e preço, sem exigir quase perfeição matemática como acontecia com 130.
 
-## Lojas
+## Descoberta e cobertura
 
-Fontes de preço configuradas:
+O tracker pode combinar:
 
-- PCDiga
-- PcComponentes
-- Globaldata
-- Radio Popular
-- CHIP7
-- FNAC
-- Worten
+1. categoria;
+2. paginação pública confirmada;
+3. JSON-LD e cartões de produto;
+4. sitemaps quando demonstram retorno útil;
+5. probe mode para lojas persistentemente bloqueadas.
 
-O sistema não tenta contornar CAPTCHA ou mecanismos anti-bot. Quando uma fonte bloqueia sistematicamente os pedidos, aprende a reduzir tentativas e continua a verificar periodicamente se o acesso mudou.
+Cada loja tem orçamento próprio e existe também orçamento global/deadline. O sistema não tenta contornar CAPTCHA ou mecanismos anti-bot.
 
-## Estado persistido
+A cache de especificações é independente do orçamento de fichas novas: produtos descobertos novamente podem reutilizar CPU/GPU/RAM/ecrã já confirmados, libertando acessos de detalhe para SKUs novos.
 
-`data/history.json` guarda:
+## Identidade de configurações
 
-- observações de preço;
-- specs usadas no scoring;
-- tiers e Value Score;
-- estado de alertas;
-- resumo das runs recentes.
+Nunca assumimos que o nome comercial identifica uma configuração única. `ASUS TUF Gaming A16`, por exemplo, pode existir com GPUs, RAM e SSD diferentes.
 
-`data/access_learning.json` guarda a aprendizagem de acesso por loja, browser e método.
+A ordem de confiança é:
 
-O workflow sincroniza o `main` antes de começar e usa `state_merge.py` na persistência para evitar que uma run apague observações mais recentes.
+1. SKU / part number / EAN quando disponível;
+2. caso contrário, uma assinatura conservadora que inclui título + CPU + GPU + RAM + SSD + ecrã.
+
+A V8.5 guarda esta assinatura como metadata, mas ainda não funde automaticamente ofertas entre lojas. Uma futura comparação cross-store só será ativada quando a identidade for suficientemente forte para evitar misturar variantes próximas.
+
+## Acesso adaptativo
+
+O tracker aprende por loja + método + perfil de browser. Fontes persistentemente bloqueadas entram em `probe mode`, recebendo uma tentativa barata em vez de desperdiçar dezenas de requests.
+
+A aprendizagem de acesso é persistida em `data/access_learning.json` e não é apagada quando o histórico de preços é compactado.
+
+## Histórico
+
+O histórico V8.5 é automaticamente compactado:
+
+- remove formatos e observações pré-V8.5;
+- normaliza chaves por URL;
+- mantém apenas observações recentes necessárias para preço/cache;
+- preserva estado de alertas válido;
+- mantém apenas as runs V8.5 recentes.
+
+## ntfy
+
+Existem dois sinais independentes:
+
+- alertas de oportunidade (Ouro/Diamante, upgrades de tier ou quedas de preço);
+- heartbeat de saúde em todas as runs normais.
+
+Se o pipeline falhar antes de o Python terminar, o GitHub Actions envia um heartbeat de falha separado.
 
 ## Testes
 
 ```bash
-python -m unittest discover -s tests -v
+python -m py_compile scraper.py tracker.py tests/test_tracker.py
+python -m unittest discover -s tests -p 'test_tracker.py' -v
 ```
 
-A suite inclui regressões para, entre outros:
+A suite cobre preços PT/EU, CPU/GPU, VRAM, TGP, M.2, JSON-LD, IDs fortes, variantes de configuração, cache, paginação, budgets, probe mode, heartbeat, histórico e merge concorrente.
 
-- GPU integrada vs. dedicada;
-- VRAM explícita vs. RAM do sistema;
-- TGP;
-- CPUs Intel/Ryzen e classes U/H/HS/HX;
-- preços portugueses com separador de milhares;
-- prestações vs. preço real do produto;
-- JSON-LD com listas de ofertas;
-- submarcas sem marca-mãe no título;
-- aprendizagem de browser;
-- probe mode;
-- budgets por loja;
-- exceções de rede;
-- merge seguro do histórico.
+## Execução
 
-## Execução automática
-
-O workflow corre:
-
-- em push para `main`;
-- a cada 6 horas;
-- manualmente via `workflow_dispatch`.
-
-O job instala dependências fixadas, corre toda a suite de testes, valida `NTFY_TOPIC`, executa o rastreador e só depois persiste histórico/aprendizagem.
-
-## Princípio de evolução
-
-A V8 permanece o cérebro estável. As versões 8.x melhoram aquisição, qualidade dos dados, observabilidade, aprendizagem e eficiência. Uma futura mudança de geração do cérebro só deve acontecer quando houver cobertura e dados suficientes para medir claramente se a nova lógica é melhor que a anterior.
+O workflow corre em push para `main`, manualmente e a cada 6 horas. A ordem é testes → validação ntfy → tracker → heartbeat → merge/persistência segura.

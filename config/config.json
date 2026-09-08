@@ -5,63 +5,21 @@
     "min_value_score_alerta": 70.0,
     "alerta_min_tier": "OURO",
     "alerta_queda_preco_eur": 5.0,
-    "require_pt_keyboard": false,
     "heartbeat_ntfy": true,
-
     "max_candidates_per_store": 60,
     "max_category_pages": 4,
     "max_sitemap_urls_per_store": 80,
     "sitemap_supplement_below": 24,
     "sitemap_probe_limit": 6,
-    "max_evaluated_per_run": 60,
+    "max_evaluated_per_run": 120,
     "max_detail_fetches_per_run": 50,
     "max_requests_per_run": 180,
     "max_requests_per_store": 40,
-
     "bronze_value_min": 70.0,
     "prata_value_min": 90.0,
     "ouro_value_min": 110.0,
-    "diamante_value_min": 130.0,
-    "preco_minimo_global": 250.0,
-
-    "gpu_preco_min": {
-      "rtx 5090": 1600,
-      "rtx 5080": 1250,
-      "rtx 5070 ti": 1000,
-      "rtx 5070": 850,
-      "rtx 5060 ti": 700,
-      "rtx 5060": 600,
-      "rtx 5050": 500,
-      "rtx 4090": 1400,
-      "rtx 4080": 1200,
-      "rtx 4070": 850,
-      "rtx 4060": 650,
-      "rtx 4050": 500,
-      "rtx 3080 ti": 900,
-      "rtx 3080": 850,
-      "rtx 3070 ti": 750,
-      "rtx 3070": 700,
-      "rtx 3060": 550,
-      "rtx 3050 ti": 450,
-      "rtx 3050": 400,
-      "rtx 2050": 350,
-      "rtx a5500": 1300,
-      "rtx a5000": 1200,
-      "rtx a4500": 900,
-      "rtx a3000": 650,
-      "rtx a2000": 550,
-      "radeon rx 7900m": 1100,
-      "radeon rx 7800m": 850,
-      "radeon rx 7700s": 750,
-      "radeon rx 7600s": 650,
-      "radeon rx 7600m xt": 700,
-      "radeon rx 7600m": 600,
-      "radeon rx 6850m xt": 750,
-      "radeon rx 6650m": 550,
-      "radeon rx 6600m": 500,
-      "radeon rx 6550m": 450,
-      "radeon rx 6500m": 400
-    }
+    "diamante_value_min": 125.0,
+    "preco_minimo_global": 250.0
   },
   "weights": {
     "gpu_base": {
@@ -117,8 +75,16 @@
       "target_candidates": 45,
       "sitemap_probe_limit": 6,
       "max_sitemaps": 4,
-      "product_path_hints": ["/portatil-asus-", "/portatil-lenovo-", "/portatil-hp-"],
-      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
+      "product_path_hints": [
+        "/portatil-asus-",
+        "/portatil-lenovo-",
+        "/portatil-hp-"
+      ],
+      "card_selectors": [
+        "article",
+        "div[class*='product']",
+        "li[class*='product']"
+      ]
     },
     {
       "loja": "PcComponentes",
@@ -126,7 +92,11 @@
       "timeout_ms": 12000,
       "parent_climb": 7,
       "target_candidates": 60,
-      "product_path_hints": ["/portateis/", "/produto/", "/product/"]
+      "product_path_hints": [
+        "/portateis/",
+        "/produto/",
+        "/product/"
+      ]
     },
     {
       "loja": "Globaldata",
@@ -135,8 +105,17 @@
       "parent_climb": 7,
       "target_candidates": 60,
       "sitemap_enabled": false,
-      "product_path_hints": ["/produto/", "/product/", "/computadores-portateis/", "/portatil/"],
-      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
+      "product_path_hints": [
+        "/produto/",
+        "/product/",
+        "/computadores-portateis/",
+        "/portatil/"
+      ],
+      "card_selectors": [
+        "article",
+        "div[class*='product']",
+        "li[class*='product']"
+      ]
     },
     {
       "loja": "Radio Popular",
@@ -145,12 +124,12 @@
       "parent_climb": 7,
       "target_candidates": 50,
       "sitemap_enabled": false,
-      "extra_discovery_urls": [
-        "https://www.radiopopular.pt/categoria/computadores-portateis?pf-filters=%28%28brand+eq+%27ASUS%27%29",
-        "https://www.radiopopular.pt/categoria/computadores-portateis?pf-filters=%28%28brand+eq+%27Lenovo%27%29",
-        "https://www.radiopopular.pt/categoria/computadores-portateis?pf-filters=%28%28brand+eq+%27HP%27%29"
-      ],
-      "product_path_hints": ["/produto/", "/product/", "/portatil/", "/laptop/"]
+      "product_path_hints": [
+        "/produto/",
+        "/product/",
+        "/portatil/",
+        "/laptop/"
+      ]
     },
     {
       "loja": "CHIP7",
@@ -158,8 +137,16 @@
       "timeout_ms": 9000,
       "parent_climb": 7,
       "target_candidates": 45,
-      "product_path_hints": ["/produto/", "/product/", "/portateis/"],
-      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
+      "product_path_hints": [
+        "/produto/",
+        "/product/",
+        "/portateis/"
+      ],
+      "card_selectors": [
+        "article",
+        "div[class*='product']",
+        "li[class*='product']"
+      ]
     },
     {
       "loja": "FNAC",
@@ -171,7 +158,13 @@
       "pagination_start": 2,
       "pagination_template": "https://www.fnac.pt/Portateis-Windows/n1334091?PageIndex={page}",
       "sitemap_enabled": false,
-      "product_path_hints": ["/a/", "/a-", "/produto/", "/computador-portatil", "/portatil"]
+      "product_path_hints": [
+        "/a/",
+        "/a-",
+        "/produto/",
+        "/computador-portatil",
+        "/portatil"
+      ]
     },
     {
       "loja": "Worten",
@@ -179,17 +172,18 @@
       "timeout_ms": 12000,
       "parent_climb": 7,
       "target_candidates": 60,
-      "product_path_hints": ["/produto/", "/computadores-portateis/", "/a/", "/portatil", "/laptop"],
-      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
-    }
-  ],
-  "reference_sources": [
-    {
-      "nome": "ASUS",
-      "marca": "asus",
-      "url": "https://www.asus.com/pt/store/laptops/",
-      "purpose": "manufacturer_specs",
-      "note": "Fonte de especificações/modelos; não é tratada como loja de preço porque o catálogo não expõe PVP de forma fiável."
+      "product_path_hints": [
+        "/produto/",
+        "/computadores-portateis/",
+        "/a/",
+        "/portatil",
+        "/laptop"
+      ],
+      "card_selectors": [
+        "article",
+        "div[class*='product']",
+        "li[class*='product']"
+      ]
     }
   ]
 }
