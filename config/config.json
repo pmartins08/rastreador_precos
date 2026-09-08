@@ -4,17 +4,26 @@
     "budget_hard": 1500.0,
     "min_value_score_alerta": 70.0,
     "alerta_min_tier": "OURO",
-    "max_produtos_por_categoria": 30,
-    "max_enriquecimentos_detalhe": 30,
-    "max_requests_per_run": 180,
-    "max_requests_per_store": 30,
     "alerta_queda_preco_eur": 5.0,
     "require_pt_keyboard": false,
+    "heartbeat_ntfy": true,
+
+    "max_candidates_per_store": 60,
+    "max_category_pages": 4,
+    "max_sitemap_urls_per_store": 80,
+    "sitemap_supplement_below": 24,
+    "sitemap_probe_limit": 6,
+    "max_evaluated_per_run": 60,
+    "max_detail_fetches_per_run": 50,
+    "max_requests_per_run": 180,
+    "max_requests_per_store": 40,
+
     "bronze_value_min": 70.0,
     "prata_value_min": 90.0,
     "ouro_value_min": 110.0,
     "diamante_value_min": 130.0,
     "preco_minimo_global": 250.0,
+
     "gpu_preco_min": {
       "rtx 5090": 1600,
       "rtx 5080": 1250,
@@ -28,6 +37,14 @@
       "rtx 4070": 850,
       "rtx 4060": 650,
       "rtx 4050": 500,
+      "rtx 3080 ti": 900,
+      "rtx 3080": 850,
+      "rtx 3070 ti": 750,
+      "rtx 3070": 700,
+      "rtx 3060": 550,
+      "rtx 3050 ti": 450,
+      "rtx 3050": 400,
+      "rtx 2050": 350,
       "rtx a5500": 1300,
       "rtx a5000": 1200,
       "rtx a4500": 900,
@@ -60,6 +77,14 @@
       "rtx 4070": 80,
       "rtx 4060": 65,
       "rtx 4050": 45,
+      "rtx 3080 ti": 78,
+      "rtx 3080": 75,
+      "rtx 3070 ti": 70,
+      "rtx 3070": 68,
+      "rtx 3060": 55,
+      "rtx 3050 ti": 42,
+      "rtx 3050": 38,
+      "rtx 2050": 30,
       "rtx a5500": 96,
       "rtx a5000": 92,
       "rtx a4500": 82,
@@ -89,6 +114,8 @@
       "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
       "timeout_ms": 12000,
       "parent_climb": 7,
+      "target_candidates": 45,
+      "sitemap_probe_limit": 8,
       "product_path_hints": ["/portatil-asus-", "/portatil-lenovo-", "/portatil-hp-"],
       "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     },
@@ -97,6 +124,7 @@
       "url": "https://www.pccomponentes.pt/categorias/portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
+      "target_candidates": 60,
       "product_path_hints": ["/portateis/", "/produto/", "/product/"]
     },
     {
@@ -104,6 +132,7 @@
       "url": "https://www.globaldata.pt/computadores/computadores-portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
+      "target_candidates": 60,
       "product_path_hints": ["/produto/", "/product/", "/computadores-portateis/", "/portatil/"],
       "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     },
@@ -112,6 +141,8 @@
       "url": "https://www.radiopopular.pt/pesquisa/laptop",
       "timeout_ms": 12000,
       "parent_climb": 7,
+      "target_candidates": 45,
+      "sitemap_probe_limit": 5,
       "product_path_hints": ["/produto/", "/product/", "/portatil/", "/laptop/"]
     },
     {
@@ -119,6 +150,7 @@
       "url": "https://chip7.pt/computadores/portateis",
       "timeout_ms": 9000,
       "parent_climb": 7,
+      "target_candidates": 45,
       "product_path_hints": ["/produto/", "/product/", "/portateis/"],
       "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     },
@@ -127,6 +159,8 @@
       "url": "https://www.fnac.pt/Portateis-Windows/n1334091",
       "timeout_ms": 12000,
       "parent_climb": 7,
+      "target_candidates": 45,
+      "sitemap_probe_limit": 5,
       "product_path_hints": ["/a/", "/a-", "/produto/", "/computador-portatil", "/portatil"]
     },
     {
@@ -134,6 +168,7 @@
       "url": "https://www.worten.pt/informatica-e-acessorios/computadores/computadores-portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
+      "target_candidates": 60,
       "product_path_hints": ["/produto/", "/computadores-portateis/", "/a/", "/portatil", "/laptop"],
       "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     }
