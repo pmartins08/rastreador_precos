@@ -55,9 +55,9 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           RUN_MAX_MINUTES: '8'
-          RUN_MAX_REQUESTS: '240'
-          RUN_MAX_REQUESTS_PER_STORE: '50'
-          RUN_MAX_DETAIL_FETCHES: '70'
+          RUN_MAX_REQUESTS: '300'
+          RUN_MAX_REQUESTS_PER_STORE: '60'
+          RUN_MAX_DETAIL_FETCHES: '90'
           LOG_LEVEL: INFO
           PYTHONUNBUFFERED: '1'
         run: python runner.py
