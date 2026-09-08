@@ -20,24 +20,14 @@ IGPU_BASE = {
 
 IGPU_ALIASES = {
     "intel arc graphics 140v": (
-        "intel arc graphics 140v",
-        "intel arc graphics 140 v",
-        "intel arc 140v",
-        "intel arc 140 v",
-        "arc graphics 140v",
-        "arc graphics 140 v",
-        "arc 140v",
-        "arc 140 v",
+        "intel arc graphics 140v", "intel arc graphics 140 v",
+        "intel arc 140v", "intel arc 140 v",
+        "arc graphics 140v", "arc graphics 140 v", "arc 140v", "arc 140 v",
     ),
     "intel arc graphics 130v": (
-        "intel arc graphics 130v",
-        "intel arc graphics 130 v",
-        "intel arc 130v",
-        "intel arc 130 v",
-        "arc graphics 130v",
-        "arc graphics 130 v",
-        "arc 130v",
-        "arc 130 v",
+        "intel arc graphics 130v", "intel arc graphics 130 v",
+        "intel arc 130v", "intel arc 130 v",
+        "arc graphics 130v", "arc graphics 130 v", "arc 130v", "arc 130 v",
     ),
     "radeon 890m": ("radeon 890m", "radeon 890 m"),
     "radeon 880m": ("radeon 880m", "radeon 880 m"),
@@ -78,6 +68,30 @@ def identify_igpu(text: object, scraper_module=None) -> str | None:
 
 def igpu_score(model: object) -> float | None:
     return IGPU_BASE.get(str(model or "").strip().lower())
+
+
+def _upgrade_spec_igpu(spec: dict, scraper_module, title: object = None) -> str | None:
+    """Promove `integrada` genérica para modelo explícito usando evidência já disponível."""
+    if not isinstance(spec, dict) or str(spec.get("gpu_tipo") or "").lower() == "dedicada":
+        return None
+    existing = str(spec.get("gpu_modelo") or "").strip().lower()
+    if existing in IGPU_BASE:
+        spec["gpu_tipo"] = "integrada"
+        return existing
+
+    evidence = spec.get("evidencias") if isinstance(spec.get("evidencias"), dict) else {}
+    text_parts = [title]
+    text_parts.extend(evidence.values())
+    mapped = identify_igpu(" ".join(str(value or "") for value in text_parts), scraper_module)
+    if mapped:
+        spec["gpu_tipo"] = "integrada"
+        spec["gpu_modelo"] = mapped
+        detected = list(spec.get("gpu_modelos_detectados") or [])
+        if mapped not in detected:
+            detected.append(mapped)
+        spec["gpu_modelos_detectados"] = detected
+        spec.setdefault("fontes", {}).setdefault("gpu_modelo", "gpu_guard_v887")
+    return mapped
 
 
 def premium_gpu_status(spec: dict, weights: dict) -> dict:
@@ -137,11 +151,7 @@ def _apply_igpu_scoring(
     settings: dict,
     scraper_module,
 ) -> dict:
-    """Substitui apenas o fallback integrado=15 pela classe explícita.
-
-    O cérebro V8 continua intacto. Como Gaming usa GPU a 65% e o resultado
-    Gaming pesa 25% no score final, o delta é determinístico e auditável.
-    """
+    """Substitui apenas o fallback integrada=15 pela classe explícita."""
     if assessment.get("status") != "ACEITE" or spec.get("gpu_tipo") != "integrada":
         return assessment
 
@@ -188,6 +198,7 @@ def install(scraper_module, tracker_module) -> None:
         return
 
     base_gpus = scraper_module.gpus
+    base_select_with_cache = tracker_module.select_with_cache
     base_score_allow_unknown = tracker_module.score_allow_unknown
     base_tier_from_value = scraper_module.tier_from_value
 
@@ -200,11 +211,19 @@ def install(scraper_module, tracker_module) -> None:
             return [mapped], "integrada", mapped
         return models, gpu_type, model
 
-    # Instalar o parser primeiro: scraper.specs()/extract() resolvem `gpus`
-    # dinamicamente no módulo e passam a transportar o modelo integrado exato.
     scraper_module.gpus = gpus
 
+    def select_with_cache(items, spec_cache, max_items, weights, settings):
+        # Migração zero-cost da cache: o título atual pode completar uma spec V8.8.6
+        # sem reabrir a ficha e sem invalidar CPU/RAM/ecrã já confirmados.
+        for item in items:
+            cached = spec_cache.get(item.get("url")) if isinstance(spec_cache, dict) else None
+            if isinstance(cached, dict):
+                _upgrade_spec_igpu(cached, scraper_module, item.get("titulo"))
+        return base_select_with_cache(items, spec_cache, max_items, weights, settings)
+
     def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict) -> dict:
+        _upgrade_spec_igpu(spec, scraper_module)
         status = premium_gpu_status(spec, weights)
         spec["gpu_tier_guard"] = status
         assessment = base_score_allow_unknown(spec, price, weights, settings)
@@ -226,6 +245,7 @@ def install(scraper_module, tracker_module) -> None:
             return "PRATA"
         return tier
 
+    tracker_module.select_with_cache = select_with_cache
     tracker_module.score_allow_unknown = score_allow_unknown
     scraper_module.tier_from_value = tier_from_value
     tracker_module._GPU_GUARD_INSTALLED = True
