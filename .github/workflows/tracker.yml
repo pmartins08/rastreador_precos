@@ -1,8 +1,6 @@
 name: Executar Rastreador de Preços
 
 on:
-  push:
-    branches: [main]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -23,6 +21,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sincronizar com main atual
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
 
       - name: Configurar Python
         uses: actions/setup-python@v7
@@ -49,17 +52,13 @@ jobs:
 
           x = extract('Portátil ASUS Zenbook Ryzen AI 7 445 32GB 1TB AMD Graphics', page([('Placa gráfica', 'AMD Radeon Graphics')]))
           assert x['gpu_modelo'] is None and x['gpu_tipo'] == 'integrada', x
-
           x = extract('Portátil ASUS TUF 16 Ryzen 7 260 32GB 1TB RTX 5070', page([('Placa gráfica', 'NVIDIA GeForce RTX 5070 Laptop GPU'), ('Memória gráfica', '8 GB GDDR7'), ('TGP', '115 W')]))
           assert x['gpu_modelo'] == 'rtx 5070' and x['vram_gb'] == 8 and x['tgp_w'] == 115, x
-
           x = extract('Portátil HP 15 i7-1255U 16GB 512GB', page([('Memória RAM', '16 GB DDR4'), ('Armazenamento', '512 GB SSD')]))
           assert x['gpu_modelo'] is None and x['vram_gb'] is None, x
-
           unknown = {'teclado_pt': 'desconhecido', 'ram_gb': 16, 'armazenamento_tb': 1, 'ecra_res': 'fhd', 'ecra_hz': 120, 'cpu_modelo': 'core i7 13620h', 'cpu_classe': 'h', 'gpu_tipo': 'dedicada', 'gpu_modelo': 'rtx 4060', 'fontes': {}}
           assert runner.score_allow_unknown(unknown, 1200, {'gpu_base': {'rtx 4060': 65}, 'cpu_base': {'tier_1': 100, 'tier_2': 85, 'tier_3': 70}}, {})['status'] == 'ACEITE'
           assert runner.main is runner_v83.main
-
           cfg = {'category_urls': [{'loja': 'TESTE', 'url': 'https://example.com/laptops'}]}
           assert runner_v83.store_for_url('https://example.com/item/abc', cfg) == 'TESTE'
           assert len(runner_v83.profile_order('TESTE', 'product')) <= 3
@@ -67,7 +66,6 @@ jobs:
           runner_v83.REQUESTS_USED = 0
           runner_v83.MAX_REQUESTS = 0
           assert runner_v83.budget_available() is False
-
           print('OK: V8 + V8.3 adaptativo + teclado desconhecido + orçamento/perfis controlados.')
           PY
 
@@ -88,24 +86,20 @@ jobs:
           set -e
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
           if git diff --quiet -- data/history.json data/access_learning.json; then
             echo "Sem alterações de dados."
             exit 0
           fi
-
           cp data/history.json /tmp/history-v8.json
           if test -f data/access_learning.json; then cp data/access_learning.json /tmp/access-learning.json; fi
           git fetch origin main
           git reset --hard origin/main
           cp /tmp/history-v8.json data/history.json
           if test -f /tmp/access-learning.json; then cp /tmp/access-learning.json data/access_learning.json; fi
-
           git add data/history.json data/access_learning.json
           if git diff --cached --quiet; then
             echo "Sem alterações após sincronização com main."
             exit 0
           fi
-
           git commit -m "chore: atualizar histórico e aprendizagem V8 [skip ci]"
           git push origin HEAD:main
