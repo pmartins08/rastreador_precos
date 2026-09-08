@@ -17,6 +17,8 @@ class MarketGuardV882Tests(unittest.TestCase):
             "bronze_value_min": 70.0,
             "market_disagreement_min_eur": 150.0,
             "market_disagreement_min_pct": 20.0,
+            "price_confirmation_tolerance_eur": 5.0,
+            "price_confirmation_tolerance_pct": 1.5,
         }
         self.weights = {
             "gpu_base": {"rtx 5060": 85},
@@ -53,6 +55,25 @@ class MarketGuardV882Tests(unittest.TestCase):
             self.assertEqual(result["status"], "QUARENTENA")
             self.assertEqual(result["price_status"], "MARKET_DISAGREEMENT")
 
+    def test_high_page_confirmation_can_resolve_two_store_disagreement(self):
+        records = [self.record("Darty", 1229.98), self.record("Outra", 1499.99)]
+        summary = market_guard.mark_unresolved_market_disagreements(records, self.settings)
+        self.assertEqual(summary["groups"], 1)
+        cheap = records[0]
+        cheap["spec"].update(
+            {
+                "price_confirmed": 1229.98,
+                "price_page_confidence": "HIGH",
+                "price_evidence_sources": ["jsonld", "visible"],
+                "price_evidence_count": 2,
+            }
+        )
+        result = tracker.score_allow_unknown(
+            cheap["spec"], cheap["item"]["preco"], self.weights, self.settings
+        )
+        self.assertEqual(result["status"], "ACEITE")
+        self.assertTrue(result.get("market_outlier_verified"))
+
     def test_normal_cross_store_difference_is_not_quarantined(self):
         records = [self.record("A", 1199.0), self.record("B", 1299.0)]
         summary = market_guard.mark_unresolved_market_disagreements(records, self.settings)
@@ -76,8 +97,37 @@ class MarketGuardV882Tests(unittest.TestCase):
         self.assertEqual(result["status"], "QUARENTENA")
         self.assertEqual(result["price_status"], "PRICE_CONFLICT")
 
+    def test_high_page_confirmation_beats_exact_market_cluster_outlier(self):
+        records = [
+            self.record("A", 1499.0),
+            self.record("B", 1499.99),
+            self.record("Darty", 1229.98),
+        ]
+        summary = tracker.apply_exact_market_price_evidence(records, self.settings)
+        self.assertGreaterEqual(summary["confirmed_groups"], 1)
+        self.assertGreaterEqual(summary["outliers"], 1)
+        cheap = records[2]
+        self.assertTrue(cheap["spec"].get("market_price_conflict"))
+        cheap["spec"].update(
+            {
+                "price_confirmed": 1229.98,
+                "price_page_confidence": "HIGH",
+                "price_evidence_sources": ["jsonld", "meta", "visible"],
+                "price_evidence_count": 3,
+            }
+        )
+        result = tracker.score_allow_unknown(
+            cheap["spec"], cheap["item"]["preco"], self.weights, self.settings
+        )
+        self.assertEqual(result["status"], "ACEITE")
+        self.assertTrue(result.get("market_outlier_verified"))
+        self.assertEqual(result.get("market_reference_price"), 1499.495)
+
     def test_different_eans_never_create_market_disagreement(self):
-        records = [self.record("A", 325.0, "0199276824165"), self.record("B", 999.0, "0199276824999")]
+        records = [
+            self.record("A", 325.0, "0199276824165"),
+            self.record("B", 999.0, "0199276824999"),
+        ]
         summary = market_guard.mark_unresolved_market_disagreements(records, self.settings)
         self.assertEqual(summary["groups"], 0)
 
