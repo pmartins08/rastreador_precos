@@ -46,15 +46,12 @@ def _route(raw: Any, index: int, kind: str) -> dict | None:
     route["method_key"] = f"{prefix}:{route['label']}"
     route["priority"] = int(route.get("priority", 100 if kind == "promotion" else 0))
     route["yield_score"] = 0.0
+    route["priority_band"] = 0
     return route
 
 
 def _campaigns_for(cat: dict) -> list[Any]:
-    """Campanhas são configuração, não código.
-
-    Isto mantém o guard genérico: futuras campanhas podem ser adicionadas,
-    desativadas ou expiradas sem alterar o runtime.
-    """
+    """Campanhas são configuração, não código."""
     configured = list(cat.get("campaign_urls", []))
     seen = set()
     out = []
@@ -77,11 +74,38 @@ def _active_campaign_urls(cat: dict) -> set[str]:
     return urls
 
 
+def promotion_priority_band(attempts: int, yield_score: float) -> int:
+    """Prioridade exploratória que deixa de ser cega após ganhar evidência.
+
+    - campanhas novas recebem duas oportunidades prioritárias;
+    - depois disso, só campanhas produtivas continuam acima dos segmentos;
+    - campanhas fracas regressam à competição normal por candidatos/request.
+
+    A função afeta apenas a ordem de descoberta, nunca Value/tier.
+    """
+    attempts = max(0, int(attempts))
+    yield_score = max(0.0, float(yield_score))
+    if attempts < 2:
+        return 2
+    if yield_score >= 2.0:
+        return 1
+    return 0
+
+
+def _discovery_attempts(tracker_module, store: str, method_key: str) -> int:
+    try:
+        stats = tracker_module.bucket(store).get("discovery", {}).get(method_key, {})
+        return int(stats.get("attempts", 0))
+    except Exception:
+        return 0
+
+
 def install(tracker_module) -> None:
     """Prioriza campanhas sem alterar o Value ou a confiança de preço.
 
-    A campanha serve apenas para lead generation e pré-ranking. O candidato
-    continua a passar pelo scraper, Brain Guard, Price Guard e Market Guard.
+    A campanha serve apenas para lead generation e pré-ranking. A prioridade
+    inicial é exploratória e passa a obedecer ao rendimento observado assim que
+    existe amostra suficiente.
     """
     if getattr(tracker_module, "_PROMOTION_GUARD_INSTALLED", False):
         return
@@ -96,19 +120,32 @@ def install(tracker_module) -> None:
             route = _route(raw, index, "promotion")
             if route is not None:
                 route["yield_score"] = tracker_module.discovery_score(store, route["method_key"])
+                attempts = _discovery_attempts(tracker_module, store, route["method_key"])
+                route["attempts"] = attempts
+                route["priority_band"] = promotion_priority_band(
+                    attempts, route["yield_score"]
+                )
                 routes.append(route)
 
         for index, raw in enumerate(cat.get("extra_discovery_urls", [])):
             route = _route(raw, index, "segment")
             if route is not None:
                 route["yield_score"] = tracker_module.discovery_score(store, route["method_key"])
+                route["attempts"] = _discovery_attempts(
+                    tracker_module, store, route["method_key"]
+                )
+                route["priority_band"] = 0
                 routes.append(route)
 
+        # Uma campanha nova ganha uma curta janela de exploração. Depois, uma
+        # campanha fraca deixa de passar à frente de segmentos comprovadamente
+        # produtivos. `priority` só desempata dentro da mesma banda/rendimento.
         return sorted(
             routes,
             key=lambda route: (
-                -int(route.get("priority", 0)),
+                -int(route.get("priority_band", 0)),
                 -float(route.get("yield_score", 0.0)),
+                -int(route.get("priority", 0)),
                 route["label"],
             ),
         )

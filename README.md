@@ -1,4 +1,4 @@
-# Rastreador de Preços — V8.8.5
+# Rastreador de Preços — V8.8.6
 
 Motor de inteligência de mercado para portáteis ASUS, Lenovo e HP em Portugal. O sistema combina descoberta adaptativa, campanhas promocionais como fonte de leads, extração técnica, scoring orientado ao uso FEUP + gaming, validação reforçada de preços, matching cross-store, histórico de preços, cache e notificações ntfy.
 
@@ -11,9 +11,10 @@ version.py                    versão pública única do runtime
 version_guard.py              compatibilidade de labels/estado de versões anteriores
 scraper.py                    cérebro V8: parsing de hardware + scoring técnico base
 brain_guard.py                correções técnicas comprovadas sem reescrever o cérebro
+gpu_guard.py                  confiança mínima de GPU para tiers Ouro/Diamante
 price_guard.py                confiança de preço, quarentena e bónus de oportunidade
 market_guard.py               consenso/desacordo cross-store e proteção de promoções reais
-promotion_guard.py            campanhas públicas como leads e prioridade de pré-ranking
+promotion_guard.py            campanhas públicas como leads e prioridade adaptativa
 historical_guard.py           histórico compacto de preços a 90 dias
 tracker.py                    acesso, descoberta, cache, matching, histórico e alertas
 runner.py                     composition root das camadas V8.8.x
@@ -27,7 +28,7 @@ tests/                        regressões do cérebro, guards, tracker e histór
 requirements.txt
 ```
 
-A separação é intencional. `scraper.py` mede a adequação técnica; `brain_guard.py` corrige lacunas comprovadas; `price_guard.py` decide se um preço individual é confiável; `market_guard.py` usa contexto cross-store; `promotion_guard.py` decide onde vale a pena procurar primeiro; `historical_guard.py` acrescenta contexto temporal. `tracker.py` continua responsável pela observação do mercado e `runner.py` apenas compõe as camadas.
+A separação é intencional. `scraper.py` mede a adequação técnica; `brain_guard.py` corrige lacunas comprovadas; `gpu_guard.py` impede tiers premium com GPU insuficientemente conhecida; `price_guard.py` decide se um preço individual é confiável; `market_guard.py` usa contexto cross-store; `promotion_guard.py` decide onde vale a pena procurar primeiro; `historical_guard.py` acrescenta contexto temporal. `tracker.py` continua responsável pela observação do mercado e `runner.py` apenas compõe as camadas.
 
 ## Universo
 
@@ -64,6 +65,23 @@ O cérebro V8 mantém quatro dimensões principais: **FEUP, Gaming, Longevidade 
 | Diamante | 125 |
 
 Diamante deve representar uma combinação verdadeiramente excecional entre configuração e preço, não apenas hardware topo.
+
+### GPU Guard — requisito adicional para Ouro/Diamante
+
+O Value bruto continua a ser calculado exatamente pela lógica do cérebro e das camadas de preço. Porém, a V8.8.6 adiciona uma regra de confiança ao **rótulo de tier**: um portátil só pode ser classificado como **Ouro ou Diamante quando a GPU dedicada foi identificada por modelo e esse modelo existe no mapa `gpu_base` do cérebro**.
+
+Isto corrige um comportamento anterior em que uma GPU dedicada não reconhecida recebia o fallback técnico do cérebro e uma GPU completamente desconhecida também recebia pontuação parcial; CPU, RAM e preço muito favoráveis podiam depois compensar essa incerteza e empurrar o produto para Ouro.
+
+Na V8.8.6:
+
+- GPU dedicada mapeada, por exemplo RTX 5070 → pode atingir Ouro/Diamante normalmente;
+- GPU dedicada detetada mas modelo não reconhecido → Value é preservado, tier máximo Prata;
+- GPU desconhecida → Value é preservado, tier máximo Prata;
+- GPU integrada → por enquanto tier máximo Prata, até existir um mapa explícito e testado de classes de iGPU.
+
+Esta regra **não rejeita** o portátil e não esconde uma potencial oportunidade. Se um portátil tiver Value 118 mas GPU insuficientemente confirmada, continua registado com Value 118 e pode aparecer como Prata; apenas deixa de receber um selo premium que pressupõe conhecimento suficiente do hardware.
+
+A próxima evolução natural é classificar explicitamente iGPUs modernas — por exemplo famílias Radeon 780M/890M e Intel Arc 130V/140V — com evidência de performance e testes, em vez de tratar genericamente qualquer `Radeon Graphics` ou `Intel Graphics` como equivalente.
 
 ### Correção de RAM intermédia
 
@@ -102,7 +120,7 @@ Se o mercado discordar de uma oferta mas a própria ficha confirmar o preço com
 
 ## V8.8.5 — Promo Intelligence
 
-A V8.8.5 acrescenta uma ideia diferente: **campanhas promocionais são uma fonte prioritária de descoberta, não uma fonte de verdade**.
+A V8.8.5 acrescentou uma ideia diferente: **campanhas promocionais são uma fonte prioritária de descoberta, não uma fonte de verdade**.
 
 Quando existe uma campanha pública ativa — por exemplo Regresso às Aulas — `promotion_guard.py` pode colocá-la à frente de segmentos genéricos. Rotas com datas conhecidas deixam automaticamente de estar ativas quando expiram.
 
@@ -112,15 +130,11 @@ Produtos encontrados numa campanha recebem apenas:
 - prioridade adicional no **pré-ranking**, para merecerem análise mais cedo;
 - métricas próprias de rendimento (`novos candidatos / request`).
 
-A promoção **não altera** diretamente:
+A promoção **não altera** diretamente score técnico, Value, tier, confiança de preço ou regras de quarentena. Assim, um banner “-40%” nunca consegue criar um Ouro/Diamante.
 
-- score técnico;
-- Value;
-- tier;
-- confiança de preço;
-- regras de quarentena.
+### V8.8.6 — prioridade promocional adaptativa
 
-Assim, um banner “-40%” nunca consegue criar um Ouro/Diamante. O produto continua obrigatoriamente a passar pelo Brain Guard, Price Guard e Market Guard.
+A primeira run da V8.8.5 mostrou que uma campanha pode ser útil sem ser a rota mais eficiente de uma loja. A V8.8.6 deixa por isso de dar prioridade permanente às campanhas: uma rota nova recebe uma curta fase de exploração; depois, o seu lugar passa a depender do rendimento real aprendido. Uma campanha com poucos candidatos por request deixa de ultrapassar indefinidamente um segmento normal comprovadamente mais produtivo.
 
 ## V8.8.5 — histórico de preços a 90 dias
 
@@ -132,13 +146,7 @@ A identidade histórica segue uma política conservadora:
 2. MPN → histórico `EXATO` partilhável entre lojas;
 3. sem ID forte → histórico `LOCAL` da própria URL, nunca fundido entre comerciantes.
 
-Para evitar crescimento desnecessário, não são guardadas todas as observações completas. Por identidade e por dia são compactados:
-
-- mínimo;
-- máximo;
-- último preço;
-- soma e número de amostras;
-- lojas observadas.
+Para evitar crescimento desnecessário, não são guardadas todas as observações completas. Por identidade e por dia são compactados mínimo, máximo, último preço, soma/número de amostras e lojas observadas.
 
 A janela ativa é de **90 dias**. O contexto pode indicar mínimo, média, mediana dos mínimos diários e se o preço atual representa um **novo mínimo** ou está perto do mínimo observado.
 
@@ -148,7 +156,7 @@ Importante: a comparação de uma run usa como baseline apenas o estado anterior
 
 ### Referências históricas externas
 
-Comparadores como KuantoKusta são uma linha de investigação útil porque podem oferecer histórico adicional e identificadores fortes. A integração externa não faz ainda parte do runtime V8.8.5. Quando existir uma interface pública suficientemente estável, a regra prevista é conservadora: usar EAN/MPN para matching e tratar a fonte externa apenas como **contexto secundário**, nunca como certificação autónoma de preço ou atalho para Diamante.
+Comparadores como KuantoKusta são uma linha de investigação útil porque podem oferecer histórico adicional e identificadores fortes. A integração externa não faz ainda parte do runtime. Quando existir uma interface pública suficientemente estável, a regra prevista é conservadora: usar EAN/MPN para matching e tratar a fonte externa apenas como **contexto secundário**, nunca como certificação autónoma de preço ou atalho para Diamante.
 
 ## Descoberta e capacidade
 
@@ -173,6 +181,10 @@ Budgets atuais:
 - deadline interno de **8 minutos**.
 
 Estes valores são fusíveis de segurança, não objetivos a consumir. A cache deve evitar pedidos desnecessários.
+
+### Worten na V8.8.6
+
+A auditoria da primeira run V8.8.5 mostrou que o sitemap público da Worten estava a devolver URLs, mas nenhuma passava o filtro de produto. A causa era um detalhe de rota: a configuração aceitava `/produto/`, enquanto as fichas atuais usam também `/produtos/`. A V8.8.6 acrescenta esse padrão à descoberta; a validação real após merge deve medir se os URLs de sitemap passam finalmente a produzir candidatos úteis.
 
 ## PCDiga
 
@@ -216,7 +228,7 @@ Para lojas bloqueadas, uma linha de investigação é usar descoberta indexada l
 
 ## Histórico e estado
 
-Existem agora três estados persistentes com objetivos diferentes:
+Existem três estados persistentes com objetivos diferentes:
 
 - `data/history.json` — ofertas/configurações recentes, cache, alertas e métricas de runs;
 - `data/access_learning.json` — aprendizagem de acesso e rendimento por método;
@@ -237,12 +249,12 @@ Existem sinais independentes:
 - heartbeat redundante pelo GitHub Actions;
 - heartbeat de falha quando o pipeline termina prematuramente.
 
-A versão pública do runtime está centralizada em `version.py`, evitando manter `v884`, `v881`, etc. espalhados pelo workflow atual.
+A versão pública do runtime está centralizada em `version.py`.
 
 ## Testes e CI
 
 ```bash
-python -m py_compile version.py version_guard.py scraper.py brain_guard.py price_guard.py market_guard.py promotion_guard.py historical_guard.py tracker.py runner.py
+python -m py_compile version.py version_guard.py scraper.py brain_guard.py gpu_guard.py price_guard.py market_guard.py promotion_guard.py historical_guard.py tracker.py runner.py
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
@@ -255,11 +267,14 @@ A suite cobre, entre outros casos:
 - quarentena por evidência insuficiente;
 - expiração da confiança de preço na cache;
 - RAM intermédia;
+- GPU desconhecida/dedicada não mapeada limitada a Prata;
+- GPU dedicada mapeada preservando Ouro/Diamante;
+- isolamento do GPU Guard sem alterar `tier_from_value()` do cérebro fora de uma avaliação;
 - CPU/GPU/VRAM/TGP/M.2;
 - JSON-LD e IDs fortes;
 - variantes e matching;
 - cache, paginação, budgets e probe mode;
-- prioridade/expiração de campanhas;
+- prioridade/expiração/adaptação de campanhas;
 - histórico de 90 dias, novo mínimo, compactação e merge idempotente;
 - heartbeat e merge concorrente.
 
@@ -279,17 +294,20 @@ A ordem operacional é aproximadamente:
 - **V8.8.3** — correção comprovada para capacidades intermédias de RAM;
 - **V8.8.4** — precedência de evidência HIGH da própria loja, Darty e heartbeat redundante;
 - **V8.8.5** — Promo Intelligence, histórico compacto de 90 dias, CI dedicada e limpeza do versionamento operacional;
+- **V8.8.6** — GPU Guard para tiers premium, prioridade promocional adaptativa e correção de descoberta da Worten;
 - **V9** — todas as lojas-alvo com método estável + matching cross-store maduro.
 
 ## Caminho para V9
 
 As prioridades da linha atual são:
 
-1. estabilizar descoberta em PcComponentes, CHIP7 e Worten;
-2. melhorar rendimento da PCDiga;
-3. aumentar cobertura de EAN/MPN;
-4. amadurecer grupos EXATO/FORTE e reduzir PROVÁVEIS ambíguos;
-5. medir o valor real das campanhas por candidatos úteis/request;
-6. acumular histórico suficiente para avaliar a qualidade da nova camada temporal.
+1. validar e estabilizar a descoberta da Worten após a correção de sitemap;
+2. encontrar vias públicas/estáveis para PcComponentes e CHIP7;
+3. criar classificação explícita e testada de iGPUs modernas;
+4. melhorar rendimento da PCDiga;
+5. aumentar cobertura de EAN/MPN;
+6. amadurecer grupos EXATO/FORTE e reduzir PROVÁVEIS ambíguos;
+7. continuar a medir campanhas por candidatos úteis/request;
+8. acumular histórico suficiente para avaliar a qualidade da camada temporal.
 
 Esta cronologia, as métricas das runs e os casos reais de falhas/correções devem ser preservados porque servirão de base à futura apresentação V9/V10: problema inicial, arquitetura, cérebro, segurança, cobertura, evolução medida, matching, inteligência histórica e visão futura.

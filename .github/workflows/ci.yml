@@ -3,7 +3,7 @@ name: Validar Rastreador
 on:
   push:
     branches:
-      - 'feature/v8.8.5-promo-intelligence'
+      - 'feature/v8.8.6-coverage-efficiency'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -39,6 +39,7 @@ jobs:
             version_guard.py \
             scraper.py \
             brain_guard.py \
+            gpu_guard.py \
             price_guard.py \
             market_guard.py \
             promotion_guard.py \
@@ -46,6 +47,7 @@ jobs:
             tracker.py \
             runner.py \
             tests/test_brain_guard.py \
+            tests/test_gpu_guard.py \
             tests/test_price_guard.py \
             tests/test_market_guard.py \
             tests/test_promotion_guard.py \

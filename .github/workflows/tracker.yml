@@ -48,6 +48,7 @@ jobs:
             version_guard.py \
             scraper.py \
             brain_guard.py \
+            gpu_guard.py \
             price_guard.py \
             market_guard.py \
             promotion_guard.py \
@@ -55,6 +56,7 @@ jobs:
             tracker.py \
             runner.py \
             tests/test_brain_guard.py \
+            tests/test_gpu_guard.py \
             tests/test_tracker.py \
             tests/test_price_guard.py \
             tests/test_market_guard.py \

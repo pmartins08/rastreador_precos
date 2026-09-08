@@ -5,6 +5,7 @@ import sys
 
 import scraper
 from brain_guard import install as install_brain_guard
+from gpu_guard import install as install_gpu_guard
 from historical_guard import install as install_historical_guard
 from market_guard import install as install_market_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
@@ -104,10 +105,11 @@ def _enhanced_page_identifiers(soup) -> dict:
 
 tracker.page_identifiers = _enhanced_page_identifiers
 
-# Camadas operacionais: versão pública, descoberta promocional, contexto de
-# mercado e histórico. Nenhuma delas substitui o cérebro V8.
+# Camadas operacionais: versão pública, descoberta promocional, gate de GPU,
+# contexto de mercado e histórico. Nenhuma delas substitui o cérebro V8.
 install_version_guard(tracker)
 install_promotion_guard(tracker)
+install_gpu_guard(scraper, tracker)
 install_market_guard(scraper, tracker)
 install_historical_guard(tracker)
 
