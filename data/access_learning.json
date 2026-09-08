@@ -1,13 +1,13 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-09-08T00:28:09.118775Z",
+  "updated_at": "2026-09-08T01:22:18.033421Z",
   "stores": {
     "PCDiga": {
-      "attempts": 101,
-      "successes": 72,
-      "blocks": 27,
+      "attempts": 121,
+      "successes": 86,
+      "blocks": 32,
       "errors": {
-        "http_404": 2
+        "http_404": 3
       },
       "profiles": {
         "chrome131": {
@@ -23,9 +23,9 @@
           "errors": 0
         },
         "safari17_0": {
-          "attempts": 76,
-          "successes": 67,
-          "blocks": 7,
+          "attempts": 83,
+          "successes": 72,
+          "blocks": 9,
           "errors": 2
         },
         "chrome146": {
@@ -35,16 +35,24 @@
           "errors": 0
         },
         "firefox147": {
-          "attempts": 4,
-          "successes": 4,
-          "blocks": 0,
+          "attempts": 16,
+          "successes": 13,
+          "blocks": 2,
+          "errors": 1
+        },
+        "edge101": {
+          "attempts": 1,
+          "successes": 0,
+          "blocks": 1,
           "errors": 0
         }
       },
       "methods": {
         "page": 86,
-        "robots": 2,
-        "sitemap": 13
+        "robots": 3,
+        "sitemap": 18,
+        "category": 1,
+        "product": 13
       },
       "contexts": {
         "page": {
@@ -58,6 +66,13 @@
         },
         "robots": {
           "chrome146": {
+            "attempts": 1,
+            "successes": 1,
+            "blocks": 0,
+            "errors": 0,
+            "results": {}
+          },
+          "firefox147": {
             "attempts": 1,
             "successes": 1,
             "blocks": 0,
@@ -74,20 +89,73 @@
             "results": {}
           },
           "firefox147": {
-            "attempts": 4,
-            "successes": 4,
+            "attempts": 8,
+            "successes": 6,
+            "blocks": 2,
+            "errors": 0,
+            "results": {}
+          },
+          "safari17_0": {
+            "attempts": 1,
+            "successes": 1,
             "blocks": 0,
             "errors": 0,
             "results": {}
           }
+        },
+        "category": {
+          "firefox147": {
+            "attempts": 1,
+            "successes": 1,
+            "blocks": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "product": {
+          "safari17_0": {
+            "attempts": 6,
+            "successes": 4,
+            "blocks": 2,
+            "errors": 0,
+            "results": {
+              "no_product_or_price": 4
+            }
+          },
+          "firefox147": {
+            "attempts": 6,
+            "successes": 5,
+            "blocks": 0,
+            "errors": 1,
+            "results": {
+              "valid_product": 4,
+              "no_product_or_price": 1
+            }
+          },
+          "edge101": {
+            "attempts": 1,
+            "successes": 0,
+            "blocks": 1,
+            "errors": 0,
+            "results": {}
+          },
+          "none": {
+            "attempts": 0,
+            "successes": 0,
+            "blocks": 0,
+            "errors": 0,
+            "results": {
+              "access_failed": 1
+            }
+          }
         }
       },
-      "last_updated": "2026-09-08T00:25:56.965498Z"
+      "last_updated": "2026-09-08T01:21:30.980780Z"
     },
     "PcComponentes": {
-      "attempts": 58,
+      "attempts": 59,
       "successes": 0,
-      "blocks": 58,
+      "blocks": 59,
       "errors": {},
       "profiles": {
         "chrome131": {
@@ -125,12 +193,19 @@
           "successes": 0,
           "blocks": 3,
           "errors": 0
+        },
+        "safari260": {
+          "attempts": 1,
+          "successes": 0,
+          "blocks": 1,
+          "errors": 0
         }
       },
       "methods": {
         "page": 9,
         "robots": 9,
-        "sitemap": 40
+        "sitemap": 40,
+        "category": 1
       },
       "contexts": {
         "page": {
@@ -173,31 +248,41 @@
             "errors": 0,
             "results": {}
           }
+        },
+        "category": {
+          "safari260": {
+            "attempts": 1,
+            "successes": 0,
+            "blocks": 1,
+            "errors": 0,
+            "results": {}
+          }
         }
       },
-      "last_updated": "2026-09-08T00:26:05.393315Z"
+      "last_updated": "2026-09-08T01:20:58.960631Z"
     },
     "Globaldata": {
-      "attempts": 41,
-      "successes": 41,
+      "attempts": 59,
+      "successes": 59,
       "blocks": 0,
       "errors": {},
       "profiles": {
         "chrome131": {
-          "attempts": 41,
-          "successes": 41,
+          "attempts": 59,
+          "successes": 59,
           "blocks": 0,
           "errors": 0
         }
       },
       "methods": {
-        "page": 41
+        "page": 58,
+        "category": 1
       },
       "contexts": {
         "page": {
           "chrome131": {
-            "attempts": 17,
-            "successes": 17,
+            "attempts": 34,
+            "successes": 34,
             "blocks": 0,
             "errors": 0,
             "results": {}
@@ -210,29 +295,41 @@
             "blocks": 0,
             "errors": 0,
             "results": {
-              "valid_product": 16
+              "valid_product": 33
             }
+          }
+        },
+        "category": {
+          "chrome131": {
+            "attempts": 1,
+            "successes": 1,
+            "blocks": 0,
+            "errors": 0,
+            "results": {}
           }
         }
       },
-      "last_updated": "2026-09-08T00:28:02.203306Z"
+      "last_updated": "2026-09-08T01:22:08.760399Z"
     },
     "Radio Popular": {
-      "attempts": 19,
-      "successes": 19,
+      "attempts": 31,
+      "successes": 29,
       "blocks": 0,
-      "errors": {},
+      "errors": {
+        "request_error": 2
+      },
       "profiles": {
         "chrome131": {
-          "attempts": 19,
-          "successes": 19,
+          "attempts": 31,
+          "successes": 29,
           "blocks": 0,
-          "errors": 0
+          "errors": 2
         }
       },
       "methods": {
         "page": 11,
-        "product": 8
+        "product": 19,
+        "category": 1
       },
       "contexts": {
         "page": {
@@ -246,22 +343,31 @@
         },
         "product": {
           "chrome131": {
-            "attempts": 8,
-            "successes": 8,
+            "attempts": 19,
+            "successes": 17,
+            "blocks": 0,
+            "errors": 2,
+            "results": {
+              "valid_product": 17
+            }
+          }
+        },
+        "category": {
+          "chrome131": {
+            "attempts": 1,
+            "successes": 1,
             "blocks": 0,
             "errors": 0,
-            "results": {
-              "valid_product": 8
-            }
+            "results": {}
           }
         }
       },
-      "last_updated": "2026-09-08T00:27:58.380241Z"
+      "last_updated": "2026-09-08T01:22:15.564056Z"
     },
     "CHIP7": {
-      "attempts": 58,
+      "attempts": 59,
       "successes": 0,
-      "blocks": 58,
+      "blocks": 59,
       "errors": {},
       "profiles": {
         "chrome131": {
@@ -299,12 +405,19 @@
           "successes": 0,
           "blocks": 3,
           "errors": 0
+        },
+        "safari260": {
+          "attempts": 1,
+          "successes": 0,
+          "blocks": 1,
+          "errors": 0
         }
       },
       "methods": {
         "page": 9,
         "robots": 9,
-        "sitemap": 40
+        "sitemap": 40,
+        "category": 1
       },
       "contexts": {
         "page": {
@@ -347,13 +460,22 @@
             "errors": 0,
             "results": {}
           }
+        },
+        "category": {
+          "safari260": {
+            "attempts": 1,
+            "successes": 0,
+            "blocks": 1,
+            "errors": 0,
+            "results": {}
+          }
         }
       },
-      "last_updated": "2026-09-08T00:26:18.823458Z"
+      "last_updated": "2026-09-08T01:21:08.984127Z"
     },
     "FNAC": {
-      "attempts": 17,
-      "successes": 7,
+      "attempts": 20,
+      "successes": 10,
       "blocks": 10,
       "errors": {},
       "profiles": {
@@ -382,8 +504,8 @@
           "errors": 0
         },
         "firefox147": {
-          "attempts": 4,
-          "successes": 4,
+          "attempts": 7,
+          "successes": 7,
           "blocks": 0,
           "errors": 0
         }
@@ -391,7 +513,9 @@
       "methods": {
         "page": 7,
         "robots": 1,
-        "sitemap": 9
+        "sitemap": 9,
+        "category": 1,
+        "product": 2
       },
       "contexts": {
         "page": {
@@ -427,14 +551,34 @@
             "errors": 0,
             "results": {}
           }
+        },
+        "category": {
+          "firefox147": {
+            "attempts": 1,
+            "successes": 1,
+            "blocks": 0,
+            "errors": 0,
+            "results": {}
+          }
+        },
+        "product": {
+          "firefox147": {
+            "attempts": 2,
+            "successes": 2,
+            "blocks": 0,
+            "errors": 0,
+            "results": {
+              "valid_product": 2
+            }
+          }
         }
       },
-      "last_updated": "2026-09-08T00:26:25.290735Z"
+      "last_updated": "2026-09-08T01:21:27.879689Z"
     },
     "Worten": {
-      "attempts": 34,
+      "attempts": 35,
       "successes": 3,
-      "blocks": 31,
+      "blocks": 32,
       "errors": {},
       "profiles": {
         "chrome131": {
@@ -454,12 +598,19 @@
           "successes": 0,
           "blocks": 4,
           "errors": 0
+        },
+        "edge101": {
+          "attempts": 1,
+          "successes": 0,
+          "blocks": 1,
+          "errors": 0
         }
       },
       "methods": {
         "page": 31,
         "robots": 1,
-        "sitemap": 2
+        "sitemap": 2,
+        "category": 1
       },
       "contexts": {
         "page": {
@@ -513,23 +664,32 @@
               "access_failed": 8
             }
           }
+        },
+        "category": {
+          "edge101": {
+            "attempts": 1,
+            "successes": 0,
+            "blocks": 1,
+            "errors": 0,
+            "results": {}
+          }
         }
       },
-      "last_updated": "2026-09-08T00:26:31.939250Z"
+      "last_updated": "2026-09-08T01:21:14.011534Z"
     },
     "ASUS": {
-      "attempts": 11,
-      "successes": 7,
+      "attempts": 19,
+      "successes": 14,
       "blocks": 0,
       "errors": {
-        "request_error": 4
+        "request_error": 5
       },
       "profiles": {
         "chrome131": {
-          "attempts": 8,
-          "successes": 6,
+          "attempts": 16,
+          "successes": 13,
           "blocks": 0,
-          "errors": 2
+          "errors": 3
         },
         "chrome146": {
           "attempts": 3,
@@ -540,8 +700,9 @@
       },
       "methods": {
         "page": 1,
-        "robots": 1,
-        "sitemap": 9
+        "robots": 2,
+        "sitemap": 14,
+        "category": 2
       },
       "contexts": {
         "page": {
@@ -555,8 +716,8 @@
         },
         "robots": {
           "chrome131": {
-            "attempts": 1,
-            "successes": 1,
+            "attempts": 2,
+            "successes": 2,
             "blocks": 0,
             "errors": 0,
             "results": {}
@@ -564,8 +725,8 @@
         },
         "sitemap": {
           "chrome131": {
-            "attempts": 6,
-            "successes": 4,
+            "attempts": 11,
+            "successes": 9,
             "blocks": 0,
             "errors": 2,
             "results": {}
@@ -577,9 +738,18 @@
             "errors": 2,
             "results": {}
           }
+        },
+        "category": {
+          "chrome131": {
+            "attempts": 2,
+            "successes": 1,
+            "blocks": 0,
+            "errors": 1,
+            "results": {}
+          }
         }
       },
-      "last_updated": "2026-09-08T00:27:10.282461Z"
+      "last_updated": "2026-09-08T01:21:26.769632Z"
     }
   }
 }
