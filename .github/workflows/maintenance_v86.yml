@@ -30,6 +30,57 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Corrigir e robustecer migração one-shot
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('data/maintenance_v86.py')
+          text = path.read_text(encoding='utf-8')
+
+          # O teste HTML estava dentro de uma string raw delimitada também por '''.
+          lines = text.splitlines()
+          for index, line in enumerate(lines):
+              if "html = '''<script type=\"application/ld+json\">" in line:
+                  payload = line.split("html = '''", 1)[1].rsplit("'''", 1)[0]
+                  lines[index] = line[:len(line) - len(line.lstrip())] + 'html = ' + repr(payload)
+          text = '\n'.join(lines) + '\n'
+
+          # Corrige argumento omitido numa chamada replace_once da migração.
+          needle = "tracker = replace_once(\n    '        \"runtime_seconds\": runtime,\\n        \"tiers\": tiers,'"
+          replacement = "tracker = replace_once(\n    tracker,\n    '        \"runtime_seconds\": runtime,\\n        \"tiers\": tiers,'"
+          if needle in text:
+              text = text.replace(needle, replacement, 1)
+
+          # Cada rota pública aprende acesso separadamente.
+          old = '''        segment_response, _, segment_access = adaptive_fetch(
+              route["url"], config, 7, store=store, method="category_variant"
+          )'''
+          new = '''        access_method = f"category_variant:{route['label']}"
+          segment_response, _, segment_access = adaptive_fetch(
+              route["url"], config, 7, store=store, method=access_method
+          )'''
+          text = text.replace(old, new, 1)
+
+          # Limita explicitamente quantos fallbacks públicos uma loja explora por run.
+          text = text.replace(
+              '    for route in discovery_routes(cat, store):',
+              '    for route in discovery_routes(cat, store)[:int(settings.get("max_segment_routes", 4))]:',
+              1,
+          )
+
+          # A paginação é limitada por tentativas, para URLs falhadas não criarem uma fila cara.
+          text = text.replace('    pages_fetched = 0\n    while pagination_queue and pages_fetched < max(0, max_pages - 1)',
+                              '    pages_attempted = 0\n    while pagination_queue and pages_attempted < max(0, max_pages - 1)', 1)
+          text = text.replace('        before_requests = REQUESTS_BY_STORE.get(store, 0)\n        before_candidates = len(candidates)\n        page_response, _, page_access = adaptive_fetch(',
+                              '        pages_attempted += 1\n        before_requests = REQUESTS_BY_STORE.get(store, 0)\n        before_candidates = len(candidates)\n        page_response, _, page_access = adaptive_fetch(', 1)
+          text = text.replace('            pages_fetched += 1\n            stat["paginas_categoria"] += 1',
+                              '            stat["paginas_categoria"] += 1', 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          python -m py_compile data/maintenance_v86.py
+
       - name: Aplicar V8.6
         run: python data/maintenance_v86.py
 
