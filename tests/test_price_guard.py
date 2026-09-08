@@ -165,6 +165,47 @@ class PriceGuardV88Tests(unittest.TestCase):
         )
         self.assertEqual(runner._safe_page_price(soup), 1299.99)
 
+    def test_merge_preserves_v88_state(self):
+        current = {
+            "schema_version": 8,
+            "tracker_version": "8.7.1",
+            "offers": {},
+            "alert_state": {},
+            "learning": {"runs": [], "stores": {}},
+        }
+        run_state = {
+            "schema_version": 8,
+            "tracker_version": "8.8",
+            "offers": {
+                "https://example.com/tuf": [
+                    {
+                        "timestamp": "2026-09-08T16:00:00Z",
+                        "tracker_version": "8.8",
+                        "url": "https://example.com/tuf",
+                        "price": 1199.0,
+                        "value_score": 117.7,
+                        "tier": "OURO",
+                        "specs": {"gpu_modelo": "rtx 5060"},
+                    }
+                ]
+            },
+            "alert_state": {},
+            "learning": {
+                "runs": [
+                    {
+                        "timestamp": "2026-09-08T16:00:00Z",
+                        "runner_version": "8.8",
+                        "access_requests": 100,
+                    }
+                ],
+                "stores": {},
+            },
+        }
+        merged = runner.tracker.merge_history(current, run_state)
+        self.assertIn("https://example.com/tuf", merged["offers"])
+        self.assertEqual(merged["offers"]["https://example.com/tuf"][-1]["tracker_version"], "8.8")
+        self.assertTrue(any(run.get("runner_version") == "8.8" for run in merged["learning"]["runs"]))
+
 
 if __name__ == "__main__":
     unittest.main()
