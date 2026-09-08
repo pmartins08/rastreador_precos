@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-import logging
 import re
 import sys
 
 import scraper
-from brain_guard import VERSION, install as install_brain_guard
+from brain_guard import install as install_brain_guard
+from historical_guard import install as install_historical_guard
 from market_guard import install as install_market_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_guard import install as install_promotion_guard
+from version import VERSION
+from version_guard import install as install_version_guard
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +71,8 @@ def _pairs_with_linear_fallback(soup) -> list[tuple]:
 
 scraper.pairs = _pairs_with_linear_fallback
 
+# O cérebro base é deliberadamente preservado. As correções entram por camadas
+# pequenas, testáveis e independentes.
 install_brain_guard(scraper)
 install_price_guard(scraper)
 
@@ -100,23 +104,12 @@ def _enhanced_page_identifiers(soup) -> dict:
 
 tracker.page_identifiers = _enhanced_page_identifiers
 
-# Promoções são apenas rotas de descoberta prioritárias. Não recebem qualquer
-# atalho no cérebro ou na validação: todos os produtos continuam a passar pelo
-# mesmo Price Guard e Market Guard da V8.8.x.
+# Camadas operacionais: versão pública, descoberta promocional, contexto de
+# mercado e histórico. Nenhuma delas substitui o cérebro V8.
+install_version_guard(tracker)
 install_promotion_guard(tracker)
 install_market_guard(scraper, tracker)
-tracker.VERSION = VERSION
-tracker.COMPATIBLE_STATE_VERSIONS.add(VERSION)
-
-
-class _VersionLogFilter(logging.Filter):
-    def filter(self, record: logging.LogRecord) -> bool:
-        if isinstance(record.msg, str):
-            record.msg = record.msg.replace("V8.8.1", f"V{VERSION}")
-        return True
-
-
-tracker.LOGGER.addFilter(_VersionLogFilter())
+install_historical_guard(tracker)
 
 
 def _safe_page_price(soup, structured_price: float | None = None) -> float | None:
