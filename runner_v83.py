@@ -57,11 +57,9 @@ def load_learning():
         return data
     out = {"schema_version": 2, "updated_at": now_iso(), "stores": {}}
     for store, old in (data.get("stores", {}) if isinstance(data, dict) else {}).items():
-        if not isinstance(old, dict):
-            continue
+        if not isinstance(old, dict): continue
         b = new_bucket()
-        for k in ("attempts", "successes", "blocks"):
-            b[k] = int(old.get(k, 0))
+        for k in ("attempts", "successes", "blocks"): b[k] = int(old.get(k, 0))
         b["errors"] = old.get("errors", {}) if isinstance(old.get("errors"), dict) else {}
         b["profiles"] = old.get("profiles", {}) if isinstance(old.get("profiles"), dict) else {}
         b["methods"] = old.get("methods", {}) if isinstance(old.get("methods"), dict) else {}
@@ -106,29 +104,24 @@ def record_result(store, method, profile, result):
 def profile_score(store, method, profile):
     c = bucket(store).get("contexts", {}).get(method, {}).get(profile, {})
     a, s, b = int(c.get("attempts", 0)), int(c.get("successes", 0)), int(c.get("blocks", 0))
-    if a:
-        return (s + 1.0) / (a + 2.0) - 0.35 * b / max(1, a), a
+    if a: return (s + 1.0) / (a + 2.0) - 0.35 * b / max(1, a), a
     ta = ts = tb = 0
     for other, profiles in bucket(store).get("contexts", {}).items():
-        if other == method:
-            continue
+        if other == method: continue
         d = profiles.get(profile, {})
         ta += int(d.get("attempts", 0)); ts += int(d.get("successes", 0)); tb += int(d.get("blocks", 0))
-    if ta:
-        return 0.9 * ((ts + 1.0) / (ta + 2.0)) - 0.35 * tb / ta, 0
+    if ta: return 0.9 * ((ts + 1.0) / (ta + 2.0)) - 0.35 * tb / ta, 0
     return 0.2, 0
 
 
 def profile_order(store, method):
     scored = [(profile_score(store, method, p), i, p) for i, p in enumerate(PROFILES)]
     ranked = sorted(scored, key=lambda x: (-x[0][0], -x[0][1], x[1]))
-    known = [p for _, _, p in ranked if profile_score(store, method, p)[1] > 0][:2]
+    selected = [p for _, _, p in ranked if profile_score(store, method, p)[1] > 0][:2]
     fresh = [p for _, _, p in ranked if profile_score(store, method, p)[1] == 0]
-    if not known:
-        known = [ranked[0][2]]
-    if fresh and len(known) < 3:
-        known.append(fresh[0])
-    return known[:3]
+    if not selected: selected = [ranked[0][2]]
+    if fresh and len(selected) < 3: selected.append(fresh[0])
+    return selected[:3]
 
 
 def headers(profile):
@@ -157,16 +150,15 @@ def classify(response):
     code = response.status_code
     if code in {401, 403, 429, 500, 502, 503, 504}: return f"http_{code}", True
     if code == 404: return "http_404", False
-    try:
-        soup = BeautifulSoup(response.text, "html.parser")
-        title = scraper.norm(soup.title.get_text(" ", strip=True) if soup.title else "")
-        for node in soup(["script", "style", "noscript"]): node.decompose()
-        visible = scraper.norm(" ".join(soup.stripped_strings))[:20000]
-        markers = ("just a moment", "checking your browser", "verify you are human", "access denied", "robot check", "are you a robot", "captcha")
-        if any(m in title or m in visible for m in markers) or "cf-chl-" in title:
-            return "challenge", True
-    except Exception:
-        pass
+    if "xml" not in str(response.headers.get("Content-Type", "")).lower():
+        try:
+            soup = BeautifulSoup(response.text, "html.parser")
+            title = scraper.norm(soup.title.get_text(" ", strip=True) if soup.title else "")
+            for node in soup(["script", "style", "noscript"]): node.decompose()
+            visible = scraper.norm(" ".join(soup.stripped_strings))[:20000]
+            markers = ("just a moment", "checking your browser", "verify you are human", "access denied", "robot check", "are you a robot", "captcha")
+            if any(m in title or m in visible for m in markers) or "cf-chl-" in title: return "challenge", True
+        except Exception: pass
     return (f"http_{code}", False) if code >= 400 else ("http_success", False)
 
 
@@ -178,8 +170,7 @@ def budget_available():
 def consume_request():
     global REQUESTS_USED
     with LOCK:
-        if REQUESTS_USED >= MAX_REQUESTS or (RUN_DEADLINE > 0 and time.monotonic() >= RUN_DEADLINE):
-            return False
+        if REQUESTS_USED >= MAX_REQUESTS or (RUN_DEADLINE > 0 and time.monotonic() >= RUN_DEADLINE): return False
         REQUESTS_USED += 1
         return True
 
@@ -188,30 +179,23 @@ def adaptive_fetch(url, config, timeout_s=10):
     store, method = store_for_url(url, config), method_for_url(url)
     last = None
     for idx, profile in enumerate(profile_order(store, method)):
-        max_attempts = 2 if idx == 0 else 1
-        for attempt in range(max_attempts):
-            if not consume_request():
-                return last, None, "run_budget_exhausted"
+        attempts = 2 if idx == 0 else 1
+        for attempt in range(attempts):
+            if not consume_request(): return last, None, "run_budget_exhausted"
             try:
                 response = requests.get(url, timeout=timeout_s, impersonate=profile, headers=headers(profile), allow_redirects=True)
                 last = response
                 outcome, retryable = classify(response)
                 record_learning(store, profile, "success" if outcome == "http_success" else ("blocked" if retryable else outcome), method)
-                if outcome == "http_success":
-                    return response, profile, outcome
+                if outcome == "http_success": return response, profile, outcome
                 if not retryable: break
-                if attempt == 0 and max_attempts == 2: time.sleep(min(6, 1 + random.random()))
-            except requests.RequestException as exc:
+                if attempt == 0 and attempts == 2: time.sleep(min(6, 1 + random.random()))
+            except Exception as exc:
                 record_learning(store, profile, "request_error", method)
-                LOGGER.debug("%s | %s | %s | %s", store, method, profile, exc)
-                if attempt == 0 and max_attempts == 2: time.sleep(min(6, 1 + random.random()))
+                LOGGER.warning("Acesso falhou: %s | %s | %s | %s", store, method, profile, exc)
+                if attempt == 0 and attempts == 2: time.sleep(min(6, 1 + random.random()))
         if not budget_available(): break
     return last, None, classify(last)[0] if last is not None else "no_response"
-
-
-def store_for_url(url, config):
-    host = urlparse(url).netloc
-    return next((c["loja"] for c in config.get("category_urls", []) if urlparse(c.get("url", "")).netloc == host), host)
 
 
 def sitemap_parse(content, text, max_children=6):
@@ -260,16 +244,19 @@ def enrich(item, config):
     if not response or response.status_code >= 400:
         record_result(store, "product", profile or "none", "access_failed")
         return item, {"error": "access_failed", "profile": profile, "access": access}
-    soup = BeautifulSoup(response.text, "html.parser"); text = soup.get_text(" ", strip=True)
+    soup = BeautifulSoup(response.text, "html.parser")
+    text = soup.get_text(" ", strip=True)
     price_ld, title_ld = jsonld_price_title(soup)
-    page_title = soup.title.get_text(" ", strip=True) if soup.title else ""; h1 = soup.find("h1")
+    page_title = soup.title.get_text(" ", strip=True) if soup.title else ""
+    h1 = soup.find("h1")
     real_title = ((h1.get_text(" ", strip=True) if h1 else "") or page_title or title_ld or item["titulo"])
     if title_ld and len(title_ld) >= 8 and scraper.eligible(title_ld): real_title = title_ld
     extracted = scraper.extract(real_title, soup)
     price = price_ld or item.get("preco")
     if price is None:
         vals = scraper.prices(text); price = min(vals) if vals else None
-    result = dict(item); result["titulo"] = real_title if real_title and scraper.eligible(real_title) else item["titulo"]
+    result = dict(item)
+    result["titulo"] = real_title if real_title and scraper.eligible(real_title) else item["titulo"]
     if price is not None and 200 <= price <= 4500: result["preco"] = price
     stock = scraper.stock(text)
     if stock is not None: result["stock"] = stock
@@ -291,7 +278,7 @@ def alert_send(title, message, priority="default"):
     for attempt in range(2):
         try:
             r = requests.post("https://ntfy.sh", json=payload, timeout=8); r.raise_for_status(); return True
-        except requests.RequestException:
+        except Exception:
             if attempt == 0: time.sleep(1 + random.random())
     return False
 
