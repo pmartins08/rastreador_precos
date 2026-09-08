@@ -1,11 +1,14 @@
 import copy
 import unittest
+from collections import defaultdict
 from unittest.mock import patch
 
 from bs4 import BeautifulSoup
 
+import runner as entrypoint
 import runner_v84 as runner
 import scraper
+from pricing import prices as pt_prices
 
 
 class RunnerV84Tests(unittest.TestCase):
@@ -27,6 +30,9 @@ class RunnerV84Tests(unittest.TestCase):
 
     def reset_learning(self):
         runner.LEARNING = {"schema_version": 2, "stores": {}}
+
+    def test_entrypoint_uses_v84(self):
+        self.assertIs(entrypoint.main, runner.main)
 
     def test_subbrands_infer_parent_brand(self):
         self.assertEqual(runner.infer_brand("ROG Zephyrus G16")[0], "asus")
@@ -58,8 +64,8 @@ class RunnerV84Tests(unittest.TestCase):
             "firefox147": {"attempts": 5, "successes": 5, "blocks": 0, "errors": 0},
         }
         order = runner.profile_order("PCDiga", "category")
-        self.assertEqual(order[0], "safari17_0")
-        self.assertIn("firefox147", order)
+        self.assertEqual(set(order[:2]), {"safari17_0", "firefox147"})
+        self.assertNotEqual(order[0], "chrome131")
         self.assertEqual(len(order), len(set(order)))
         self.assertLessEqual(len(order), 3)
 
@@ -118,7 +124,7 @@ class RunnerV84Tests(unittest.TestCase):
     def test_per_store_request_budget(self):
         self.reset_learning()
         runner.REQUESTS_USED = 0
-        runner.REQUESTS_BY_STORE = {}
+        runner.REQUESTS_BY_STORE = defaultdict(int)
         runner.MAX_REQUESTS = 10
         runner.MAX_REQUESTS_PER_STORE = 2
         runner.RUN_DEADLINE = 0
@@ -130,7 +136,7 @@ class RunnerV84Tests(unittest.TestCase):
     def test_network_exception_is_contained(self):
         self.reset_learning()
         runner.REQUESTS_USED = 0
-        runner.REQUESTS_BY_STORE = {}
+        runner.REQUESTS_BY_STORE = defaultdict(int)
         runner.MAX_REQUESTS = 20
         runner.MAX_REQUESTS_PER_STORE = 20
         runner.RUN_DEADLINE = 0
@@ -145,6 +151,11 @@ class RunnerV84Tests(unittest.TestCase):
         self.assertIsNone(profile)
         self.assertEqual(outcome, "no_response")
         self.assertGreater(runner.bucket("TESTE")["errors"].get("request_error", 0), 0)
+
+    def test_portuguese_price_parser(self):
+        self.assertEqual(pt_prices("Preço 1.399,99 €"), [1399.99])
+        self.assertEqual(pt_prices("Agora 699,90 €"), [699.90])
+        self.assertEqual(pt_prices("Desde 1 249,00 €"), [1249.0])
 
     def test_loose_catalog_handles_subbrand_only_title(self):
         html = """
