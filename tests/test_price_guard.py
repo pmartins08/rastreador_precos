@@ -207,5 +207,26 @@ class PriceGuardV88Tests(unittest.TestCase):
         self.assertTrue(any(run.get("runner_version") == "8.8" for run in merged["learning"]["runs"]))
 
 
+    def test_exact_market_group_can_confirm_suspicious_deal(self):
+        spec = self.high_end_spec(confirmed=None, confidence="UNKNOWN", sources=[])
+        spec["market_price_confirmed"] = 499.0
+        spec["market_price_confidence"] = "HIGH"
+        spec["market_price_sources"] = ["A", "B"]
+        result = scraper.score(spec, 499.0, self.weights, self.settings)
+        self.assertEqual(result["status"], "ACEITE")
+        self.assertEqual(result["price_confidence"], "HIGH")
+        self.assertEqual(scraper.tier_from_value(result["value_score"], self.settings), "DIAMANTE")
+
+    def test_exact_market_peers_quarantine_outlier(self):
+        spec = self.high_end_spec(confirmed=None, confidence="UNKNOWN", sources=[])
+        spec["market_price_confirmed"] = 4999.0
+        spec["market_price_confidence"] = "HIGH"
+        spec["market_price_sources"] = ["A", "B"]
+        result = scraper.score(spec, 499.0, self.weights, self.settings)
+        self.assertEqual(result["status"], "QUARENTENA")
+        self.assertEqual(result["price_status"], "PRICE_CONFLICT")
+
+
+
 if __name__ == "__main__":
     unittest.main()

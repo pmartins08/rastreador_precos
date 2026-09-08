@@ -305,6 +305,9 @@ def validate_price(spec: dict, price: float, settings: dict | None = None) -> di
     confirmed = spec.get("price_confirmed")
     page_confidence = str(spec.get("price_page_confidence") or "UNKNOWN").upper()
     sources = list(spec.get("price_evidence_sources") or [])
+    market_confirmed = spec.get("market_price_confirmed")
+    market_confidence = str(spec.get("market_price_confidence") or "UNKNOWN").upper()
+    market_sources = list(spec.get("market_price_sources") or [])
     reason = _suspicion_reason(spec, candidate)
 
     if confirmed is not None:
@@ -320,24 +323,39 @@ def validate_price(spec: dict, price: float, settings: dict | None = None) -> di
                 ),
             }
 
+    market_high = market_confirmed is not None and market_confidence == "HIGH"
+    if market_high and not _close(candidate, float(market_confirmed), settings):
+        return {
+            "status": "PRICE_CONFLICT",
+            "confidence": "LOW",
+            "suspicious": bool(reason),
+            "reason": (
+                f"Preço candidato {candidate:.2f}€ diverge do mercado exato por EAN/MPN "
+                f"({float(market_confirmed):.2f}€; lojas: {', '.join(market_sources) or 'desconhecidas'})."
+            ),
+        }
+
     if reason:
-        if confirmed is None or page_confidence != "HIGH" or not _close(candidate, confirmed, settings):
+        page_high = confirmed is not None and page_confidence == "HIGH" and _close(candidate, confirmed, settings)
+        market_matches = market_high and _close(candidate, float(market_confirmed), settings)
+        if not page_high and not market_matches:
             return {
                 "status": "PRICE_UNCONFIRMED",
                 "confidence": "LOW",
                 "suspicious": True,
-                "reason": reason + "; faltam pelo menos duas fontes independentes concordantes na ficha.",
+                "reason": reason + "; falta confirmação forte na ficha ou por EAN/MPN cross-store.",
             }
+        confirmation = "ficha" if page_high else "mercado cross-store por EAN/MPN"
         return {
             "status": "OK",
             "confidence": "HIGH",
             "suspicious": True,
-            "reason": reason + "; preço confirmado por múltiplas fontes.",
+            "reason": reason + f"; preço confirmado por {confirmation}.",
         }
 
     confidence = (
         "HIGH"
-        if confirmed is not None and page_confidence == "HIGH"
+        if (confirmed is not None and page_confidence == "HIGH") or market_high
         else "MEDIUM"
         if confirmed is not None and page_confidence == "MEDIUM"
         else "UNKNOWN"
@@ -418,6 +436,8 @@ def install(scraper_module) -> None:
             result["price_suspicious"] = validation["suspicious"]
             result["price_confirmed"] = spec.get("price_confirmed")
             result["price_evidence_sources"] = list(spec.get("price_evidence_sources") or [])
+            result["market_price_confirmed"] = spec.get("market_price_confirmed")
+            result["market_price_sources"] = list(spec.get("market_price_sources") or [])
             result["exceptional_deal_bonus"] = bonus
             result["value_score_sem_bonus"] = round(float(result["value_score"]) - bonus, 1)
             if validation.get("reason"):

@@ -1407,6 +1407,86 @@ def build_cross_store_matches(records: list[dict]) -> dict:
     }
 
 
+def _price_close(left: float, right: float, settings: dict) -> bool:
+    abs_tol = float(settings.get("price_confirmation_tolerance_eur", 5.0))
+    pct_tol = float(settings.get("price_confirmation_tolerance_pct", 1.5)) / 100.0
+    return abs(float(left) - float(right)) <= max(abs_tol, max(float(left), float(right)) * pct_tol)
+
+
+def _exact_market_key(item: dict) -> str | None:
+    ean = _normal_id(item.get("ean"))
+    if ean:
+        return f"ean:{ean}"
+    mpn = _normal_id(item.get("mpn"))
+    if mpn:
+        return f"mpn:{mpn}"
+    return None
+
+
+def apply_exact_market_price_evidence(records: list[dict], settings: dict) -> dict:
+    """Confirma preço apenas com EAN/MPN exato em lojas independentes."""
+    from statistics import median
+
+    market_fields = (
+        "market_price_confirmed", "market_price_confidence", "market_price_sources",
+        "market_price_source_count", "market_price_identifier", "market_price_conflict",
+    )
+    for record in records:
+        spec = record.get("spec") or {}
+        for field in market_fields:
+            spec.pop(field, None)
+
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for record in records:
+        item = record.get("item") or {}
+        key = _exact_market_key(item)
+        if key and item.get("preco") is not None:
+            groups[key].append(record)
+
+    confirmed_groups = 0
+    outliers = 0
+    for key, members in groups.items():
+        if len({str(member["item"].get("loja")) for member in members}) < 2:
+            continue
+
+        candidates = []
+        for center_member in members:
+            center = float(center_member["item"]["preco"])
+            cluster_by_store = {}
+            for member in members:
+                price = float(member["item"]["preco"])
+                store = str(member["item"].get("loja"))
+                if _price_close(center, price, settings):
+                    previous = cluster_by_store.get(store)
+                    if previous is None or abs(price - center) < abs(previous - center):
+                        cluster_by_store[store] = price
+            if len(cluster_by_store) >= 2:
+                values = list(cluster_by_store.values())
+                spread = max(values) - min(values)
+                candidates.append((len(cluster_by_store), -spread, -center, cluster_by_store))
+
+        if not candidates:
+            continue
+        _count, _spread, _center, cluster = max(candidates, key=lambda row: row[:3])
+        market_price = round(float(median(cluster.values())), 2)
+        source_stores = sorted(cluster)
+        confirmed_groups += 1
+
+        for member in members:
+            spec = member["spec"]
+            item_price = float(member["item"]["preco"])
+            conflict = not _price_close(item_price, market_price, settings)
+            spec["market_price_confirmed"] = market_price
+            spec["market_price_confidence"] = "HIGH"
+            spec["market_price_sources"] = source_stores
+            spec["market_price_source_count"] = len(source_stores)
+            spec["market_price_identifier"] = key
+            spec["market_price_conflict"] = conflict
+            outliers += int(conflict)
+
+    return {"confirmed_groups": confirmed_groups, "outliers": outliers}
+
+
 def select_with_cache(
     items: list[dict],
     spec_cache: dict[str, dict],
@@ -1439,6 +1519,26 @@ def select_with_cache(
     )
 
 
+PRICE_EVIDENCE_FIELDS = {
+    "price_confirmed",
+    "price_page_confidence",
+    "price_evidence_sources",
+    "price_evidence_count",
+    "price_evidence_signals",
+    "market_price_confirmed",
+    "market_price_confidence",
+    "market_price_sources",
+    "market_price_source_count",
+    "market_price_identifier",
+    "market_price_conflict",
+}
+
+
+def _hardware_cache_copy(specs: dict) -> dict:
+    """Specs persistem; evidência de preço é sempre recalculada na run atual."""
+    return {key: value for key, value in specs.items() if key not in PRICE_EVIDENCE_FIELDS}
+
+
 def latest_specs_by_url(history: dict) -> dict[str, dict]:
     out = {}
     for entries in (history.get("offers", {}) or {}).values():
@@ -1450,7 +1550,7 @@ def latest_specs_by_url(history: dict) -> dict[str, dict]:
         url = entry.get("url")
         specs = entry.get("specs")
         if url and isinstance(specs, dict) and entry.get("tracker_version") in COMPATIBLE_STATE_VERSIONS:
-            out[url] = specs
+            out[url] = _hardware_cache_copy(specs)
     return out
 
 
@@ -1938,13 +2038,25 @@ def main() -> dict:
             stats[store]["avaliados"] += 1
             stats[store]["detalhes_live"] += 1
 
+    preliminary_records = []
+    for item in evaluated:
+        spec = item.get("specs") or scraper.specs(item.get("titulo", ""))
+        preliminary_records.append({"item": item, "spec": spec})
+    market_evidence = apply_exact_market_price_evidence(preliminary_records, settings)
+    LOGGER.info(
+        "Preço cross-store | grupos_confirmados=%d | outliers=%d",
+        market_evidence["confirmed_groups"], market_evidence["outliers"],
+    )
+
     tiers = {"DIAMANTE": 0, "OURO": 0, "PRATA": 0, "BRONZE": 0}
     alerts = 0
     suppressed = 0
     current_ranked = []
     match_records = []
 
-    for item in evaluated:
+    for preliminary in preliminary_records:
+        item = preliminary["item"]
+        spec = preliminary["spec"]
         price = item.get("preco")
         store = item["loja"]
         if price is None:
@@ -1955,7 +2067,6 @@ def main() -> dict:
         if not scraper.price_is_plausible_for_title(item.get("titulo", ""), float(price)):
             stats[store]["rejeitados"] += 1
             continue
-        spec = item.get("specs") or scraper.specs(item.get("titulo", ""))
         assessment = score_allow_unknown(spec, float(price), weights, settings)
         if assessment.get("status") != "ACEITE":
             stats[store]["rejeitados"] += 1

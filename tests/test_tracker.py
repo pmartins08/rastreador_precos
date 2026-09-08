@@ -581,5 +581,31 @@ class PriceSafetyV871Tests(unittest.TestCase):
         self.assertFalse(scraper.price_is_plausible_for_title("ASUS ROG RTX 5090", 449.9))
 
 
+    def test_market_evidence_requires_exact_id_and_two_stores(self):
+        records = [
+            {"item": {"loja": "A", "ean": "4711636047074", "preco": 1299.0}, "spec": {}},
+            {"item": {"loja": "B", "ean": "4711636047074", "preco": 1299.99}, "spec": {}},
+            {"item": {"loja": "C", "ean": "4711636047074", "preco": 499.0}, "spec": {}},
+        ]
+        stats = tracker.apply_exact_market_price_evidence(records, {"price_confirmation_tolerance_eur": 5})
+        self.assertEqual(stats["confirmed_groups"], 1)
+        self.assertEqual(records[0]["spec"]["market_price_confidence"], "HIGH")
+        self.assertFalse(records[0]["spec"]["market_price_conflict"])
+        self.assertTrue(records[2]["spec"]["market_price_conflict"])
+        self.assertAlmostEqual(records[2]["spec"]["market_price_confirmed"], 1299.495, places=2)
+
+    def test_hardware_cache_discards_stale_price_evidence(self):
+        cached = tracker._hardware_cache_copy({
+            "gpu_modelo": "rtx 5060",
+            "price_confirmed": 1299.0,
+            "price_page_confidence": "HIGH",
+            "market_price_confirmed": 1299.0,
+        })
+        self.assertEqual(cached["gpu_modelo"], "rtx 5060")
+        self.assertNotIn("price_confirmed", cached)
+        self.assertNotIn("market_price_confirmed", cached)
+
+
+
 if __name__ == "__main__":
     unittest.main()
