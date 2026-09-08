@@ -244,6 +244,35 @@ class PriceRefreshV881Tests(unittest.TestCase):
         item = {"preco": 999.0}
         self.assertTrue(tracker.needs_price_refresh(previous, item, {"budget_soft": 1300}))
 
+    def test_recent_matching_price_evidence_is_reused(self):
+        from datetime import datetime, timezone
+        now = datetime(2026, 9, 8, 18, 0, tzinfo=timezone.utc)
+        previous = {"specs": {
+            "price_confirmed": 1199.0,
+            "price_page_confidence": "HIGH",
+            "price_evidence_sources": ["jsonld", "meta"],
+            "price_evidence_count": 2,
+            "price_checked_at": "2026-09-08T17:00:00Z",
+        }}
+        item = {"preco": 1199.0}
+        settings = {"budget_soft": 1300, "price_confirmation_ttl_hours": 24}
+        self.assertFalse(tracker.needs_price_refresh(previous, item, settings, current_time=now))
+        evidence = tracker.reusable_price_evidence(previous, item, settings)
+        self.assertEqual(evidence["price_confirmed"], 1199.0)
+        self.assertEqual(evidence["price_page_confidence"], "HIGH")
+
+    def test_stale_price_evidence_is_not_reused(self):
+        previous = {"specs": {
+            "price_confirmed": 1199.0,
+            "price_page_confidence": "HIGH",
+            "price_checked_at": "2020-01-01T00:00:00Z",
+        }}
+        item = {"preco": 1199.0}
+        self.assertEqual(
+            tracker.reusable_price_evidence(previous, item, {"budget_soft": 1300, "price_confirmation_ttl_hours": 24}),
+            {},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
