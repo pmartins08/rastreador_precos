@@ -3,6 +3,7 @@ import unittest
 from bs4 import BeautifulSoup
 
 import price_guard
+import runner
 import scraper
 
 
@@ -129,18 +130,40 @@ class PriceGuardV88Tests(unittest.TestCase):
     def test_no_exceptional_bonus_without_high_price_confidence(self):
         unknown = dict(self.settings, _price_confidence="UNKNOWN")
         high = dict(self.settings, _price_confidence="HIGH")
-        self.assertEqual(
-            scraper.value_score(75.0, 499.0, unknown),
-            113.2,
-        )
-        self.assertEqual(
-            scraper.value_score(75.0, 499.0, high),
-            128.2,
-        )
+        self.assertEqual(scraper.value_score(75.0, 499.0, unknown), 113.2)
+        self.assertEqual(scraper.value_score(75.0, 499.0, high), 128.2)
 
     def test_old_hard_floor_is_runtime_suspicion_not_rejection(self):
         self.assertTrue(scraper.price_is_plausible_for_title("ASUS ROG RTX 5090", 499.0))
         self.assertTrue(scraper.price_is_suspicious_for_title("ASUS ROG RTX 5090", 499.0))
+
+    def test_pcdiga_text_fallback_prefers_current_price_over_old_and_discount(self):
+        soup = BeautifulSoup(
+            """
+            <html><body>
+              <h1>Portátil Lenovo LOQ RTX 5070</h1>
+              <div class="price-box">
+                <span>1.499,99 €</span>
+                <span class="old-price">1.699,99 €</span>
+                <span>-200,00 €</span>
+              </div>
+            </body></html>
+            """,
+            "html.parser",
+        )
+        self.assertEqual(runner._safe_page_price(soup), 1499.99)
+
+    def test_pcdiga_text_fallback_rejects_pvpr_context(self):
+        soup = BeautifulSoup(
+            """
+            <html><body>
+              <div><span>PVPR</span><span class="old-price">1.699,99 €</span></div>
+              <div><span>1.299,99 €</span></div>
+            </body></html>
+            """,
+            "html.parser",
+        )
+        self.assertEqual(runner._safe_page_price(soup), 1299.99)
 
 
 if __name__ == "__main__":
