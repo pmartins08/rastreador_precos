@@ -93,7 +93,7 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            python tracker.py merge-state \
+            python runner.py merge-state \
               --history-current data/history.json \
               --history-run /tmp/history-v88.json \
               --learning-current data/access_learning.json \
