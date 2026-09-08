@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-VERSION = "8.8.4"
+VERSION = "8.8.5"
 
 
 def ram_longevity_target(ram_gb: int | float | None, expandable: bool) -> float | None:
@@ -38,7 +38,6 @@ def install(scraper_module) -> None:
         if target is None:
             return result
 
-        # No V8, capacidades >16 e <32 caíam no ramo final de 40 pontos.
         old_ram_long = 40.0
         delta_ram_long = target - old_ram_long
         delta_longevity = delta_ram_long * 0.35
@@ -55,8 +54,6 @@ def install(scraper_module) -> None:
         result["score_ranking"] = round(
             float(result["score_ranking"]) + delta_ranking, 1
         )
-        # Usa o value_score atualmente instalado. Quando price_guard está ativo,
-        # isto preserva automaticamente o bónus de oportunidade e a confiança.
         result["value_score"] = scraper_module.value_score(
             result["score_ranking"], price_value, settings
         )
