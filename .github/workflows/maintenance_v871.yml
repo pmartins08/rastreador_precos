@@ -1,0 +1,51 @@
+name: Aplicar V8.7.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/maintenance_v871.py'
+      - '.github/workflows/maintenance_v871.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rastreador-v871-maintenance
+  cancel-in-progress: true
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Aplicar V8.7.1
+        run: python data/maintenance_v871.py
+
+      - name: Instalar dependências
+        run: python -m pip install -r requirements.txt
+
+      - name: Validar V8.7.1
+        run: |
+          python -m py_compile scraper.py tracker.py tests/test_tracker.py
+          python -m unittest discover -s tests -p 'test_tracker.py' -v
+
+      - name: Persistir V8.7.1 e remover script temporário
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          rm -f data/maintenance_v871.py
+          git add scraper.py tracker.py config/config.json .github/workflows/tracker.yml tests/test_tracker.py data/history.json data/maintenance_v871.py
+          git commit -m "feat: preco seguro e escala V8.7.1 [skip maintenance]"
+          git push origin HEAD:main
