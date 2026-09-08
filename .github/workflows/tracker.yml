@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - 'data/**'
+      - '.github/workflows/maintenance_*.yml'
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
