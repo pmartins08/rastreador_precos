@@ -5,9 +5,9 @@
     "min_value_score_alerta": 70.0,
     "alerta_min_tier": "OURO",
     "max_produtos_por_categoria": 30,
-    "max_lojas_paralelas": 6,
-    "max_verificacoes_teclado": 12,
-    "max_enriquecimentos_detalhe": 48,
+    "max_enriquecimentos_detalhe": 30,
+    "max_requests_per_run": 180,
+    "max_requests_per_store": 30,
     "alerta_queda_preco_eur": 5.0,
     "require_pt_keyboard": false,
     "bronze_value_min": 70.0,
@@ -91,6 +91,6 @@
     {"loja":"CHIP7","url":"https://chip7.pt/computadores/portateis","timeout_ms":9000,"parent_climb":7,"product_path_hints":["/produto/","/product/","/portateis/"],"card_selectors":["article","div[class*='product']","li[class*='product']"]},
     {"loja":"FNAC","url":"https://www.fnac.pt/Portateis-Windows/n1334091","timeout_ms":12000,"parent_climb":7,"product_path_hints":["/a/","/a-","/produto/","/computador-portatil","/portatil"]},
     {"loja":"Worten","url":"https://www.worten.pt/informatica-e-acessorios/computadores/computadores-portateis","timeout_ms":12000,"parent_climb":7,"product_path_hints":["/produto/","/computadores-portateis/","/a/","/portatil","/laptop"],"card_selectors":["article","div[class*='product']","li[class*='product']"]},
-    {"loja":"ASUS","url":"https://www.asus.com/pt/store/laptops/","timeout_ms":12000,"parent_climb":7,"product_path_hints":["/pt/store/laptops/","/pt/laptops/"],"card_selectors":["article","div[class*='product']","li[class*='product']"]}
+    {"loja":"ASUS","url":"https://www.asus.com/pt/store/laptops/","timeout_ms":12000,"parent_climb":8,"product_path_hints":["/pt/store/laptops/","/pt/laptops/"],"card_selectors":["article","div[class*='product']","div[class*='Product']","li[class*='product']"]}
   ]
 }
