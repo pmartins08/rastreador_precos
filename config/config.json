@@ -23,6 +23,8 @@
     "max_segment_routes": 4,
     "cross_store_alert_min_eur": 50.0,
     "cross_store_alert_min_pct": 5.0,
+    "market_disagreement_min_eur": 150.0,
+    "market_disagreement_min_pct": 20.0,
     "max_identity_refreshes_per_run": 16,
     "exceptional_deal_bonus_max": 15.0,
     "price_confirmation_tolerance_eur": 5.0,
@@ -183,6 +185,33 @@
         {
           "label": "hibridos",
           "url": "https://www.radiopopular.pt/categoria/portateis-hibridos"
+        }
+      ]
+    },
+    {
+      "loja": "Darty",
+      "url": "https://darty.pt/collections/portateis",
+      "timeout_ms": 12000,
+      "parent_climb": 7,
+      "target_candidates": 80,
+      "max_category_pages": 4,
+      "sitemap_probe_limit": 30,
+      "max_sitemaps": 8,
+      "max_sitemap_urls": 200,
+      "product_path_hints": [
+        "/products/portatil-",
+        "/products/computador-port",
+        "/products/lenovo-l5-"
+      ],
+      "card_selectors": [
+        "article",
+        "div[class*='product']",
+        "li[class*='product']"
+      ],
+      "extra_discovery_urls": [
+        {
+          "label": "computadores_portateis",
+          "url": "https://darty.pt/collections/computadores-portateis"
         }
       ]
     },
