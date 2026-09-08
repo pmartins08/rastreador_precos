@@ -93,6 +93,11 @@ class GpuGuardTests(unittest.TestCase):
         assessment = tracker.score_allow_unknown(mapped, 600, self.weights, settings)
         self.assertEqual(scraper.tier_from_value(assessment["value_score"], settings), "DIAMANTE")
 
+    def test_plain_value_calls_keep_original_tier_logic(self):
+        scraper, tracker = self._modules()
+        self.assertEqual(scraper.tier_from_value(130.0, self.settings), "DIAMANTE")
+        self.assertEqual(scraper.tier_from_value(115.0, self.settings), "OURO")
+
 
 if __name__ == "__main__":
     unittest.main()
