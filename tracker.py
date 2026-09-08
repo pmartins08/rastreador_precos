@@ -391,7 +391,7 @@ def adaptive_fetch(
 
 
 # ---------------------------------------------------------------------------
-# Descoberta: categoria + paginação + sitemap
+# Descoberta: categoria + segmentos/filtros + paginação + sitemap
 # ---------------------------------------------------------------------------
 
 
@@ -448,7 +448,7 @@ def pagination_urls(html: str, current_url: str, category_url: str, limit: int =
         )
         query = parse_qs(parsed.query)
         page_number = None
-        for key in ("page", "pagina", "p", "pg", "pagenumber"):
+        for key in ("page", "pageindex", "pagina", "p", "pg", "pagenumber"):
             raw = query.get(key)
             if raw and str(raw[0]).isdigit():
                 page_number = int(raw[0])
@@ -460,7 +460,7 @@ def pagination_urls(html: str, current_url: str, category_url: str, limit: int =
 
         pagination_context = any(
             marker in text
-            for marker in ("pagination", "paginacao", "pager", "seguinte", "proxima", "next")
+            for marker in ("pagination", "paginacao", "pager", "seguinte", "proxima", "next", "mais artigos")
         )
         if "next" in rel:
             candidates.append((0, page_number or 999, full))
@@ -475,6 +475,18 @@ def pagination_urls(html: str, current_url: str, category_url: str, limit: int =
             out.append(url)
             if len(out) >= limit:
                 break
+    return out
+
+
+def configured_pagination_urls(cat: dict, max_pages: int) -> list[str]:
+    template = cat.get("pagination_template")
+    if not template or max_pages <= 1:
+        return []
+    start = int(cat.get("pagination_start", 2))
+    out = []
+    for page in range(start, start + max_pages - 1):
+        rendered = str(template).format(page=page)
+        out.append(urljoin(cat["url"], rendered))
     return out
 
 
@@ -658,8 +670,14 @@ def _empty_store_stats() -> dict:
         "rejeitados": 0,
         "bloqueada": False,
         "paginas_categoria": 0,
+        "segmentos_categoria": 0,
         "sitemap_urls": 0,
-        "fontes_descoberta": {"categoria": 0, "paginacao": 0, "sitemap": 0},
+        "fontes_descoberta": {
+            "categoria": 0,
+            "segmento": 0,
+            "paginacao": 0,
+            "sitemap": 0,
+        },
         "acesso": {},
     }
 
@@ -672,6 +690,8 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
     sitemap_limit = int(settings.get("max_sitemap_urls_per_store", 80))
     supplement_limit = int(cat.get("sitemap_probe_limit", settings.get("sitemap_probe_limit", 6)))
     sitemap_threshold = int(settings.get("sitemap_supplement_below", 24))
+    max_sitemaps = int(cat.get("max_sitemaps", 8))
+    sitemap_enabled = bool(cat.get("sitemap_enabled", True))
 
     candidates: dict[str, dict] = {}
     response, profile, access = adaptive_fetch(
@@ -681,7 +701,11 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
         store=store,
         method="category",
     )
-    stat["acesso"] = {"perfil_categoria": profile, "resultado": access, "modo": access_mode(store, "category")}
+    stat["acesso"] = {
+        "perfil_categoria": profile,
+        "resultado": access,
+        "modo": access_mode(store, "category"),
+    }
     if not response or response.status_code >= 400:
         stat["bloqueada"] = True
         stat["candidatos"] = 0
@@ -692,8 +716,34 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
         if _merge_candidate(candidates, item, "categoria"):
             stat["fontes_descoberta"]["categoria"] += 1
 
-    # Paginação real encontrada no HTML; não inventamos URLs de páginas.
-    queue = deque(pagination_urls(response.text, cat["url"], cat["url"], max_pages * 2))
+    # Segmentos/filtros públicos específicos. Ex.: marca dentro da categoria Radio Popular.
+    for segment_url in cat.get("extra_discovery_urls", []):
+        if len(candidates) >= target or not budget_available(store):
+            break
+        segment_response, _, segment_access = adaptive_fetch(
+            segment_url, config, 7, store=store, method="category_variant"
+        )
+        if not segment_response or segment_response.status_code >= 400:
+            continue
+        stat["segmentos_categoria"] += 1
+        segment_cat = dict(cat)
+        segment_cat["url"] = segment_url
+        before = len(candidates)
+        for item in scraper.discover_category(segment_response.text, segment_cat, target):
+            if _merge_candidate(candidates, item, "segmento"):
+                stat["fontes_descoberta"]["segmento"] += 1
+        LOGGER.info(
+            "Segmento | %s | +%d | candidatos=%d | acesso=%s",
+            store,
+            len(candidates) - before,
+            len(candidates),
+            segment_access,
+        )
+
+    # Paginação: primeiro links reais descobertos; depois templates públicos confirmados em config.
+    initial_pages = pagination_urls(response.text, cat["url"], cat["url"], max_pages * 3)
+    initial_pages.extend(configured_pagination_urls(cat, max_pages))
+    queue = deque(dict.fromkeys(initial_pages))
     visited = {cat["url"].rstrip("/")}
     while queue and stat["paginas_categoria"] < max_pages and len(candidates) < target and budget_available(store):
         page_url = queue.popleft()
@@ -709,28 +759,34 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
         stat["paginas_categoria"] += 1
         page_cat = dict(cat)
         page_cat["url"] = page_url
+        before = len(candidates)
         for item in scraper.discover_category(page_response.text, page_cat, target):
             if _merge_candidate(candidates, item, "paginacao"):
                 stat["fontes_descoberta"]["paginacao"] += 1
-        for discovered in pagination_urls(page_response.text, page_url, cat["url"], max_pages * 2):
+        for discovered in pagination_urls(page_response.text, page_url, cat["url"], max_pages * 3):
             if discovered.rstrip("/") not in visited:
                 queue.append(discovered)
         LOGGER.info(
-            "Paginação | %s | páginas=%d | candidatos=%d | acesso=%s",
+            "Paginação | %s | página=%d | +%d | candidatos=%d | acesso=%s",
             store,
             stat["paginas_categoria"],
+            len(candidates) - before,
             len(candidates),
             page_access,
         )
 
-    # Sitemap passa a complementar catálogos pequenos em vez de existir apenas como último recurso.
+    # Sitemap apenas onde existe retorno útil comprovado ou ausência de melhor catálogo público.
     if (
-        len(candidates) < min(target, sitemap_threshold)
+        sitemap_enabled
+        and len(candidates) < min(target, sitemap_threshold)
         and access_mode(store, "category") != "probe"
         and budget_available(store)
     ):
         sitemap_urls_found = discover_sitemap_urls(
-            cat, config, max_urls=sitemap_limit, max_sitemaps=8
+            cat,
+            config,
+            max_urls=sitemap_limit,
+            max_sitemaps=max_sitemaps,
         )
         stat["sitemap_urls"] = len(sitemap_urls_found)
         seeds = [url for url in sitemap_urls_found if url not in candidates][:supplement_limit]
@@ -1103,10 +1159,11 @@ def main() -> dict:
         stats[store] = stat
         all_items.extend(clean)
         LOGGER.info(
-            "Scan | %s | candidatos=%d | páginas=%d | sitemap=%d | pedidos=%d | fontes=%s",
+            "Scan | %s | candidatos=%d | páginas=%d | segmentos=%d | sitemap=%d | pedidos=%d | fontes=%s",
             store,
             len(clean),
             stat["paginas_categoria"],
+            stat["segmentos_categoria"],
             stat["sitemap_urls"],
             REQUESTS_BY_STORE.get(store, 0),
             stat["fontes_descoberta"],
