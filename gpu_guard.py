@@ -21,13 +21,21 @@ IGPU_BASE = {
 IGPU_ALIASES = {
     "intel arc graphics 140v": (
         "intel arc graphics 140v", "intel arc graphics 140 v",
+        "intel arc graphics de 140v", "intel arc graphics de 140 v",
         "intel arc 140v", "intel arc 140 v",
-        "arc graphics 140v", "arc graphics 140 v", "arc 140v", "arc 140 v",
+        "intel arc de 140v", "intel arc de 140 v",
+        "arc graphics 140v", "arc graphics 140 v",
+        "arc graphics de 140v", "arc graphics de 140 v",
+        "arc 140v", "arc 140 v", "arc de 140v", "arc de 140 v",
     ),
     "intel arc graphics 130v": (
         "intel arc graphics 130v", "intel arc graphics 130 v",
+        "intel arc graphics de 130v", "intel arc graphics de 130 v",
         "intel arc 130v", "intel arc 130 v",
-        "arc graphics 130v", "arc graphics 130 v", "arc 130v", "arc 130 v",
+        "intel arc de 130v", "intel arc de 130 v",
+        "arc graphics 130v", "arc graphics 130 v",
+        "arc graphics de 130v", "arc graphics de 130 v",
+        "arc 130v", "arc 130 v", "arc de 130v", "arc de 130 v",
     ),
     "radeon 890m": ("radeon 890m", "radeon 890 m"),
     "radeon 880m": ("radeon 880m", "radeon 880 m"),
@@ -60,6 +68,9 @@ def identify_igpu(text: object, scraper_module=None) -> str | None:
         if scraper_module is not None
         else re.sub(r"\s+", " ", str(text or "").lower()).strip()
     )
+    # Retailers usam símbolos de marca e pontuação no meio do nome (Arc™/Radeon®).
+    # Para matching de modelo só nos interessa a sequência alfanumérica.
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized).strip()
     for model, aliases in IGPU_ALIASES.items():
         if any(_contains_alias(normalized, alias) for alias in aliases):
             return model
