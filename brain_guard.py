@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-
-VERSION = "8.8.5"
+from version import VERSION
 
 
 def ram_longevity_target(ram_gb: int | float | None, expandable: bool) -> float | None:
