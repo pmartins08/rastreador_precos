@@ -140,14 +140,15 @@ jobs:
             done
           fi
 
-      - name: Guardar estado, aprendizagem e histórico de preços
+      - name: Guardar estado, aprendizagem, histórico e Top 5
         if: success()
         run: |
           set -e
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          if [ -z "$(git status --porcelain -- data/history.json data/access_learning.json data/price_history.json)" ]; then
+          TRACKED_STATE="data/history.json data/access_learning.json data/price_history.json data/top5_current.json data/state_epoch.json"
+          if [ -z "$(git status --porcelain -- $TRACKED_STATE)" ]; then
             echo "Sem alterações de dados."
             exit 0
           fi
@@ -155,11 +156,13 @@ jobs:
           cp data/history.json /tmp/history-run.json
           cp data/access_learning.json /tmp/access-learning-run.json
           cp data/price_history.json /tmp/price-history-run.json
+          [ -f data/top5_current.json ] && cp data/top5_current.json /tmp/top5-current-run.json
+          [ -f data/state_epoch.json ] && cp data/state_epoch.json /tmp/state-epoch-run.json
 
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --hard origin/main
-            git clean -f -- data/price_history.json
+            git clean -f -- data/price_history.json data/top5_current.json data/state_epoch.json
 
             python runner.py merge-state \
               --history-current data/history.json \
@@ -167,11 +170,34 @@ jobs:
               --learning-current data/access_learning.json \
               --learning-run /tmp/access-learning-run.json
 
-            python historical_guard.py \
-              --current data/price_history.json \
-              --run /tmp/price-history-run.json
+            RUN_EPOCH="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('/tmp/state-epoch-run.json')
+          print(json.loads(path.read_text()).get('state_epoch', '') if path.exists() else '')
+          PY
+          )"
+            CURRENT_EPOCH="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('data/state_epoch.json')
+          print(json.loads(path.read_text()).get('state_epoch', '') if path.exists() else '')
+          PY
+          )"
 
-            git add data/history.json data/access_learning.json data/price_history.json
+            if [ -n "$RUN_EPOCH" ] && [ "$RUN_EPOCH" != "$CURRENT_EPOCH" ]; then
+              echo "Novo epoch ${RUN_EPOCH}: histórico de preços legado não será reintroduzido."
+              cp /tmp/price-history-run.json data/price_history.json
+            else
+              python historical_guard.py \
+                --current data/price_history.json \
+                --run /tmp/price-history-run.json
+            fi
+
+            [ -f /tmp/top5-current-run.json ] && cp /tmp/top5-current-run.json data/top5_current.json
+            [ -f /tmp/state-epoch-run.json ] && cp /tmp/state-epoch-run.json data/state_epoch.json
+
+            git add data/history.json data/access_learning.json data/price_history.json data/top5_current.json data/state_epoch.json
             if git diff --cached --quiet; then
               echo "Sem alterações após merge com main."
               exit 0
