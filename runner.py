@@ -21,6 +21,7 @@ from version_guard import install as install_version_guard
 # ---------------------------------------------------------------------------
 
 _BASE_PAIRS = scraper.pairs
+_BASE_CARD_PRICES = scraper._card_prices
 
 _LINEAR_LABELS = {
     "refresh rate": "refresh",
@@ -43,6 +44,15 @@ _LINEAR_LABELS = {
 _OLD_PRICE_MARKERS = (
     "preco mais baixo praticado nos 30 dias anteriores",
     "preço mais baixo praticado nos 30 dias anteriores",
+)
+_CARD_BAD_PRICE_MARKERS = (
+    "old-price",
+    "oldprice",
+    "regular price",
+    "preco anterior",
+    "preço anterior",
+    "pvpr",
+    *_OLD_PRICE_MARKERS,
 )
 price_guard_module.BAD_PRICE_CONTEXT = tuple(
     dict.fromkeys((*price_guard_module.BAD_PRICE_CONTEXT, *_OLD_PRICE_MARKERS))
@@ -82,7 +92,59 @@ def _pairs_with_linear_fallback(soup) -> list[tuple]:
     return [*_BASE_PAIRS(soup), *_linear_spec_pairs(soup)]
 
 
+def _contextual_card_prices(card, cat: dict) -> list[float]:
+    """Em lojas oficiais estritas, ignora preço antigo/histórico no cartão.
+
+    Nas restantes lojas preserva exatamente o parser V8 existente.
+    """
+    if not cat.get("strict_current_price_context"):
+        return _BASE_CARD_PRICES(card, cat)
+
+    values: list[float] = []
+    selectors = cat.get("price_selectors", []) + [
+        "[itemprop='price']",
+        "[data-price]",
+        "[class*='price']",
+        "[class*='Price']",
+    ]
+    seen_nodes: set[int] = set()
+    for selector in selectors:
+        for node in card.select(selector):
+            if id(node) in seen_nodes:
+                continue
+            seen_nodes.add(id(node))
+            raw = node.get("content") or node.get("data-price") or node.get_text(" ", strip=True)
+            previous = str(node.previous_sibling or "")[-140:]
+            parent = getattr(node, "parent", None)
+            parent_class = " ".join(parent.get("class", [])) if parent is not None else ""
+            context = scraper.norm(
+                f"{' '.join(node.get('class', []))} {node.get('id') or ''} "
+                f"{parent_class} {previous} {raw}"
+            )
+            if any(
+                marker in context
+                for marker in (
+                    "month",
+                    "mensal",
+                    "prestacao",
+                    "/ mes",
+                    "/mes",
+                    "por mes",
+                    *_CARD_BAD_PRICE_MARKERS,
+                )
+            ):
+                continue
+            direct = scraper.parse_price_value(raw)
+            if direct is not None:
+                values.append(float(direct))
+            values.extend(float(value) for value in scraper.prices(str(raw)))
+    # No modo estrito não fazemos fallback ao texto integral do cartão: se a
+    # estrutura atual não for identificável, a ficha/sitemap confirma o preço.
+    return values
+
+
 scraper.pairs = _pairs_with_linear_fallback
+scraper._card_prices = _contextual_card_prices
 
 # O cérebro base é deliberadamente preservado. As correções entram por camadas
 # pequenas, testáveis e independentes.
