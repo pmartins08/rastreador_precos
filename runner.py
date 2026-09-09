@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import sys
 
+import price_guard as price_guard_module
 import scraper
 from brain_guard import install as install_brain_guard
 from coverage_guard import install as install_coverage_guard
@@ -36,6 +37,16 @@ _LINEAR_LABELS = {
     "bateria": "battery",
     "peso": "weight",
 }
+
+# Algumas lojas oficiais mostram, por obrigação legal, o mínimo dos 30 dias
+# anteriores junto do preço atual. É contexto histórico, nunca preço corrente.
+_OLD_PRICE_MARKERS = (
+    "preco mais baixo praticado nos 30 dias anteriores",
+    "preço mais baixo praticado nos 30 dias anteriores",
+)
+price_guard_module.BAD_PRICE_CONTEXT = tuple(
+    dict.fromkeys((*price_guard_module.BAD_PRICE_CONTEXT, *_OLD_PRICE_MARKERS))
+)
 
 
 def _linear_spec_pairs(soup) -> list[tuple]:
@@ -130,8 +141,7 @@ def _safe_page_price(soup, structured_price: float | None = None) -> float | Non
         "pvpr",
         "preco recomendado",
         "preço recomendado",
-        "preco mais baixo praticado nos 30 dias anteriores",
-        "preço mais baixo praticado nos 30 dias anteriores",
+        *_OLD_PRICE_MARKERS,
     )
     for text_node in soup.find_all(string=lambda value: value and "€" in str(value)):
         raw = str(text_node).strip()
