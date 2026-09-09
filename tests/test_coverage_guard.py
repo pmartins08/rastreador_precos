@@ -30,11 +30,10 @@ class CoverageGuardTests(unittest.TestCase):
         module.discover_sitemap_urls = lambda *args, **kwargs: list(module._sitemap_urls)
         module.discovery_routes = lambda cat, store: [dict(route) for route in module._routes]
         module.bucket = lambda store: {"discovery": module._discovery}
+        module.candidate_priority = lambda item, weights, settings: 50.0
 
         def base_scan(cat, config, settings):
             module._last_scan_cat = dict(cat)
-            # Imita o ponto relevante do scan real: chama a função global já
-            # embrulhada pelo guard e devolve apenas os probes live/itens base.
             urls = (
                 module.discover_sitemap_urls(cat, config, max_urls=80, max_sitemaps=8)
                 if cat.get("sitemap_enabled", True)
@@ -101,6 +100,38 @@ class CoverageGuardTests(unittest.TestCase):
         self.assertEqual(stat["fontes_descoberta"]["sitemap_cache"], 1)
         self.assertEqual(stat["sitemap_urls"], 2)
 
+    def test_sitemap_cache_matches_equivalent_url_without_query(self):
+        now = datetime.now(timezone.utc)
+        historical_url = "https://darty.pt/products/portatil-asus-tuf?variant=123&utm_source=x"
+        sitemap_url = "https://www.darty.pt/products/portatil-asus-tuf"
+        offers = {
+            historical_url: {
+                "timestamp": (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
+                "loja": "Darty",
+                "titulo": "ASUS TUF conhecido",
+                "price": 1099.0,
+                "stock": True,
+                "url": historical_url,
+            }
+        }
+        module = self._module(offers, [sitemap_url])
+        coverage_guard.install(module)
+        items, stat = module.scan_store(
+            {
+                "loja": "Darty",
+                "url": "https://darty.pt/collections/portateis",
+                "sitemap_new_probe_limit": 5,
+                "sitemap_cache_reuse_limit": 10,
+                "sitemap_cache_price_ttl_hours": 7,
+            },
+            {},
+            {"preco_minimo_global": 250, "budget_hard": 1500},
+        )
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["detail_source"], "coverage_cache_seed")
+        self.assertEqual(stat["fontes_descoberta"]["sitemap"], 0)
+        self.assertEqual(stat["fontes_descoberta"]["sitemap_cache"], 1)
+
     def test_stale_sitemap_cache_requires_live_confirmation(self):
         now = datetime.now(timezone.utc)
         url = "https://shop.test/asus-stale.html"
@@ -165,6 +196,16 @@ class CoverageGuardTests(unittest.TestCase):
         self.assertTrue(spec_cache[url]["_coverage_force_live_price"])
         assessment = module.score_allow_unknown(spec_cache[url], 1199.0, {}, {})
         self.assertEqual(assessment["status"], "REJEITADO")
+
+    def test_forced_history_refresh_gets_priority_bonus(self):
+        module = self._module({})
+        coverage_guard.install(module)
+        regular = module.candidate_priority({"preco": 999.0}, {}, {})
+        forced = module.candidate_priority(
+            {"preco": 999.0, "_coverage_force_live_price": True}, {}, {}
+        )
+        self.assertEqual(regular, 50.0)
+        self.assertEqual(forced, 300.0)
 
     def test_fresh_live_spec_removes_fallback_gate(self):
         module = self._module({})
