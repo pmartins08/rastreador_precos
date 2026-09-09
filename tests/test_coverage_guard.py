@@ -14,22 +14,32 @@ class _Scraper:
 
 
 class CoverageGuardTests(unittest.TestCase):
-    def _module(self, offers, sitemap_urls=None, base_items=None):
+    def _module(self, offers, sitemap_urls=None, base_items=None, discovery=None, routes=None):
         module = types.SimpleNamespace()
         module.scraper = _Scraper()
         module._offers = offers
         module._sitemap_urls = list(sitemap_urls or [])
         module._base_items = list(base_items or [])
+        module._discovery = dict(discovery or {})
+        module._routes = list(routes or [])
+        module._last_scan_cat = None
 
         module.load_history = lambda: {"offers": {}}
         module.compact_history = lambda value: value
         module.latest_offer_by_url = lambda _history: dict(module._offers)
         module.discover_sitemap_urls = lambda *args, **kwargs: list(module._sitemap_urls)
+        module.discovery_routes = lambda cat, store: [dict(route) for route in module._routes]
+        module.bucket = lambda store: {"discovery": module._discovery}
 
         def base_scan(cat, config, settings):
+            module._last_scan_cat = dict(cat)
             # Imita o ponto relevante do scan real: chama a função global já
             # embrulhada pelo guard e devolve apenas os probes live/itens base.
-            urls = module.discover_sitemap_urls(cat, config, max_urls=80, max_sitemaps=8)
+            urls = (
+                module.discover_sitemap_urls(cat, config, max_urls=80, max_sitemaps=8)
+                if cat.get("sitemap_enabled", True)
+                else []
+            )
             items = list(module._base_items)
             for url in urls:
                 items.append(
@@ -163,6 +173,61 @@ class CoverageGuardTests(unittest.TestCase):
             {"gpu_tipo": "dedicada", "gpu_modelo": "rtx 5050"}, 1199.0, {}, {}
         )
         self.assertEqual(assessment["status"], "ACEITE")
+
+    def test_zero_yield_route_enters_temporary_cooldown(self):
+        now = datetime.now(timezone.utc)
+        discovery = {
+            "segment:dead": {
+                "attempts": 10,
+                "new_candidates": 0,
+                "last_updated": (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
+            },
+            "segment:good": {
+                "attempts": 10,
+                "new_candidates": 20,
+                "last_updated": (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
+            },
+        }
+        routes = [
+            {"label": "dead", "method_key": "segment:dead", "url": "https://dead"},
+            {"label": "good", "method_key": "segment:good", "url": "https://good"},
+        ]
+        module = self._module({}, discovery=discovery, routes=routes)
+        coverage_guard.install(module)
+        filtered = module.discovery_routes({}, "TEST")
+        self.assertEqual([route["label"] for route in filtered], ["good"])
+
+    def test_zero_yield_route_returns_after_cooldown(self):
+        now = datetime.now(timezone.utc)
+        discovery = {
+            "segment:dead": {
+                "attempts": 10,
+                "new_candidates": 0,
+                "last_updated": (now - timedelta(hours=24)).isoformat().replace("+00:00", "Z"),
+            }
+        }
+        routes = [{"label": "dead", "method_key": "segment:dead", "url": "https://dead"}]
+        module = self._module({}, discovery=discovery, routes=routes)
+        coverage_guard.install(module)
+        self.assertEqual(len(module.discovery_routes({}, "TEST")), 1)
+
+    def test_zero_yield_pagination_is_temporarily_reduced_to_first_page(self):
+        now = datetime.now(timezone.utc)
+        discovery = {
+            "pagination": {
+                "attempts": 20,
+                "new_candidates": 0,
+                "last_updated": (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
+            }
+        }
+        module = self._module({}, discovery=discovery)
+        coverage_guard.install(module)
+        module.scan_store(
+            {"loja": "CHIP7", "url": "https://shop.test/laptops", "max_category_pages": 4},
+            {},
+            {"preco_minimo_global": 250, "budget_hard": 1500},
+        )
+        self.assertEqual(module._last_scan_cat["max_category_pages"], 1)
 
 
 if __name__ == "__main__":
