@@ -63,13 +63,17 @@ def _contains_alias(text: str, alias: str) -> bool:
 
 
 def identify_igpu(text: object, scraper_module=None) -> str | None:
+    # NFKD decompõe ™ em "TM" (ex.: Arc™ -> ArcTM), o que destrói o token
+    # "arc" usado nas aliases. Removemos marcas comerciais antes de qualquer
+    # normalização para preservar apenas o nome técnico relevante.
+    raw = re.sub(r"[™®©℠]", " ", str(text or ""))
     normalized = (
-        scraper_module.norm(text)
+        scraper_module.norm(raw)
         if scraper_module is not None
-        else re.sub(r"\s+", " ", str(text or "").lower()).strip()
+        else re.sub(r"\s+", " ", raw.lower()).strip()
     )
-    # Retailers usam símbolos de marca e pontuação no meio do nome (Arc™/Radeon®).
-    # Para matching de modelo só nos interessa a sequência alfanumérica.
+    # Retailers usam ainda pontuação no meio do nome. Para matching do modelo
+    # só nos interessa a sequência alfanumérica.
     normalized = re.sub(r"[^a-z0-9]+", " ", normalized).strip()
     for model, aliases in IGPU_ALIASES.items():
         if any(_contains_alias(normalized, alias) for alias in aliases):
