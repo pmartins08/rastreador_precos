@@ -97,7 +97,8 @@ def _contextual_card_prices(card, cat: dict) -> list[float]:
 
     Nas restantes lojas preserva exatamente o parser V8 existente.
     """
-    if not cat.get("strict_current_price_context"):
+    strict = bool(cat.get("strict_current_price_context")) or cat.get("loja") == "ASUS Store"
+    if not strict:
         return _BASE_CARD_PRICES(card, cat)
 
     values: list[float] = []
