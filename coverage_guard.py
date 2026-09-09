@@ -15,6 +15,28 @@ def _timestamp_age_hours(value: Any, now: datetime | None = None) -> float | Non
         return None
 
 
+def _zero_yield_cooldown(
+    stats: dict | None,
+    *,
+    minimum_attempts: int = 6,
+    cooldown_hours: float = 18.0,
+    now: datetime | None = None,
+) -> bool:
+    """Suspende temporariamente uma rota comprovadamente improdutiva.
+
+    O timestamp não é atualizado enquanto a rota está suspensa, por isso ela volta
+    automaticamente a ser explorada quando o cooldown termina. Nunca é um ban.
+    """
+    if not isinstance(stats, dict):
+        return False
+    if int(stats.get("attempts", 0)) < minimum_attempts:
+        return False
+    if int(stats.get("new_candidates", 0)) > 0:
+        return False
+    age = _timestamp_age_hours(stats.get("last_updated"), now=now)
+    return age is not None and age < cooldown_hours
+
+
 def _cached_candidate(previous: dict, store: str, *, force_live_price: bool) -> dict | None:
     if not isinstance(previous, dict):
         return None
@@ -54,6 +76,8 @@ def install(tracker_module) -> None:
       histórico pode regressar como lead, mas fica marcada para confirmação live.
     - Um lead marcado para confirmação live nunca pode entrar no ranking usando a
       spec cached se a confirmação não acontecer.
+    - Rotas/paginações que provaram repetidamente yield zero entram em cooldown e
+      são reabertas automaticamente mais tarde para testar recuperação.
 
     Esta camada não altera cérebro, Value, tiers, Price Guard, Market Guard ou ntfy.
     """
@@ -61,7 +85,7 @@ def install(tracker_module) -> None:
         return
 
     base_scan_store = tracker_module.scan_store
-    base_discover_sitemap_urls = tracker_module.discover_sitemap_urls
+    base_discovery_routes = tracker_module.discovery_routes
     base_needs_price_refresh = tracker_module.needs_price_refresh
     base_select_with_cache = tracker_module.select_with_cache
     base_score_allow_unknown = tracker_module.score_allow_unknown
@@ -87,11 +111,52 @@ def install(tracker_module) -> None:
         hard = float(settings.get("budget_hard", 1500.0))
         return minimum <= price <= hard and tracker_module.scraper.eligible(previous.get("titulo", ""))
 
+    def discovery_routes(cat: dict, store: str) -> list[dict]:
+        routes = base_discovery_routes(cat, store)
+        discovery = tracker_module.bucket(store).get("discovery", {})
+        cooldown = float(cat.get("zero_yield_route_cooldown_hours", 18.0))
+        minimum = int(cat.get("zero_yield_route_min_attempts", 6))
+        return [
+            route
+            for route in routes
+            if not _zero_yield_cooldown(
+                discovery.get(route.get("method_key")),
+                minimum_attempts=minimum,
+                cooldown_hours=cooldown,
+            )
+        ]
+
     def scan_store(cat: dict, config: dict, settings: dict):
         store = str(cat["loja"])
         known = offer_cache()
         captured_sitemap_urls: list[str] = []
         current_discover = tracker_module.discover_sitemap_urls
+        discovery = tracker_module.bucket(store).get("discovery", {})
+
+        # Paginação com zero yield persistente descansa; após o cooldown, o próprio
+        # timestamp antigo permite que seja testada novamente.
+        effective_cat = dict(cat)
+        cooldown = float(cat.get("zero_yield_route_cooldown_hours", 18.0))
+        minimum = int(cat.get("zero_yield_route_min_attempts", 6))
+        if _zero_yield_cooldown(
+            discovery.get("pagination"),
+            minimum_attempts=minimum,
+            cooldown_hours=cooldown,
+        ):
+            effective_cat["max_category_pages"] = 1
+
+        known_for_store = any(
+            valid_previous(previous, store, settings) for previous in known.values()
+        )
+        if (
+            not known_for_store
+            and _zero_yield_cooldown(
+                discovery.get("sitemap"),
+                minimum_attempts=minimum,
+                cooldown_hours=cooldown,
+            )
+        ):
+            effective_cat["sitemap_enabled"] = False
 
         # A função base continua a descobrir o sitemap normalmente. Apenas evitamos
         # que volte a abrir, durante a descoberta, todas as URLs que já conhecemos.
@@ -99,12 +164,20 @@ def install(tracker_module) -> None:
             urls = list(current_discover(*args, **kwargs))
             captured_sitemap_urls[:] = urls
             novel = [url for url in urls if not valid_previous(known.get(url), store, settings)]
-            limit = max(0, int(cat.get("sitemap_new_probe_limit", cat.get("sitemap_probe_limit", 6))))
+            limit = max(
+                0,
+                int(
+                    effective_cat.get(
+                        "sitemap_new_probe_limit",
+                        effective_cat.get("sitemap_probe_limit", 6),
+                    )
+                ),
+            )
             return novel[:limit]
 
         tracker_module.discover_sitemap_urls = discover_sitemap_urls
         try:
-            items, stat = base_scan_store(cat, config, settings)
+            items, stat = base_scan_store(effective_cat, config, settings)
         finally:
             tracker_module.discover_sitemap_urls = current_discover
 
@@ -193,6 +266,7 @@ def install(tracker_module) -> None:
             }
         return base_score_allow_unknown(spec, price, weights, settings)
 
+    tracker_module.discovery_routes = discovery_routes
     tracker_module.scan_store = scan_store
     tracker_module.needs_price_refresh = needs_price_refresh
     tracker_module.select_with_cache = select_with_cache
