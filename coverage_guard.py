@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 
 def _timestamp_age_hours(value: Any, now: datetime | None = None) -> float | None:
@@ -13,6 +14,24 @@ def _timestamp_age_hours(value: Any, now: datetime | None = None) -> float | Non
         return max(0.0, (current - stamp).total_seconds() / 3600.0)
     except (TypeError, ValueError):
         return None
+
+
+def _canonical_url(value: object) -> str:
+    """Identidade de URL para cache de cobertura, ignorando tracking/query.
+
+    Não é identidade de produto para matching. Serve apenas para perceber que
+    `produto?utm=x` e `produto` são a mesma ficha pública dentro da mesma loja.
+    """
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        parsed = urlparse(raw)
+    except ValueError:
+        return raw.rstrip("/")
+    host = parsed.netloc.lower().removeprefix("www.")
+    path = parsed.path.rstrip("/") or "/"
+    return f"{host}{path}"
 
 
 def _zero_yield_cooldown(
@@ -71,9 +90,12 @@ def install(tracker_module) -> None:
     Regras:
     - URLs que continuam presentes no sitemap e já são conhecidas podem reutilizar
       o último preço por uma janela curta, evitando reabrir dezenas de fichas.
+    - URLs equivalentes que diferem apenas em query/tracking partilham o mesmo cache.
     - URLs novas continuam a receber probes live, mas com limite próprio.
     - Se uma loja conhecida colapsar para zero candidatos, uma pequena amostra do
       histórico pode regressar como lead, mas fica marcada para confirmação live.
+    - Leads de fallback que exigem confirmação recebem prioridade nos slots de
+      refresh para não ficarem eternamente em cache/rejeição.
     - Um lead marcado para confirmação live nunca pode entrar no ranking usando a
       spec cached se a confirmação não acontecer.
     - Rotas/paginações que provaram repetidamente yield zero entram em cooldown e
@@ -89,14 +111,30 @@ def install(tracker_module) -> None:
     base_needs_price_refresh = tracker_module.needs_price_refresh
     base_select_with_cache = tracker_module.select_with_cache
     base_score_allow_unknown = tracker_module.score_allow_unknown
+    base_candidate_priority = tracker_module.candidate_priority
 
     cache_holder: dict[str, dict] = {}
+    canonical_holder: dict[str, dict] = {}
 
     def offer_cache() -> dict[str, dict]:
         if not cache_holder:
             history = tracker_module.compact_history(tracker_module.load_history())
             cache_holder.update(tracker_module.latest_offer_by_url(history))
+            for previous in cache_holder.values():
+                key = _canonical_url(previous.get("url"))
+                if not key:
+                    continue
+                current = canonical_holder.get(key)
+                if current is None or str(previous.get("timestamp") or "") >= str(
+                    current.get("timestamp") or ""
+                ):
+                    canonical_holder[key] = previous
         return cache_holder
+
+    def previous_for_url(url: object) -> dict | None:
+        known = offer_cache()
+        raw = str(url or "")
+        return known.get(raw) or canonical_holder.get(_canonical_url(raw))
 
     def valid_previous(previous: dict | None, store: str, settings: dict) -> bool:
         if not isinstance(previous, dict) or previous.get("loja") != store:
@@ -163,7 +201,11 @@ def install(tracker_module) -> None:
         def discover_sitemap_urls(*args, **kwargs):
             urls = list(current_discover(*args, **kwargs))
             captured_sitemap_urls[:] = urls
-            novel = [url for url in urls if not valid_previous(known.get(url), store, settings)]
+            novel = [
+                url
+                for url in urls
+                if not valid_previous(previous_for_url(url), store, settings)
+            ]
             limit = max(
                 0,
                 int(
@@ -182,6 +224,7 @@ def install(tracker_module) -> None:
             tracker_module.discover_sitemap_urls = current_discover
 
         urls_in_result = {str(item.get("url")) for item in items if item.get("url")}
+        canonical_in_result = {_canonical_url(url) for url in urls_in_result if url}
         stat.setdefault("fontes_descoberta", {}).setdefault("sitemap_cache", 0)
         stat["fontes_descoberta"].setdefault("historico", 0)
         stat["sitemap_urls"] = max(int(stat.get("sitemap_urls", 0)), len(captured_sitemap_urls))
@@ -190,9 +233,10 @@ def install(tracker_module) -> None:
         cache_limit = max(0, int(cat.get("sitemap_cache_reuse_limit", 24)))
         reused = 0
         for url in captured_sitemap_urls:
-            if reused >= cache_limit or url in urls_in_result:
+            canonical = _canonical_url(url)
+            if reused >= cache_limit or canonical in canonical_in_result:
                 continue
-            previous = known.get(url)
+            previous = previous_for_url(url)
             if not valid_previous(previous, store, settings):
                 continue
             age = _timestamp_age_hours(previous.get("timestamp"))
@@ -202,7 +246,8 @@ def install(tracker_module) -> None:
                 continue
             candidate["discovery_sources"] = ["sitemap_cache"]
             items.append(candidate)
-            urls_in_result.add(url)
+            urls_in_result.add(candidate["url"])
+            canonical_in_result.add(_canonical_url(candidate["url"]))
             reused += 1
             stat["fontes_descoberta"]["sitemap_cache"] += 1
 
@@ -217,7 +262,7 @@ def install(tracker_module) -> None:
                 if not valid_previous(previous, store, settings):
                     continue
                 url = str(previous.get("url") or "")
-                if not url or url in urls_in_result:
+                if not url or _canonical_url(url) in canonical_in_result:
                     continue
                 age = _timestamp_age_hours(previous.get("timestamp"))
                 if age is None or age > fallback_max_age:
@@ -230,6 +275,7 @@ def install(tracker_module) -> None:
                 candidate["discovery_sources"] = ["historico"]
                 items.append(candidate)
                 urls_in_result.add(candidate["url"])
+                canonical_in_result.add(_canonical_url(candidate["url"]))
                 stat["fontes_descoberta"]["historico"] += 1
 
         stat["coverage_cache_reused"] = reused
@@ -242,6 +288,12 @@ def install(tracker_module) -> None:
         if item.get("_coverage_force_live_price"):
             return True
         return base_needs_price_refresh(previous_meta, item, settings, **kwargs)
+
+    def candidate_priority(item, weights, settings):
+        score = float(base_candidate_priority(item, weights, settings))
+        if item.get("_coverage_force_live_price"):
+            score += float(settings.get("coverage_force_refresh_priority_bonus", 250.0))
+        return score
 
     def select_with_cache(items, spec_cache, max_items, weights, settings):
         # Se um lead só existe por fallback histórico, a spec cached recebe um
@@ -269,6 +321,7 @@ def install(tracker_module) -> None:
     tracker_module.discovery_routes = discovery_routes
     tracker_module.scan_store = scan_store
     tracker_module.needs_price_refresh = needs_price_refresh
+    tracker_module.candidate_priority = candidate_priority
     tracker_module.select_with_cache = select_with_cache
     tracker_module.score_allow_unknown = score_allow_unknown
     tracker_module._COVERAGE_GUARD_INSTALLED = True
