@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from version import STATE_EPOCH, VERSION
 
@@ -13,7 +12,8 @@ TOP5_PATH = BASE / "data" / "top5_current.json"
 SCHEMA_VERSION = 1
 
 
-def _load(path: Path = TOP5_PATH) -> dict:
+def _load(path: Path | None = None) -> dict:
+    path = path or TOP5_PATH
     try:
         value = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
         return value if isinstance(value, dict) else {}
@@ -21,7 +21,8 @@ def _load(path: Path = TOP5_PATH) -> dict:
         return {}
 
 
-def _save(value: dict, path: Path = TOP5_PATH) -> None:
+def _save(value: dict, path: Path | None = None) -> None:
+    path = path or TOP5_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
