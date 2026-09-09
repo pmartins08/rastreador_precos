@@ -105,14 +105,12 @@ def _enhanced_page_identifiers(soup) -> dict:
 
 tracker.page_identifiers = _enhanced_page_identifiers
 
-# Camadas operacionais: versão pública, descoberta promocional, mercado, gate de
-# GPU e histórico. O Market Guard é instalado antes do GPU Guard de propósito:
-# a GPU fica como camada externa e confirma a spec definitiva antes de mercado/
-# scoring, sem contornar os vetos e quarentenas de preço do Market Guard.
+# Camadas operacionais: versão pública, descoberta promocional, gate de GPU,
+# contexto de mercado e histórico. Nenhuma delas substitui o cérebro V8.
 install_version_guard(tracker)
 install_promotion_guard(tracker)
-install_market_guard(scraper, tracker)
 install_gpu_guard(scraper, tracker)
+install_market_guard(scraper, tracker)
 install_historical_guard(tracker)
 
 
