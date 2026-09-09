@@ -3,13 +3,17 @@ from __future__ import annotations
 import re
 import sys
 
+import price_guard as price_guard_module
 import scraper
 from brain_guard import install as install_brain_guard
+from coverage_guard import install as install_coverage_guard
 from gpu_guard import install as install_gpu_guard
 from historical_guard import install as install_historical_guard
 from market_guard import install as install_market_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_guard import install as install_promotion_guard
+from state_refresh_guard import install as install_state_refresh_guard
+from top5_guard import install as install_top5_guard
 from version import VERSION
 from version_guard import install as install_version_guard
 
@@ -19,6 +23,7 @@ from version_guard import install as install_version_guard
 # ---------------------------------------------------------------------------
 
 _BASE_PAIRS = scraper.pairs
+_BASE_CARD_PRICES = scraper._card_prices
 
 _LINEAR_LABELS = {
     "refresh rate": "refresh",
@@ -35,6 +40,25 @@ _LINEAR_LABELS = {
     "bateria": "battery",
     "peso": "weight",
 }
+
+# Algumas lojas oficiais mostram, por obrigação legal, o mínimo dos 30 dias
+# anteriores junto do preço atual. É contexto histórico, nunca preço corrente.
+_OLD_PRICE_MARKERS = (
+    "preco mais baixo praticado nos 30 dias anteriores",
+    "preço mais baixo praticado nos 30 dias anteriores",
+)
+_CARD_BAD_PRICE_MARKERS = (
+    "old-price",
+    "oldprice",
+    "regular price",
+    "preco anterior",
+    "preço anterior",
+    "pvpr",
+    *_OLD_PRICE_MARKERS,
+)
+price_guard_module.BAD_PRICE_CONTEXT = tuple(
+    dict.fromkeys((*price_guard_module.BAD_PRICE_CONTEXT, *_OLD_PRICE_MARKERS))
+)
 
 
 def _linear_spec_pairs(soup) -> list[tuple]:
@@ -70,7 +94,60 @@ def _pairs_with_linear_fallback(soup) -> list[tuple]:
     return [*_BASE_PAIRS(soup), *_linear_spec_pairs(soup)]
 
 
+def _contextual_card_prices(card, cat: dict) -> list[float]:
+    """Em lojas oficiais estritas, ignora preço antigo/histórico no cartão.
+
+    Nas restantes lojas preserva exatamente o parser V8 existente.
+    """
+    strict = bool(cat.get("strict_current_price_context")) or cat.get("loja") == "ASUS Store"
+    if not strict:
+        return _BASE_CARD_PRICES(card, cat)
+
+    values: list[float] = []
+    selectors = cat.get("price_selectors", []) + [
+        "[itemprop='price']",
+        "[data-price]",
+        "[class*='price']",
+        "[class*='Price']",
+    ]
+    seen_nodes: set[int] = set()
+    for selector in selectors:
+        for node in card.select(selector):
+            if id(node) in seen_nodes:
+                continue
+            seen_nodes.add(id(node))
+            raw = node.get("content") or node.get("data-price") or node.get_text(" ", strip=True)
+            previous = str(node.previous_sibling or "")[-140:]
+            parent = getattr(node, "parent", None)
+            parent_class = " ".join(parent.get("class", [])) if parent is not None else ""
+            context = scraper.norm(
+                f"{' '.join(node.get('class', []))} {node.get('id') or ''} "
+                f"{parent_class} {previous} {raw}"
+            )
+            if any(
+                marker in context
+                for marker in (
+                    "month",
+                    "mensal",
+                    "prestacao",
+                    "/ mes",
+                    "/mes",
+                    "por mes",
+                    *_CARD_BAD_PRICE_MARKERS,
+                )
+            ):
+                continue
+            direct = scraper.parse_price_value(raw)
+            if direct is not None:
+                values.append(float(direct))
+            values.extend(float(value) for value in scraper.prices(str(raw)))
+    # No modo estrito não fazemos fallback ao texto integral do cartão: se a
+    # estrutura atual não for identificável, a ficha/sitemap confirma o preço.
+    return values
+
+
 scraper.pairs = _pairs_with_linear_fallback
+scraper._card_prices = _contextual_card_prices
 
 # O cérebro base é deliberadamente preservado. As correções entram por camadas
 # pequenas, testáveis e independentes.
@@ -105,13 +182,16 @@ def _enhanced_page_identifiers(soup) -> dict:
 
 tracker.page_identifiers = _enhanced_page_identifiers
 
-# Camadas operacionais: versão pública, descoberta promocional, gate de GPU,
-# contexto de mercado e histórico. Nenhuma delas substitui o cérebro V8.
+# Ordem do main: Top5 -> State Refresh -> Historical -> tracker base.
+# Coverage atua apenas no I/O/cache e não altera o cérebro.
 install_version_guard(tracker)
 install_promotion_guard(tracker)
 install_gpu_guard(scraper, tracker)
 install_market_guard(scraper, tracker)
 install_historical_guard(tracker)
+install_state_refresh_guard(tracker)
+install_coverage_guard(tracker)
+install_top5_guard(tracker)
 
 
 def _safe_page_price(soup, structured_price: float | None = None) -> float | None:
@@ -123,7 +203,12 @@ def _safe_page_price(soup, structured_price: float | None = None) -> float | Non
     if structured_price is not None and 200 <= float(structured_price) <= 10000:
         return float(structured_price)
 
-    bad = tuple(BAD_PRICE_CONTEXT) + ("pvpr", "preco recomendado", "preço recomendado")
+    bad = tuple(BAD_PRICE_CONTEXT) + (
+        "pvpr",
+        "preco recomendado",
+        "preço recomendado",
+        *_OLD_PRICE_MARKERS,
+    )
     for text_node in soup.find_all(string=lambda value: value and "€" in str(value)):
         raw = str(text_node).strip()
         if not raw or raw.lstrip().startswith("-"):
@@ -131,7 +216,7 @@ def _safe_page_price(soup, structured_price: float | None = None) -> float | Non
         parent = getattr(text_node, "parent", None)
         class_text = " ".join(parent.get("class", [])) if parent is not None else ""
         id_text = str(parent.get("id") or "") if parent is not None else ""
-        previous = str(text_node.previous_sibling or "")[-60:]
+        previous = str(text_node.previous_sibling or "")[-100:]
         context = scraper.norm(f"{class_text} {id_text} {previous} {raw}")
         if any(marker in context for marker in bad):
             continue

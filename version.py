@@ -1,10 +1,12 @@
-"""Metadados públicos de versão e compatibilidade de estado.
+"""Metadados públicos de versão, compatibilidade e época de estado.
 
-`VERSION` é a única versão exposta pelo runtime e workflows. A lista de estados
-compatíveis fica no mesmo módulo para evitar lógica de compatibilidade dispersa.
+`VERSION` é a única versão exposta pelo runtime e workflows. `STATE_EPOCH`
+identifica a geração do estado persistente; quando muda, o runtime faz uma
+migração/refresh controlado sem perder a aprendizagem de acesso às lojas.
 """
 
-VERSION = "8.8.7"
+VERSION = "8.8.8"
+STATE_EPOCH = "8.8.8-refresh-1"
 
 COMPATIBLE_STATE_VERSIONS = frozenset(
     {
@@ -21,5 +23,6 @@ COMPATIBLE_STATE_VERSIONS = frozenset(
         "8.8.5",
         "8.8.6",
         "8.8.7",
+        "8.8.8",
     }
 )

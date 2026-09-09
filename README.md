@@ -1,4 +1,4 @@
-# Rastreador de Preços — V8.8.7
+# Rastreador de Preços — V8.8.8
 
 Sistema de inteligência de mercado para portáteis em Portugal. O projeto descobre ofertas em várias lojas, extrai hardware, calcula adequação para **FEUP + gaming**, valida preços, compara configurações entre lojas, mantém histórico e envia oportunidades por **ntfy**.
 
@@ -6,13 +6,13 @@ A linha V8.x está focada em maturação e fiabilidade. V9/V10 são nomes provis
 
 ## Estado atual
 
-- versão pública: **8.8.7**;
+- versão pública: **8.8.8**;
 - marcas aceites: **ASUS, Lenovo e HP** e respetivas famílias configuradas;
 - lojas monitorizadas: **PCDiga, PcComponentes, Globaldata, Radio Popular, Darty, CHIP7, FNAC e Worten**;
 - apenas equipamento novo; usados, recondicionados e outlet são excluídos;
 - orçamento normal: até **1500 €**, com `budget_soft` em **1300 €**;
 - execução automática a cada **6 horas** no GitHub Actions;
-- notificações de oportunidade e heartbeat por **ntfy**.
+- notificações de oportunidade, heartbeat e snapshot Top 5 por **ntfy**.
 
 ## Como o sistema decide
 
@@ -42,7 +42,7 @@ Ouro e Diamante exigem informação de GPU suficiente para justificar um selo pr
 - iGPU genérica → máximo Prata;
 - GPU desconhecida → máximo Prata.
 
-A V8.8.7 acrescenta classes conservadoras para **Intel Arc Graphics 140V/130V** e **Radeon 890M/880M/860M/780M/760M/680M**. A calibração está documentada em [`docs/GPU_CALIBRATION.md`](docs/GPU_CALIBRATION.md).
+A linha V8.8.7+ reconhece classes conservadoras para **Intel Arc Graphics 140V/130V** e **Radeon 890M/880M/860M/780M/760M/680M**. A calibração está documentada em [`docs/GPU_CALIBRATION.md`](docs/GPU_CALIBRATION.md).
 
 O `value_score` bruto é preservado quando o GPU Guard limita o tier. Assim, falta de confiança na GPU não apaga uma potencial oportunidade; apenas impede um selo premium injustificado.
 
@@ -57,6 +57,49 @@ Estados principais:
 - `PRICE_CONFLICT` — catálogo, ficha ou mercado entram em conflito;
 - quarentena — não entra em tiers nem gera alerta de oportunidade.
 
+### Coverage Guard — V8.8.8
+
+A V8.8.8 acrescenta uma camada operacional separada do cérebro:
+
+- reduz probes repetidos e reaproveita cache quando seguro;
+- rotas com zero yield persistente entram em cooldown temporário, nunca em ban permanente;
+- uma loja que colapse pode recuperar uma pequena amostra de leads históricos;
+- esses leads **não podem entrar no ranking sem confirmação live**;
+- leads que precisam de refresh recebem prioridade suficiente para não morrerem atrás de dezenas de itens cached.
+
+Isto foi particularmente importante para a PCDiga: no smoke de release foram recuperados 6 leads, reabertos live e os 6 foram aceites.
+
+### Estado limpo e epoch — V8.8.8
+
+A V8.8.8 introduz um novo `state_epoch` para separar o estado atual de análises de versões antigas.
+
+No primeiro refresh V8.8.8:
+
+1. o estado anterior pode ajudar apenas como bootstrap transitório de cache/specs;
+2. os produtos são avaliados com a V8.8.8;
+3. análises antigas deixam de ser persistidas;
+4. `price_history.json` é reiniciado no novo epoch;
+5. `access_learning.json` é preservado porque contém aprendizagem de acesso às lojas, não avaliações de portáteis.
+
+O merge concorrente do GitHub Actions respeita o epoch e não pode voltar a reintroduzir estado antigo depois do refresh.
+
+### Top 5 atual
+
+A V8.8.8 passa a gerar `data/top5_current.json`.
+
+Este ficheiro **não representa simplesmente o Top 5 de uma única run**. Agrega observações V8.8.8 ainda frescas do mercado conhecido, remove duplicados da mesma configuração e escolhe a melhor oferta atual conhecida para cada configuração.
+
+Cada posição inclui, quando disponível:
+
+- portátil/configuração;
+- loja e preço;
+- Value, ranking e tier;
+- CPU, GPU, RAM e SSD;
+- EAN/MPN;
+- URL e timestamp da observação.
+
+A release V8.8.8 inclui uma campanha ntfy one-shot que envia as cinco posições atuais separadamente, com proteção contra reenvio em caso de retry parcial.
+
 ### Teclado
 
 Um layout explicitamente não português é rejeitado pelo cérebro. Quando o layout não é identificável, o sistema continua a tentar obter evidência da ficha; a confirmação de teclado PT permanece uma área de qualidade de dados a reforçar antes da linha V9.
@@ -66,7 +109,7 @@ Um layout explicitamente não português é rejeitado pelo cérebro. Quando o la
 ```text
 lojas / campanhas / sitemap
           ↓
-descoberta adaptativa
+descoberta adaptativa + Coverage Guard
           ↓
 extração de ficha + identidade
           ↓
@@ -78,6 +121,8 @@ Value + tier
           ↓
 matching cross-store + histórico
           ↓
+state epoch + Top 5 atual
+          ↓
 ntfy + persistência de estado
 ```
 
@@ -86,17 +131,20 @@ ntfy + persistência de estado
 ## Estrutura do repositório
 
 ```text
-version.py                 versão pública + compatibilidade de estado
+version.py                 versão pública + compatibilidade + state epoch
 scraper.py                 parsing de hardware + cérebro técnico V8
 tracker.py                 descoberta, acesso, cache, matching, estado e ntfy
 runner.py                  composição das camadas do runtime
 
 brain_guard.py             correções técnicas comprovadas
- gpu_guard.py              confiança e calibração de GPU/iGPU
+gpu_guard.py               confiança e calibração de GPU/iGPU
 price_guard.py             validação de preço e quarentena
 market_guard.py            consenso/desacordo cross-store
 promotion_guard.py         campanhas e prioridade de descoberta
 historical_guard.py        histórico compacto de preços
+coverage_guard.py          resiliência de descoberta/cache/refetch
+state_refresh_guard.py     refresh e fronteira entre gerações de estado
+top5_guard.py              snapshot Top 5 atual + campanha one-shot
 version_guard.py           compatibilidade com labels do tracker base
 
 config/config.json         lojas, budgets, tiers e pesos
@@ -108,13 +156,30 @@ docs/                      arquitetura, operação, calibrações e roadmap
 
 ## Estado persistente
 
-Os três ficheiros em `data/` fazem parte do produto e são atualizados pelo workflow:
+Os ficheiros de estado principais são atualizados pelo workflow:
 
 - `history.json` — ofertas, specs, tiers, alertas e métricas recentes;
 - `access_learning.json` — aprendizagem por loja/método/perfil;
-- `price_history.json` — histórico diário compacto de preços.
+- `price_history.json` — histórico diário compacto de preços;
+- `top5_current.json` — Top 5 atual agregado por configuração.
 
 Não devem ser editados manualmente. Mais detalhes em [`data/README.md`](data/README.md).
+
+## Validação V8.8.8
+
+Smoke de release concluído com sucesso:
+
+- **128 testes**;
+- **8 lojas** monitorizadas;
+- **166 candidatos** descobertos e avaliados;
+- **120 aceites**;
+- **101 requests**;
+- **60 detail fetches**;
+- **106 reutilizações de cache**;
+- **4 grupos cross-store exatos**;
+- **Top 5 atual com 5 posições**.
+
+A Darty continua funcional via sitemap, mas com cobertura abaixo do melhor histórico recente; PcComponentes, CHIP7 e Worten continuam entre as principais frentes de cobertura para a aproximação à V9.
 
 ## Desenvolvimento local
 
@@ -154,4 +219,4 @@ python runner.py
 
 ## Próxima etapa
 
-Antes de promover o projeto para V9/V10, o objetivo é consolidar cobertura real das lojas, qualidade de dados de teclado/GPU, matching cross-store, observabilidade e histórico suficiente para comparar versões com métricas reais. A arquitetura detalhada e os critérios estão no roadmap.
+Antes de promover o projeto para V9, o objetivo é consolidar cobertura real das 8 lojas, sobretudo PcComponentes, CHIP7, Worten e cobertura Darty, continuar a enriquecer identidade EAN/MPN e tornar o matching cross-store suficientemente maduro para comparação automática de mercado com confiança consistente.
