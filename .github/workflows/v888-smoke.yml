@@ -1,0 +1,38 @@
+name: Smoke V8.8.8 Coverage
+
+on:
+  push:
+    branches: [feature/v8.8.8-coverage-resilience-official]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-v888-coverage
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: python -m pip install -r requirements.txt
+      - name: Validar e executar sem NTFY/persistência
+        env:
+          NTFY_TOPIC: ''
+          RUN_MAX_MINUTES: '8'
+          RUN_MAX_REQUESTS: '300'
+          RUN_MAX_REQUESTS_PER_STORE: '60'
+          RUN_MAX_DETAIL_FETCHES: '90'
+          LOG_LEVEL: INFO
+          PYTHONUNBUFFERED: '1'
+        run: |
+          python -m compileall -q .
+          python -m json.tool config/config.json > /dev/null
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python runner.py
