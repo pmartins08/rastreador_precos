@@ -12,6 +12,8 @@ from historical_guard import install as install_historical_guard
 from market_guard import install as install_market_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_guard import install as install_promotion_guard
+from state_refresh_guard import install as install_state_refresh_guard
+from top5_guard import install as install_top5_guard
 from version import VERSION
 from version_guard import install as install_version_guard
 
@@ -180,15 +182,16 @@ def _enhanced_page_identifiers(soup) -> dict:
 
 tracker.page_identifiers = _enhanced_page_identifiers
 
-# Camadas operacionais: versão pública, descoberta promocional, gate de GPU,
-# contexto de mercado, histórico e resiliência de cobertura. Nenhuma substitui
-# o cérebro V8; Coverage Guard é a última camada por atuar apenas no I/O/cache.
+# Ordem do main: Top5 -> State Refresh -> Historical -> tracker base.
+# Coverage atua apenas no I/O/cache e não altera o cérebro.
 install_version_guard(tracker)
 install_promotion_guard(tracker)
 install_gpu_guard(scraper, tracker)
 install_market_guard(scraper, tracker)
 install_historical_guard(tracker)
+install_state_refresh_guard(tracker)
 install_coverage_guard(tracker)
+install_top5_guard(tracker)
 
 
 def _safe_page_price(soup, structured_price: float | None = None) -> float | None:
