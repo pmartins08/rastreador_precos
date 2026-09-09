@@ -2,6 +2,24 @@
 
 Este ficheiro resume alterações de produto e arquitetura relevantes. O detalhe histórico continua preservado no Git, nas validações e nas métricas das runs.
 
+## 8.8.8 — Coverage resilience, state refresh & current Top 5
+
+- `coverage_guard.py` reduz I/O repetido, coloca rotas improdutivas em cooldown temporário e permite fallback histórico apenas como lead sujeito a confirmação live.
+- PCDiga passa a recuperar uma pequena amostra de ofertas conhecidas quando a descoberta pública colapsa; no smoke de release os 6 leads recuperados foram reabertos live e os 6 foram aceites.
+- URLs equivalentes de sitemap/cache deixam de depender de igualdade textual estrita, reduzindo duplicação e desperdício de requests.
+- A ASUS Store deixa de fazer parte do scan ativo: mantém-se como fonte oficial útil para enriquecimento futuro, mas não conta como 9.ª loja enquanto não tiver descoberta pública estável e produtiva.
+- Darty mantém descoberta live via sitemap; cobertura abaixo do histórico recente permanece uma limitação conhecida para refinamento pós-release.
+- `state_refresh_guard.py` introduz um `state_epoch` para impedir que merges concorrentes reintroduzam análises de versões anteriores depois do refresh V8.8.8.
+- No primeiro refresh V8.8.8, o histórico antigo pode servir apenas como bootstrap transitório de cache/specs; no estado persistente ficam apenas observações recalculadas pela V8.8.8.
+- `price_history.json` é reiniciado no novo epoch para evitar séries históricas cuja origem/versionamento não era suficientemente auditável.
+- `access_learning.json` é preservado porque contém aprendizagem operacional de acesso/descoberta e não avaliações de portáteis.
+- `top5_guard.py` passa a persistir `data/top5_current.json`: Top 5 agregado do estado atual do mercado conhecido, não simplesmente Top 5 da última run.
+- Configurações iguais são deduplicadas no Top 5 e representadas pela melhor oferta atual conhecida.
+- A release inclui uma campanha ntfy one-shot que envia uma notificação separada para cada posição do Top 5 atual, com proteção contra reenvio de itens já enviados.
+- Durante o refresh inicial, alertas normais de oportunidade podem ser silenciados para evitar duplicados enquanto a campanha Top 5 é emitida.
+- O workflow de estado passa a persistir também `data/top5_current.json` e respeita o novo epoch durante merges concorrentes.
+- Smoke de release: 128 testes, 166 candidatos, 166 avaliados, 120 aceites, 101 requests, 60 detalhe, 106 cache, 8 lojas, 4 grupos cross-store exatos e Top 5 construído com 5 posições.
+
 ## 8.8.7 — iGPU Intelligence
 
 - GPU Guard passa a reconhecer modelos integrados explícitos em vez de reduzir todas as iGPUs ao fallback genérico de 15 pontos.
