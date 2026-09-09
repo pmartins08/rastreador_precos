@@ -210,7 +210,9 @@ def install(scraper_module, tracker_module) -> None:
 
     base_gpus = scraper_module.gpus
     base_select_with_cache = tracker_module.select_with_cache
-    base_apply_market_evidence = tracker_module.apply_exact_market_price_evidence
+    base_apply_market_evidence = getattr(
+        tracker_module, "apply_exact_market_price_evidence", None
+    )
     base_score_allow_unknown = tracker_module.score_allow_unknown
     base_tier_from_value = scraper_module.tier_from_value
 
@@ -275,7 +277,8 @@ def install(scraper_module, tracker_module) -> None:
         return tier
 
     tracker_module.select_with_cache = select_with_cache
-    tracker_module.apply_exact_market_price_evidence = apply_market_evidence
+    if callable(base_apply_market_evidence):
+        tracker_module.apply_exact_market_price_evidence = apply_market_evidence
     tracker_module.score_allow_unknown = score_allow_unknown
     scraper_module.tier_from_value = tier_from_value
     tracker_module._GPU_GUARD_INSTALLED = True
