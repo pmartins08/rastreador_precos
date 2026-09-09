@@ -4,7 +4,7 @@
 compatíveis fica no mesmo módulo para evitar lógica de compatibilidade dispersa.
 """
 
-VERSION = "8.8.7"
+VERSION = "8.8.8"
 
 COMPATIBLE_STATE_VERSIONS = frozenset(
     {
@@ -21,5 +21,6 @@ COMPATIBLE_STATE_VERSIONS = frozenset(
         "8.8.5",
         "8.8.6",
         "8.8.7",
+        "8.8.8",
     }
 )
