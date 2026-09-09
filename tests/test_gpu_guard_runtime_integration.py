@@ -10,9 +10,11 @@ class RealRuntimeGpuGuardTests(unittest.TestCase):
         script = textwrap.dedent(
             r'''
             import json
+            import re
             from pathlib import Path
 
             import runner  # instala guards na mesma ordem usada em produção
+            import gpu_guard
             import scraper
             import tracker
 
@@ -43,12 +45,20 @@ class RealRuntimeGpuGuardTests(unittest.TestCase):
             spec["evidencias"] = dict(spec.get("evidencias") or {})
             spec["gpu_modelos_detectados"] = list(spec.get("gpu_modelos_detectados") or [])
 
+            direct_normalized = re.sub(
+                r"[^a-z0-9]+", " ", scraper.norm(item.get("titulo"))).strip()
+            direct_identified = gpu_guard.identify_igpu(item.get("titulo"), scraper)
+
             records = [{"item": item, "spec": spec}]
             tracker.apply_exact_market_price_evidence(records, settings)
             assessment = tracker.score_allow_unknown(spec, float(item["preco"]), weights, settings)
             tier = scraper.tier_from_value(assessment["value_score"], settings)
 
             result = {
+                "title": item.get("titulo"),
+                "title_repr": repr(item.get("titulo")),
+                "normalized": direct_normalized,
+                "direct_identified": direct_identified,
                 "gpu_tipo": spec.get("gpu_tipo"),
                 "gpu_modelo": spec.get("gpu_modelo"),
                 "guard": spec.get("gpu_tier_guard"),
@@ -62,6 +72,7 @@ class RealRuntimeGpuGuardTests(unittest.TestCase):
             }
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
 
+            assert result["direct_identified"] == "intel arc graphics 140v", result
             assert result["gpu_tipo"] == "integrada", result
             assert result["gpu_modelo"] == "intel arc graphics 140v", result
             assert result["guard"]["status"] == "INTEGRADA_MAPEADA", result
