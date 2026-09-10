@@ -12,6 +12,7 @@ from historical_guard import install as install_historical_guard
 from market_guard import install as install_market_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_guard import install as install_promotion_guard
+from rejection_guard import install as install_rejection_guard
 from state_refresh_guard import install as install_state_refresh_guard
 from top5_guard import install as install_top5_guard
 from version import VERSION
@@ -191,6 +192,7 @@ install_market_guard(scraper, tracker)
 install_historical_guard(tracker)
 install_state_refresh_guard(tracker)
 install_coverage_guard(tracker)
+install_rejection_guard(scraper, tracker)
 install_top5_guard(tracker)
 
 
