@@ -5,6 +5,7 @@ import gzip
 import io
 import os
 import re
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 
@@ -122,6 +123,42 @@ def _feed_is_laptop(row: dict[str, str], cat: dict, scraper_module) -> bool:
     return any(hint in text for hint in hints)
 
 
+def _feed_specs(text: str, price: float, tracker_module) -> dict | None:
+    """Promove specs Awin a evidência MEDIUM apenas quando há hardware útil."""
+    spec = tracker_module.scraper.specs(text)
+    known = sum(
+        (
+            bool(spec.get("cpu_modelo")),
+            spec.get("gpu_tipo") != "desconhecida",
+            spec.get("ram_gb") is not None,
+            spec.get("armazenamento_tb") is not None,
+        )
+    )
+    if known < 2:
+        return None
+
+    sources = spec.setdefault("fontes", {})
+    field_sources = {
+        "cpu_modelo": "cpu",
+        "gpu_modelo": "gpu",
+        "ram_gb": "ram",
+        "armazenamento_tb": "storage",
+        "teclado_pt": "teclado_pt",
+    }
+    for field, source_key in field_sources.items():
+        if spec.get(field) not in (None, "desconhecida", "desconhecido"):
+            sources.setdefault(source_key, "awin_feed")
+
+    spec["price_confirmed"] = float(price)
+    spec["price_page_confidence"] = "MEDIUM"
+    spec["price_evidence_sources"] = ["awin_feed"]
+    spec["price_evidence_count"] = 1
+    spec["price_evidence_signals"] = {"awin_feed": [round(float(price), 2)]}
+    spec["price_checked_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    spec["awin_feed_authoritative"] = True
+    return spec
+
+
 def _feed_candidates(content: bytes, cat: dict, tracker_module) -> list[dict]:
     expected_id = _advertiser_id(cat)
     limit = max(1, int(cat.get("awin_feed_candidate_limit", cat.get("target_candidates", 60))))
@@ -164,6 +201,17 @@ def _feed_candidates(content: bytes, cat: dict, tracker_module) -> list[dict]:
         if stock is False:
             continue
 
+        feed_spec_text = " ".join(
+            filter(
+                None,
+                [
+                    title,
+                    _row_value(row, "specifications"),
+                    _row_value(row, "product_model"),
+                    _row_value(row, "model_number"),
+                ],
+            )
+        )
         item = {
             "loja": cat["loja"],
             "titulo": title,
@@ -176,28 +224,21 @@ def _feed_candidates(content: bytes, cat: dict, tracker_module) -> list[dict]:
         ean = re.sub(r"\D", "", _row_value(row, "ean", "product_gtin", "gtin"))
         if ean and tracker_module.gtin_valid(ean):
             item["ean"] = ean
-        mpn = _row_value(row, "mpn", "model_number", "product_model")
+        # Só o campo MPN explícito é forte. `model_number` e `product_model` são
+        # demasiado ambíguos para matching EXATO/FORTE cross-store.
+        mpn = _row_value(row, "mpn")
         if mpn:
             item["mpn"] = mpn
-        sku = _row_value(row, "merchant_product_id", "product_id", "aw_product_id")
-        if sku:
-            item["sku"] = sku
+        merchant_product_id = _row_value(row, "merchant_product_id", "aw_product_id")
+        if merchant_product_id:
+            item["_awin_product_id"] = merchant_product_id
 
-        # Specs do feed ajudam apenas o pré-ranking. Não são `item['specs']`:
-        # ficha live/cache continua autoritativa para avaliação final/teclado.
-        feed_spec_text = " ".join(
-            filter(
-                None,
-                [
-                    title,
-                    _row_value(row, "specifications"),
-                    _row_value(row, "product_model"),
-                    _row_value(row, "model_number"),
-                ],
-            )
-        )
         if feed_spec_text:
             item["_awin_spec_hint"] = feed_spec_text[:4000]
+            feed_specs = _feed_specs(item["_awin_spec_hint"], price, tracker_module)
+            if feed_specs is not None:
+                item["specs"] = feed_specs
+                item["detail_source"] = "awin_feed"
 
         seen.add(url)
         out.append(item)
@@ -337,7 +378,7 @@ def install(tracker_module) -> None:
             stat["bloqueada"] = False
         return items, stat
 
-    # Hints do feed melhoram pré-ranking; specs live/cache continuam autoritativas.
+    # Hints do feed melhoram pré-ranking quando specs estruturadas são insuficientes.
     base_candidate_priority = tracker_module.candidate_priority
 
     def candidate_priority(item, weights, settings):
