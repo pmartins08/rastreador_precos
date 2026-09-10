@@ -7,8 +7,8 @@ from pathlib import Path
 from version import STATE_EPOCH, VERSION
 
 
-BASE = Path(__file__).resolve().parent
-TOP5_PATH = BASE / "data" / "top5_current.json"
+ROOT = Path(__file__).resolve().parent.parent
+TOP5_PATH = ROOT / "data" / "top5_current.json"
 SCHEMA_VERSION = 1
 
 
@@ -82,9 +82,9 @@ def build_current_top5(
 ) -> list[dict]:
     """Top 5 do estado atual, não apenas do conjunto observado numa única run.
 
-    Agrega as observações V8.8.8 ainda frescas no histórico persistente. A mesma
-    configuração exata (configuration_key/EAN/MPN) aparece uma única vez e é
-    representada pela melhor oferta atualmente conhecida.
+    Agrega observações da versão pública atual ainda frescas no histórico. A
+    mesma configuração exata aparece uma única vez e é representada pela melhor
+    oferta atualmente conhecida.
     """
     history = tracker_module.load_json(tracker_module.HISTORY_PATH)
     rows = _latest_current_entries(history, max(1.0, float(ttl_hours)), now=now)
@@ -181,7 +181,7 @@ def persist_and_notify(tracker_module, run: dict | None = None) -> dict:
         "tracker_version": VERSION,
         "generated_at": tracker_module.now_iso(),
         "ttl_hours": ttl_hours,
-        "definition": "top 5 de configurações atuais agregadas de observações V8.8.8 frescas; não top 5 isolado da run",
+        "definition": "top 5 de configurações atuais agregadas de observações frescas; não top 5 isolado da run",
         "items": items,
         "notification_campaigns": campaigns,
     }
