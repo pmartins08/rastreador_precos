@@ -1,6 +1,25 @@
 # Changelog
 
-Este ficheiro resume alterações de produto e arquitetura relevantes. O detalhe histórico continua preservado no Git, nas validações e nas métricas das runs.
+Este ficheiro concentra o histórico funcional e arquitetural relevante. Detalhes de implementação continuam preservados no histórico Git e nas métricas das runs; relatórios temporários de validação não são mantidos indefinidamente no repositório.
+
+## 8.8.9 — Market intelligence, coverage sources & repository cleanup
+
+- GPU/iGPU deixa de impor um hard-cap artificial de Prata: a dimensão Gaming passa a influenciar o tier de forma contínua sem alterar o `value_score` bruto.
+- Reconhecimento de hardware moderno foi reforçado com catálogo factual e aliases conservadores, incluindo famílias recentes de CPU/iGPU.
+- Darty ganha fallback de catálogo JSON público, aumentando significativamente a cobertura sem depender apenas das fichas HTML.
+- Integração Awin opcional preparada para Darty, PcComponentes e Worten; sem `AWIN_DATAFEED_API_KEY` é um no-op e não altera o comportamento normal.
+- Feed Awin usa apenas feeds autorizados devolvidos à conta e exige deep link direto do merchant; preço de feed conta como evidência MEDIUM, nunca como confirmação HIGH isolada.
+- Parser de feeds passa a escolher o delimitador pelo cabeçalho para não confundir vírgula decimal portuguesa com separador CSV.
+- Matching de categoria de feeds tolera singular/plural português (`portátil` / `portáteis`) sem afrouxar o filtro para produtos não relevantes.
+- Worten passa a versionar a estratégia de sitemap: quando a estratégia muda, apenas a aprendizagem antiga desse método é arquivada/reaberta, sem apagar aprendizagem das restantes fontes.
+- A estratégia nova confirmou que o sitemap da Worten é acessível, mas as fichas de produto continuam bloqueadas no runner; a limitação fica classificada como acesso a produto, não descoberta de sitemap.
+- CHIP7 recebe um probe controlado da pesquisa pública no root como alternativa à categoria bloqueada; o método continua sujeito à aprendizagem/cooldown normal.
+- Alterações materiais de preço em ofertas históricas recebem prioridade explícita de avaliação. Quedas de pelo menos `alerta_queda_preco_eur` têm prioridade superior a subidas, garantindo que o recálculo de Value/tier não perde um slot do pré-ranking.
+- O mecanismo de alerta mantém como baseline o último preço que efetivamente gerou alerta, reduzindo spam por pequenas oscilações.
+- Repositório reorganizado: raiz reservada a `runner.py`, `tracker.py`, `scraper.py` e `version.py`; camadas auxiliares de produção movidas para `src/`; configuração, estado, docs, testes e workflows permanecem isolados nas respetivas pastas.
+- `version.py` passa a expor 8.8.9 como versão pública sem alterar `STATE_EPOCH`, preservando o histórico e a aprendizagem já válidos.
+- Workflow `v888-smoke.yml` e relatórios de validação antigos V8.8.6/V8.8.7 removidos por serem artefactos de release já substituídos pelo CI, changelog e histórico Git.
+- README, arquitetura, operações, roadmap e documentação de `data/` atualizados para refletir a estrutura e comportamento atuais.
 
 ## 8.8.8 — Coverage resilience, state refresh & current Top 5
 

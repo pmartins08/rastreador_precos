@@ -24,6 +24,8 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONPATH: src
     steps:
       - name: Checkout do código
         uses: actions/checkout@v7
@@ -46,7 +48,7 @@ jobs:
 
       - name: Validar código, configuração e testes
         run: |
-          python -m compileall -q .
+          python -m compileall -q runner.py tracker.py scraper.py version.py src tests
           python -m json.tool config/config.json > /dev/null
           python -m unittest discover -s tests -p 'test_*.py' -v
 
@@ -190,7 +192,7 @@ jobs:
               echo "Novo epoch ${RUN_EPOCH}: histórico de preços legado não será reintroduzido."
               cp /tmp/price-history-run.json data/price_history.json
             else
-              python historical_guard.py \
+              python src/historical_guard.py \
                 --current data/price_history.json \
                 --run /tmp/price-history-run.json
             fi

@@ -2,6 +2,13 @@ from __future__ import annotations
 
 import re
 import sys
+from pathlib import Path
+
+# Mantém a raiz reservada ao motor principal. As camadas auxiliares vivem em
+# src/ e são adicionadas uma única vez ao path pelo composition root.
+SRC = Path(__file__).resolve().parent / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 import price_guard as price_guard_module
 import scraper

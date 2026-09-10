@@ -7,10 +7,10 @@ from typing import Any
 from version import STATE_EPOCH, VERSION
 
 
-BASE = Path(__file__).resolve().parent
-PRICE_HISTORY_PATH = BASE / "data" / "price_history.json"
-TOP5_PATH = BASE / "data" / "top5_current.json"
-EPOCH_PATH = BASE / "data" / "state_epoch.json"
+ROOT = Path(__file__).resolve().parent.parent
+PRICE_HISTORY_PATH = ROOT / "data" / "price_history.json"
+TOP5_PATH = ROOT / "data" / "top5_current.json"
+EPOCH_PATH = ROOT / "data" / "state_epoch.json"
 _REFRESH_ACTIVE = False
 
 
@@ -102,7 +102,7 @@ def install(tracker_module) -> None:
     O refresh preserva `access_learning.json`, usa o estado anterior apenas como
     bootstrap durante a primeira run e, depois de recalcular, elimina do estado
     persistente ofertas/runs de versões anteriores. O histórico de preços reinicia
-    antes da run para que nenhuma análise V8.8.8 dependa de preços legados.
+    apenas quando o `STATE_EPOCH` muda, independentemente da versão pública.
     """
     if getattr(tracker_module, "_STATE_REFRESH_GUARD_INSTALLED", False):
         return
@@ -138,7 +138,7 @@ def install(tracker_module) -> None:
             )
         # Durante refresh não enviamos a cascata de "primeira oportunidade". O
         # estado fica semeado para as runs seguintes e o Top5 Guard envia apenas
-        # as cinco notificações pedidas pelo utilizador.
+        # as notificações configuradas para a campanha atual.
         if (
             tier
             and item.get("stock") is not False

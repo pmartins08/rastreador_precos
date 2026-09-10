@@ -1,23 +1,34 @@
 # Estado gerado pelo runtime
 
-Esta pasta contém dados operacionais persistidos pelo GitHub Actions. Não são fixtures nem ficheiros para edição manual.
+Esta pasta contém **dados operacionais persistentes**, não fixtures de teste nem ficheiros para edição manual.
 
-## `history.json`
+## Ficheiros
 
-Guarda ofertas recentes, specs extraídas, scores, tiers, estado de alertas e métricas de runs. O tracker compacta entradas antigas para limitar crescimento.
+### `history.json`
 
-## `access_learning.json`
+Ofertas recentes, specs extraídas, scores, tiers, estado de alertas e métricas de runs. O tracker compacta entradas antigas para limitar crescimento.
 
-Guarda aprendizagem por loja, método e perfil de acesso: tentativas, sucessos, bloqueios, erros e rendimento de descoberta.
+### `access_learning.json`
 
-## `price_history.json`
+Aprendizagem por loja, método e perfil de acesso: tentativas, sucessos, bloqueios, erros e rendimento de descoberta.
 
-Guarda histórico diário compacto de preços por identidade forte (EAN/MPN) ou, quando isso não existe, por URL local.
+### `price_history.json`
+
+Histórico diário compacto a 90 dias por identidade forte (EAN/MPN) ou, quando isso não existe, por URL local.
+
+### `top5_current.json`
+
+Snapshot agregado das cinco melhores configurações atuais conhecidas dentro do TTL configurado, deduplicadas por identidade/configuração.
+
+### `state_epoch.json`
+
+Identifica a geração do estado persistente. Só muda quando existe uma migração/refresh deliberado; uma simples atualização de versão ou reorganização de código não deve reiniciar o histórico.
 
 ## Regras
 
 - não editar manualmente durante desenvolvimento normal;
-- alterações destes ficheiros são feitas pelo workflow de produção;
+- alterações são produzidas pelo runtime e persistidas pelo GitHub Actions;
 - commits automáticos usam `[skip ci]` para não criar ciclos;
 - o workflow faz merge concorrente antes do push final;
-- mudanças de schema devem ser acompanhadas por migração/compatibilidade explícita.
+- mudanças de schema/epoch exigem migração ou compatibilidade explícita;
+- nunca apagar estes ficheiros apenas por parecerem “dados antigos”: são parte funcional do monitor de preços.

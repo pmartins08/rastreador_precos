@@ -11,8 +11,8 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 WINDOW_DAYS = 90
-BASE = Path(__file__).resolve().parent
-PRICE_HISTORY_PATH = BASE / "data" / "price_history.json"
+ROOT = Path(__file__).resolve().parent.parent
+PRICE_HISTORY_PATH = ROOT / "data" / "price_history.json"
 
 _STATE: dict = {}
 _BASELINE_STATE: dict = {}
