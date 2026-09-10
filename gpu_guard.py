@@ -46,12 +46,28 @@ IGPU_ALIASES = {
 }
 
 
-class TierAwareValue(float):
-    """Float normal com metadado local para a decisão de tier."""
+def tier_influence(value: float, gaming_score: float) -> dict:
+    """Calcula a influência contínua de Gaming no tier sem alterar o Value."""
+    raw_value = float(value)
+    gaming = max(0.0, min(100.0, float(gaming_score)))
+    multiplier = 0.85 + 0.15 * (gaming / 100.0)
+    return {
+        "value": raw_value,
+        "gaming_score": gaming,
+        "multiplier": multiplier,
+        "tier_score": raw_value * multiplier,
+    }
 
-    def __new__(cls, value: float, *, premium_gpu_ok: bool):
+
+class TierAwareValue(float):
+    """Float normal que transporta apenas o tier_score contínuo da GPU/Gaming."""
+
+    def __new__(cls, value: float, *, gaming_score: float):
         obj = float.__new__(cls, value)
-        obj.premium_gpu_ok = bool(premium_gpu_ok)
+        influence = tier_influence(float(value), float(gaming_score))
+        obj.gaming_score = influence["gaming_score"]
+        obj.tier_multiplier = influence["multiplier"]
+        obj.tier_score = influence["tier_score"]
         return obj
 
 
@@ -110,7 +126,7 @@ def _upgrade_spec_igpu(spec: dict, scraper_module, title: object = None) -> str 
 
 
 def premium_gpu_status(spec: dict, weights: dict) -> dict:
-    """Decide se existe evidência de GPU suficiente para Ouro/Diamante."""
+    """Descreve a qualidade do reconhecimento GPU; não impõe um teto de tier."""
     gpu_type = str(spec.get("gpu_tipo") or "desconhecida").lower()
     model = str(spec.get("gpu_modelo") or "").strip().lower() or None
     gpu_base = {str(key).lower(): value for key, value in (weights.get("gpu_base") or {}).items()}
@@ -208,7 +224,7 @@ def _apply_igpu_scoring(
 
 
 def install(scraper_module, tracker_module) -> None:
-    """Confirma modelos de GPU e protege tiers premium por produto."""
+    """Confirma modelos de GPU e aplica influência contínua de Gaming ao tier."""
     if getattr(tracker_module, "_GPU_GUARD_INSTALLED", False):
         return
 
@@ -266,19 +282,31 @@ def install(scraper_module, tracker_module) -> None:
             assessment, spec, price, settings, scraper_module
         )
         assessment["gpu_tier_guard"] = status
+
         if assessment.get("value_score") is not None:
             raw_value = float(assessment["value_score"])
-            assessment["value_score"] = TierAwareValue(
-                raw_value, premium_gpu_ok=bool(status["confirmed"])
+            details = assessment.get("detalhes")
+            gaming_score = (
+                float(details.get("Gaming", 0.0) or 0.0)
+                if isinstance(details, dict)
+                else 0.0
             )
+            wrapped_value = TierAwareValue(raw_value, gaming_score=gaming_score)
+            assessment["value_score"] = wrapped_value
+            assessment["gpu_tier_influence"] = {
+                "raw_value": round(raw_value, 3),
+                "gaming_score": round(wrapped_value.gaming_score, 3),
+                "multiplier": round(wrapped_value.tier_multiplier, 6),
+                "tier_score": round(wrapped_value.tier_score, 3),
+            }
         return assessment
 
     def tier_from_value(value: float, settings: dict) -> str | None:
-        tier = base_tier_from_value(float(value), settings)
-        premium_gpu_ok = getattr(value, "premium_gpu_ok", True)
-        if tier in {"OURO", "DIAMANTE"} and not premium_gpu_ok:
-            return "PRATA"
-        return tier
+        adjusted = getattr(value, "tier_score", None)
+        return base_tier_from_value(
+            float(adjusted) if adjusted is not None else float(value),
+            settings,
+        )
 
     tracker_module.select_with_cache = select_with_cache
     if callable(base_apply_market_evidence):
