@@ -53,6 +53,8 @@ class RealRuntimeGpuGuardTests(unittest.TestCase):
             tracker.apply_exact_market_price_evidence(records, settings)
             assessment = tracker.score_allow_unknown(spec, float(item["preco"]), weights, settings)
             tier = scraper.tier_from_value(assessment["value_score"], settings)
+            influence = assessment.get("gpu_tier_influence") or {}
+            expected_tier = scraper.tier_from_value(float(influence.get("tier_score", 0.0)), settings)
 
             result = {
                 "title": item.get("titulo"),
@@ -64,7 +66,10 @@ class RealRuntimeGpuGuardTests(unittest.TestCase):
                 "guard": spec.get("gpu_tier_guard"),
                 "value": float(assessment.get("value_score", 0)),
                 "rank": assessment.get("score_ranking"),
+                "gaming": (assessment.get("detalhes") or {}).get("Gaming"),
                 "tier": tier,
+                "expected_tier": expected_tier,
+                "tier_influence": influence,
                 "igpu_scoring": assessment.get("igpu_scoring"),
                 "apply_market_module": tracker.apply_exact_market_price_evidence.__module__,
                 "score_module": tracker.score_allow_unknown.__module__,
@@ -77,7 +82,14 @@ class RealRuntimeGpuGuardTests(unittest.TestCase):
             assert result["gpu_modelo"] == "intel arc graphics 140v", result
             assert result["guard"]["status"] == "INTEGRADA_MAPEADA", result
             assert result["igpu_scoring"] is not None, result
-            assert result["tier"] == "OURO", result
+            assert result["tier_influence"], result
+
+            expected_multiplier = 0.85 + 0.15 * (float(result["gaming"]) / 100.0)
+            expected_score = float(result["value"]) * expected_multiplier
+            assert abs(result["tier_influence"]["raw_value"] - result["value"]) < 0.011, result
+            assert abs(result["tier_influence"]["multiplier"] - expected_multiplier) < 0.00001, result
+            assert abs(result["tier_influence"]["tier_score"] - expected_score) < 0.011, result
+            assert result["tier"] == result["expected_tier"], result
             '''
         )
         completed = subprocess.run(
