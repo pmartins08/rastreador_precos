@@ -1,108 +1,60 @@
-# Roadmap — da V8.8.7 à próxima grande versão
+# Roadmap
 
-Os nomes V9/V10 são provisórios. O objetivo é usar versões maiores para marcar maturidade real, não apenas quantidade de commits.
+O projeto está na linha **V8.8.9**. A prioridade deixou de ser acrescentar camadas indiscriminadamente; o foco passa a ser cobertura real, simplificação e preparação para uma futura V9 apenas quando os dados justificarem uma mudança maior.
 
-## Estado atual — V8.8.7
+## Prioridade 1 — Cobertura de lojas difíceis
 
-A linha V8 já possui:
+### Worten
 
-- descoberta multi-loja;
-- aprendizagem de acesso/rendimento;
-- cérebro FEUP + gaming;
-- guardrails de RAM, GPU e preço;
-- iGPU Intelligence;
-- matching cross-store conservador;
-- histórico de preços a 90 dias;
-- ntfy com heartbeat;
-- cache e refresh progressivo;
-- CI e testes de regressão.
+O sitemap público já é descoberto, mas as fichas de produto continuam a bloquear o runner. Próximo caminho preferencial: feed Awin autorizado quando a conta tiver acesso. Evitar aumentar probes HTML que já demonstraram rendimento zero.
 
-## Critérios antes de V9
+### CHIP7
 
-### 1. Cobertura de lojas
+Medir a rota pública de pesquisa no root e manter apenas estratégias que produzam candidatos reais. Rotas com rendimento zero devem regressar ao cooldown normal.
 
-- cada loja-alvo deve ter pelo menos um método público com rendimento mensurável;
-- reduzir lojas permanentemente a 0 candidatos;
-- distinguir claramente `bloqueada`, `sem produtos elegíveis` e `parser sem rendimento`;
-- continuar a melhorar Worten/CHIP7/FNAC quando a estrutura pública mudar.
+### PcComponentes
 
-### 2. Qualidade de hardware
+Priorizar fonte autorizada/feed quando disponível e evitar ciclos de perfis HTTP que a aprendizagem já classificou como bloqueados.
 
-- aumentar catálogo de GPUs/iGPUs com calibração documentada;
-- reduzir `GPU_DESCONHECIDA` em produtos de topo;
-- reforçar evidência de teclado PT sem criar falsos negativos excessivos;
-- melhorar bateria, peso, ecrã e expansibilidade quando a ficha pública fornece dados.
+## Prioridade 2 — Eficiência
 
-### 3. Explainability
+- reduzir requests repetidos por loja;
+- aumentar reutilização segura de cache de hardware;
+- manter preço como dado volátil com TTL próprio;
+- medir candidatos novos por request antes de promover uma rota;
+- rever limites por loja com base em dados, não por tentativa e erro.
 
-Cada produto premium deverá conseguir explicar:
+## Prioridade 3 — Qualidade do matching
 
-- por que foi aceite;
-- componentes usados no score;
-- confiança dos dados;
-- origem da GPU/CPU/RAM/SSD;
-- razão do tier;
-- validação do preço;
-- histórico recente e comparação cross-store quando disponíveis.
+- aumentar cobertura de EAN/GTIN e MPN;
+- melhorar matching forte sem fundir variantes diferentes;
+- usar comparação cross-store para preço apenas com identidade suficiente;
+- manter casos prováveis disponíveis para observabilidade, sem fusão automática.
 
-### 4. Matching cross-store
+## Prioridade 4 — Histórico de preço
 
-- aumentar percentagem de ofertas com EAN/MPN forte;
-- medir precisão dos matches FORTE;
-- nunca fundir variantes com GPU/RAM/SSD diferentes;
-- tornar comparações entre lojas mais úteis sem relaxar identidade.
+- continuar a acumular a série diária de 90 dias;
+- usar mudanças materiais para prioridade de avaliação;
+- estudar tendência/percentil apenas quando existir amostra temporal suficiente;
+- não converter histórico curto em falsa certeza sobre “bom preço”.
 
-### 5. Observabilidade
+## Prioridade 5 — Simplificação arquitetural
 
-Guardar e comparar por release:
+A reorganização atual deixa a raiz limitada ao motor principal e move camadas especializadas para `src/`. Próximos passos de simplificação só devem acontecer quando reduzirem complexidade real.
 
-- candidatos descobertos;
-- avaliados/aceites/rejeitados/quarentena;
-- D/O/P/B;
-- GPUs desconhecidas e mapeadas;
-- sucesso por loja;
-- candidatos por request;
-- detail fetches vs cache;
-- runtime;
-- alertas e supressões.
+Candidatos futuros:
 
-## Possível V9
+- incorporar gradualmente wrappers maduros no núcleo quando já não precisarem de instalação dinâmica;
+- eliminar `version_guard.py` quando os labels históricos internos de `tracker.py` forem finalmente removidos numa refatoração dedicada e testada;
+- dividir `tracker.py` apenas se surgir uma fronteira funcional clara, evitando fragmentação cosmética.
 
-V9 deverá representar **maturidade operacional**, não uma reescrita total.
+## V9 — só com motivo concreto
 
-Candidatos a marco V9:
+Uma V9 deve representar mudança funcional/arquitetural relevante, não apenas um número novo. Possíveis gatilhos:
 
-- cobertura estável da maioria das lojas;
-- melhor confirmação de teclado;
-- catálogo GPU mais completo;
-- métricas por release consistentes;
-- matching cross-store comprovado em dados reais;
-- documentação técnica suficiente para explicar decisões do modelo.
+- cobertura estável da maioria das lojas através de fontes sustentáveis;
+- dataset histórico suficiente para modelar contexto temporal de preço;
+- separação do tracker em componentes com interfaces estáveis;
+- necessidade comprovada de rever pesos/scoring do cérebro.
 
-Um refactor de packaging (`src/`, módulos internos, adapters por loja) pode ser feito nessa transição se trouxer benefício claro. Não deve acontecer só por estética enquanto a linha V8 continua a evoluir rapidamente.
-
-## Possível V10
-
-V10 pode ser reservada para uma mudança de produto mais visível, por exemplo:
-
-- scoring revisto com dados históricos suficientes;
-- comparação de tendências/preço justo;
-- catálogo técnico versionado externamente ao código;
-- adapters de lojas mais isolados;
-- reporting/dashboard;
-- feedback sobre qualidade das recomendações.
-
-## Preparação da futura apresentação
-
-Desde já, manter material para uma apresentação do projeto:
-
-1. **Problema** — escolher portáteis bons para universidade + gaming num mercado fragmentado;
-2. **Solução** — crawler + extração + cérebro + guardrails + preço + histórico;
-3. **Arquitetura** — separação entre decisão e observação;
-4. **Evolução** — exemplos V8.3, V8.8, V8.8.6 e V8.8.7;
-5. **Casos reais** — falsos Ouros corrigidos pelo GPU Guard;
-6. **Métricas** — cobertura, tiers, requests, cache, runtime;
-7. **Limitações** — anti-bot, dados incompletos, teclado, identidade;
-8. **Futuro** — V9/V10 e melhoria do modelo.
-
-Cada mudança relevante deve deixar pelo menos uma destas evidências: teste, métrica, caso real, documentação ou comparação de runs.
+Até lá, a linha V8.8.x deve privilegiar estabilidade, cobertura, evidência e limpeza técnica.
