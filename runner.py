@@ -5,6 +5,7 @@ import sys
 
 import price_guard as price_guard_module
 import scraper
+from awin_feed_guard import install as install_awin_feed_guard
 from brain_guard import install as install_brain_guard
 from catalog_guard import install as install_catalog_guard
 from coverage_guard import install as install_coverage_guard
@@ -186,9 +187,9 @@ def _enhanced_page_identifiers(soup) -> dict:
 
 tracker.page_identifiers = _enhanced_page_identifiers
 
-# Ordem do main: Top5 -> Rejection -> Coverage -> Catalog -> Sitemap ->
-# State Refresh -> Historical -> tracker base. As camadas de acesso apenas
-# alteram descoberta/cache; não mexem no cérebro nem no Value.
+# As camadas de acesso apenas alteram descoberta/cache; não mexem no cérebro.
+# Awin fica antes da Coverage Guard para que candidatos autorizados recebam as
+# mesmas regras de cache/fallback/live confirmation das restantes fontes.
 install_version_guard(tracker)
 install_promotion_guard(tracker)
 install_gpu_guard(scraper, tracker)
@@ -198,6 +199,7 @@ install_historical_guard(tracker)
 install_state_refresh_guard(tracker)
 install_sitemap_route_guard(tracker)
 install_catalog_guard(tracker)
+install_awin_feed_guard(tracker)
 install_coverage_guard(tracker)
 install_rejection_guard(scraper, tracker)
 install_top5_guard(tracker)
