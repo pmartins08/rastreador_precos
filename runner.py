@@ -8,6 +8,7 @@ import scraper
 from brain_guard import install as install_brain_guard
 from coverage_guard import install as install_coverage_guard
 from gpu_guard import install as install_gpu_guard
+from hardware_guard import install as install_hardware_guard
 from historical_guard import install as install_historical_guard
 from market_guard import install as install_market_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
@@ -188,6 +189,7 @@ tracker.page_identifiers = _enhanced_page_identifiers
 install_version_guard(tracker)
 install_promotion_guard(tracker)
 install_gpu_guard(scraper, tracker)
+install_hardware_guard(scraper, tracker)
 install_market_guard(scraper, tracker)
 install_historical_guard(tracker)
 install_state_refresh_guard(tracker)
