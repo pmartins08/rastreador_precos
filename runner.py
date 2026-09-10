@@ -6,6 +6,7 @@ import sys
 import price_guard as price_guard_module
 import scraper
 from brain_guard import install as install_brain_guard
+from catalog_guard import install as install_catalog_guard
 from coverage_guard import install as install_coverage_guard
 from gpu_guard import install as install_gpu_guard
 from hardware_guard import install as install_hardware_guard
@@ -14,6 +15,7 @@ from market_guard import install as install_market_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_guard import install as install_promotion_guard
 from rejection_guard import install as install_rejection_guard
+from sitemap_route_guard import install as install_sitemap_route_guard
 from state_refresh_guard import install as install_state_refresh_guard
 from top5_guard import install as install_top5_guard
 from version import VERSION
@@ -184,8 +186,9 @@ def _enhanced_page_identifiers(soup) -> dict:
 
 tracker.page_identifiers = _enhanced_page_identifiers
 
-# Ordem do main: Top5 -> State Refresh -> Historical -> tracker base.
-# Coverage atua apenas no I/O/cache e não altera o cérebro.
+# Ordem do main: Top5 -> Rejection -> Coverage -> Catalog -> Sitemap ->
+# State Refresh -> Historical -> tracker base. As camadas de acesso apenas
+# alteram descoberta/cache; não mexem no cérebro nem no Value.
 install_version_guard(tracker)
 install_promotion_guard(tracker)
 install_gpu_guard(scraper, tracker)
@@ -193,6 +196,8 @@ install_hardware_guard(scraper, tracker)
 install_market_guard(scraper, tracker)
 install_historical_guard(tracker)
 install_state_refresh_guard(tracker)
+install_sitemap_route_guard(tracker)
+install_catalog_guard(tracker)
 install_coverage_guard(tracker)
 install_rejection_guard(scraper, tracker)
 install_top5_guard(tracker)
