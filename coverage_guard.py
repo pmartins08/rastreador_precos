@@ -56,6 +56,55 @@ def _zero_yield_cooldown(
     return age is not None and age < cooldown_hours
 
 
+def _adaptive_sitemap_probe_limit(cat: dict, stats: dict | None) -> int | None:
+    """Escala probes públicos do sitemap apenas quando o rendimento o justifica.
+
+    `sitemap_probe_steps` define patamares crescentes (ex.: 5 -> 10 -> 15).
+    Depois de existir aprendizagem, sobe no máximo um patamar por run quando
+    tanto o yield recente como o EMA atingem o limiar configurado. Nunca reduz
+    automaticamente o patamar e não afeta lojas sem esta opção configurada.
+    """
+    raw_steps = cat.get("sitemap_probe_steps")
+    if not isinstance(raw_steps, (list, tuple)) or not raw_steps:
+        return None
+
+    steps = sorted({max(0, int(value)) for value in raw_steps})
+    if not steps:
+        return None
+
+    configured = max(
+        0,
+        int(cat.get("sitemap_new_probe_limit", cat.get("sitemap_probe_limit", steps[0]))),
+    )
+    configured = min(steps, key=lambda step: (abs(step - configured), step))
+
+    if not isinstance(stats, dict) or int(stats.get("attempts", 0)) <= 0:
+        return configured
+
+    remembered = stats.get("adaptive_probe_limit", configured)
+    try:
+        remembered_value = int(remembered)
+    except (TypeError, ValueError):
+        remembered_value = configured
+    current = max((step for step in steps if step <= remembered_value), default=steps[0])
+
+    threshold = max(0.0, float(cat.get("sitemap_probe_yield_threshold", 0.60)))
+    try:
+        last_yield = float(stats.get("last_yield", 0.0) or 0.0)
+        ema_yield = float(stats.get("ema_yield", last_yield) or 0.0)
+    except (TypeError, ValueError):
+        return current
+
+    observed = min(last_yield, ema_yield)
+    if observed < threshold:
+        return current
+
+    for step in steps:
+        if step > current:
+            return step
+    return current
+
+
 def _cached_candidate(previous: dict, store: str, *, force_live_price: bool) -> dict | None:
     if not isinstance(previous, dict):
         return None
@@ -92,6 +141,8 @@ def install(tracker_module) -> None:
       o último preço por uma janela curta, evitando reabrir dezenas de fichas.
     - URLs equivalentes que diferem apenas em query/tracking partilham o mesmo cache.
     - URLs novas continuam a receber probes live, mas com limite próprio.
+    - Lojas configuradas podem aumentar gradualmente esse limite quando o sitemap
+      mantém rendimento alto; a subida é de apenas um patamar por run.
     - Se uma loja conhecida colapsar para zero candidatos, uma pequena amostra do
       histórico pode regressar como lead, mas fica marcada para confirmação live.
     - Leads de fallback que exigem confirmação recebem prioridade nos slots de
@@ -183,6 +234,13 @@ def install(tracker_module) -> None:
         ):
             effective_cat["max_category_pages"] = 1
 
+        adaptive_probe_limit = _adaptive_sitemap_probe_limit(
+            effective_cat,
+            discovery.get("sitemap") if isinstance(discovery, dict) else None,
+        )
+        if adaptive_probe_limit is not None:
+            effective_cat["sitemap_new_probe_limit"] = adaptive_probe_limit
+
         known_for_store = any(
             valid_previous(previous, store, settings) for previous in known.values()
         )
@@ -222,6 +280,31 @@ def install(tracker_module) -> None:
             items, stat = base_scan_store(effective_cat, config, settings)
         finally:
             tracker_module.discover_sitemap_urls = current_discover
+
+        if adaptive_probe_limit is not None:
+            sitemap_stats = (
+                tracker_module.bucket(store).get("discovery", {}).get("sitemap")
+            )
+            if isinstance(sitemap_stats, dict):
+                sitemap_stats["adaptive_probe_limit"] = adaptive_probe_limit
+            stat["sitemap_probe_limit_used"] = adaptive_probe_limit
+            previous_stats = discovery.get("sitemap") if isinstance(discovery, dict) else None
+            if isinstance(previous_stats, dict):
+                try:
+                    stat["sitemap_probe_yield_before"] = round(
+                        min(
+                            float(previous_stats.get("last_yield", 0.0) or 0.0),
+                            float(
+                                previous_stats.get(
+                                    "ema_yield", previous_stats.get("last_yield", 0.0)
+                                )
+                                or 0.0
+                            ),
+                        ),
+                        4,
+                    )
+                except (TypeError, ValueError):
+                    pass
 
         urls_in_result = {str(item.get("url")) for item in items if item.get("url")}
         canonical_in_result = {_canonical_url(url) for url in urls_in_result if url}
