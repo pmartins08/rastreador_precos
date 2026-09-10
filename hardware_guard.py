@@ -139,14 +139,18 @@ def upgrade_spec(spec: dict, scraper_module, title: object = None) -> dict:
 
 
 def install(scraper_module, tracker_module) -> None:
-    """Instala reconhecimento atual de CPU/iGPU como camada sobre o cérebro V8."""
+    """Instala reconhecimento atual de CPU/iGPU como camada sobre o cérebro V8.
+
+    Mantemos `scraper.specs` e `scraper.extract` semanticamente compatíveis com o
+    parser base. A inferência CPU→iGPU é aplicada na cache e imediatamente antes
+    do scoring, evitando efeitos globais dependentes da ordem de importação dos
+    testes sem perder a identidade enriquecida no runtime real.
+    """
     if getattr(tracker_module, "_HARDWARE_GUARD_INSTALLED", False):
         return
 
     base_cpu = scraper_module.cpu
     base_gpus = scraper_module.gpus
-    base_specs = scraper_module.specs
-    base_extract = scraper_module.extract
     base_score_allow_unknown = tracker_module.score_allow_unknown
     base_select_with_cache = tracker_module.select_with_cache
 
@@ -165,16 +169,6 @@ def install(scraper_module, tracker_module) -> None:
 
     scraper_module.cpu = cpu
     scraper_module.gpus = gpus
-
-    def specs(text: str):
-        return upgrade_spec(base_specs(text), scraper_module, text)
-
-    scraper_module.specs = specs
-
-    def extract(title, soup):
-        return upgrade_spec(base_extract(title, soup), scraper_module, title)
-
-    scraper_module.extract = extract
 
     def score_allow_unknown(spec, price, weights, settings):
         upgrade_spec(spec, scraper_module)
