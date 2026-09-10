@@ -270,6 +270,83 @@ class CoverageGuardTests(unittest.TestCase):
         )
         self.assertEqual(module._last_scan_cat["max_category_pages"], 1)
 
+    def test_adaptive_sitemap_probe_rises_from_5_to_10_on_high_yield(self):
+        discovery = {
+            "sitemap": {
+                "attempts": 13,
+                "new_candidates": 340,
+                "last_yield": 0.7692,
+                "ema_yield": 0.7692,
+            }
+        }
+        urls = [f"https://darty.test/products/asus-{index}" for index in range(20)]
+        module = self._module({}, sitemap_urls=urls, discovery=discovery)
+        coverage_guard.install(module)
+        items, stat = module.scan_store(
+            {
+                "loja": "Darty",
+                "url": "https://darty.test/collections/portateis",
+                "sitemap_new_probe_limit": 5,
+                "sitemap_probe_steps": [5, 10, 15],
+                "sitemap_probe_yield_threshold": 0.60,
+            },
+            {},
+            {"preco_minimo_global": 250, "budget_hard": 1500},
+        )
+        self.assertEqual(module._last_scan_cat["sitemap_new_probe_limit"], 10)
+        self.assertEqual(len(items), 10)
+        self.assertEqual(stat["sitemap_probe_limit_used"], 10)
+        self.assertEqual(module._discovery["sitemap"]["adaptive_probe_limit"], 10)
+
+    def test_adaptive_sitemap_probe_requires_recent_and_ema_yield(self):
+        discovery = {
+            "sitemap": {
+                "attempts": 8,
+                "new_candidates": 30,
+                "last_yield": 0.55,
+                "ema_yield": 0.72,
+            }
+        }
+        urls = [f"https://darty.test/products/asus-{index}" for index in range(20)]
+        module = self._module({}, sitemap_urls=urls, discovery=discovery)
+        coverage_guard.install(module)
+        items, stat = module.scan_store(
+            {
+                "loja": "Darty",
+                "url": "https://darty.test/collections/portateis",
+                "sitemap_new_probe_limit": 5,
+                "sitemap_probe_steps": [5, 10, 15],
+                "sitemap_probe_yield_threshold": 0.60,
+            },
+            {},
+            {"preco_minimo_global": 250, "budget_hard": 1500},
+        )
+        self.assertEqual(module._last_scan_cat["sitemap_new_probe_limit"], 5)
+        self.assertEqual(len(items), 5)
+        self.assertEqual(stat["sitemap_probe_limit_used"], 5)
+
+    def test_adaptive_sitemap_probe_rises_only_one_step_per_run(self):
+        discovery = {
+            "sitemap": {
+                "attempts": 14,
+                "new_candidates": 350,
+                "last_yield": 0.80,
+                "ema_yield": 0.75,
+                "adaptive_probe_limit": 10,
+            }
+        }
+        self.assertEqual(
+            coverage_guard._adaptive_sitemap_probe_limit(
+                {
+                    "sitemap_new_probe_limit": 5,
+                    "sitemap_probe_steps": [5, 10, 15],
+                    "sitemap_probe_yield_threshold": 0.60,
+                },
+                discovery["sitemap"],
+            ),
+            15,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
