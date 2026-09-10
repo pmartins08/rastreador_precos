@@ -1,4 +1,6 @@
 import unittest
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 from bs4 import BeautifulSoup
 
@@ -230,6 +232,14 @@ class PriceGuardV88Tests(unittest.TestCase):
 
 
 class PriceRefreshV881Tests(unittest.TestCase):
+    def setUp(self):
+        # Os dois caminhos de validação devem observar o mesmo relógio, mesmo
+        # quando reusable_price_evidence consulta datetime.now internamente.
+        clock_patch = patch.object(tracker, "datetime", wraps=datetime)
+        self.clock = clock_patch.start()
+        self.addCleanup(clock_patch.stop)
+        self.clock.now.return_value = datetime(2026, 9, 8, 18, 0, tzinfo=timezone.utc)
+
     def test_cached_low_price_without_current_confirmation_is_refreshed(self):
         previous = {"specs": {"price_confirmed": 1199.0, "price_page_confidence": "HIGH"}}
         item = {"preco": 1199.0}
@@ -245,8 +255,6 @@ class PriceRefreshV881Tests(unittest.TestCase):
         self.assertTrue(tracker.needs_price_refresh(previous, item, {"budget_soft": 1300}))
 
     def test_recent_matching_price_evidence_is_reused(self):
-        from datetime import datetime, timezone
-        now = datetime(2026, 9, 8, 18, 0, tzinfo=timezone.utc)
         previous = {"specs": {
             "price_confirmed": 1199.0,
             "price_page_confidence": "HIGH",
@@ -256,10 +264,26 @@ class PriceRefreshV881Tests(unittest.TestCase):
         }}
         item = {"preco": 1199.0}
         settings = {"budget_soft": 1300, "price_confirmation_ttl_hours": 24}
-        self.assertFalse(tracker.needs_price_refresh(previous, item, settings, current_time=now))
+        self.assertFalse(tracker.needs_price_refresh(previous, item, settings))
         evidence = tracker.reusable_price_evidence(previous, item, settings)
         self.assertEqual(evidence["price_confirmed"], 1199.0)
         self.assertEqual(evidence["price_page_confidence"], "HIGH")
+
+    def test_matching_price_evidence_expires_at_ttl_boundary(self):
+        checked_at = datetime(2026, 9, 8, 17, 0, tzinfo=timezone.utc)
+        previous = {"specs": {
+            "price_confirmed": 1199.0,
+            "price_page_confidence": "HIGH",
+            "price_checked_at": checked_at.isoformat(),
+        }}
+        item = {"preco": 1199.0}
+        settings = {"budget_soft": 1300, "price_confirmation_ttl_hours": 24}
+        for age_seconds, expired in ((86399, False), (86400, True), (86401, True)):
+            with self.subTest(age_seconds=age_seconds):
+                self.clock.now.return_value = checked_at + timedelta(seconds=age_seconds)
+                self.assertEqual(tracker.needs_price_refresh(previous, item, settings), expired)
+                evidence = tracker.reusable_price_evidence(previous, item, settings)
+                self.assertEqual(evidence, {} if expired else previous["specs"])
 
     def test_stale_price_evidence_is_not_reused(self):
         previous = {"specs": {
