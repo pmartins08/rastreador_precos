@@ -58,6 +58,7 @@ jobs:
       - name: Executar rastreador
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          AWIN_DATAFEED_API_KEY: ${{ secrets.AWIN_DATAFEED_API_KEY }}
           RUN_MAX_MINUTES: '8'
           RUN_MAX_REQUESTS: '300'
           RUN_MAX_REQUESTS_PER_STORE: '60'
