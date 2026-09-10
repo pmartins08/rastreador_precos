@@ -13,6 +13,7 @@ from gpu_guard import install as install_gpu_guard
 from hardware_guard import install as install_hardware_guard
 from historical_guard import install as install_historical_guard
 from market_guard import install as install_market_guard
+from price_change_priority_guard import install as install_price_change_priority_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_guard import install as install_promotion_guard
 from rejection_guard import install as install_rejection_guard
@@ -203,6 +204,9 @@ install_catalog_guard(tracker)
 install_awin_feed_guard(tracker)
 install_coverage_guard(tracker)
 install_sitemap_strategy_epoch_guard(tracker)
+# Última camada de pré-ranking: vê a prioridade final e acrescenta apenas um
+# bónus de seleção quando o preço atual difere materialmente do histórico.
+install_price_change_priority_guard(tracker)
 install_rejection_guard(scraper, tracker)
 install_top5_guard(tracker)
 
