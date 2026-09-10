@@ -36,12 +36,22 @@ def _csv_rows(content: bytes) -> list[dict[str, str]]:
     text = _decode_csv_bytes(content)
     if not text.strip():
         return []
-    sample = text[:8192]
-    try:
-        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
-        reader = csv.DictReader(io.StringIO(text), dialect=dialect)
-    except csv.Error:
-        reader = csv.DictReader(io.StringIO(text))
+
+    # Feeds PT usam frequentemente ';' com vírgula decimal. O Sniffer pode
+    # confundir a vírgula do preço com o delimitador; o cabeçalho é a evidência
+    # mais segura porque nomes de colunas não contêm separadores de dados.
+    header = text.splitlines()[0] if text.splitlines() else ""
+    candidates = (";", "\t", "|", ",")
+    delimiter = max(candidates, key=lambda value: header.count(value))
+    if header.count(delimiter) > 0:
+        reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+    else:
+        sample = text[:8192]
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+            reader = csv.DictReader(io.StringIO(text), dialect=dialect)
+        except csv.Error:
+            reader = csv.DictReader(io.StringIO(text))
     return [
         {str(key or "").strip(): str(value or "").strip() for key, value in row.items()}
         for row in reader
