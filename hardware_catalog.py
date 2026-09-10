@@ -1,0 +1,240 @@
+from __future__ import annotations
+
+
+# Catálogo factual. Estes valores descrevem identidade/capacidade publicada pelos
+# fabricantes; não são scores do cérebro e nunca devem ser usados como tal.
+GPU_CAPABILITIES = {
+    "intel arc b390": {
+        "vendor": "intel",
+        "gpu_type": "integrada",
+        "family": "arc_b",
+        "compute_units": 12,
+        "compute_unit_name": "xe_core",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://www.intel.com/content/www/us/en/products/details/discrete-gpus/arc/laptops.html",
+    },
+    "intel arc b370": {
+        "vendor": "intel",
+        "gpu_type": "integrada",
+        "family": "arc_b",
+        "compute_units": 10,
+        "compute_unit_name": "xe_core",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://www.intel.com/content/www/us/en/products/details/discrete-gpus/arc/laptops.html",
+    },
+    "radeon 8060s": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3.5",
+        "compute_units": 40,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 8050s": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3.5",
+        "compute_units": 32,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 8040s": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3.5",
+        "compute_units": 16,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 890m": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3.5",
+        "compute_units": 16,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 880m": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3.5",
+        "compute_units": 12,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 860m": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3.5",
+        "compute_units": 8,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 840m": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3.5",
+        "compute_units": 4,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 820m": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3.5",
+        "compute_units": 2,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 780m": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3",
+        "compute_units": 12,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 760m": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3",
+        "compute_units": 8,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+    "radeon 740m": {
+        "vendor": "amd",
+        "gpu_type": "integrada",
+        "family": "rdna3",
+        "compute_units": 4,
+        "compute_unit_name": "cu",
+        "memory_model": "shared_system",
+        "vram_gb": None,
+        "memory_bus_bits": None,
+        "performance_score": None,
+        "source": "https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html",
+    },
+}
+
+
+# Relações CPU -> iGPU publicadas pelo fabricante. Só inferimos quando a CPU foi
+# identificada exatamente e não existe já uma GPU dedicada/mais específica.
+CPU_IGPU_MAP = {
+    # Intel Core Ultra Series 3
+    "core ultra x9 388h": "intel arc b390",
+    "core ultra x9 378h": "intel arc b390",
+    "core ultra x7 368h": "intel arc b390",
+    "core ultra x7 358h": "intel arc b390",
+    "core ultra 5 338h": "intel arc b370",
+
+    # AMD Ryzen AI 400
+    "ryzen ai 9 hx 475": "radeon 890m",
+    "ryzen ai 9 hx 470": "radeon 890m",
+    "ryzen ai 9 465": "radeon 880m",
+    "ryzen ai 7 450": "radeon 860m",
+    "ryzen ai 7 445": "radeon 840m",
+    "ryzen ai 5 435": "radeon 840m",
+    "ryzen ai 5 430": "radeon 840m",
+
+    # AMD Ryzen AI 300
+    "ryzen ai 9 hx 375": "radeon 890m",
+    "ryzen ai 9 hx 370": "radeon 890m",
+    "ryzen ai 9 365": "radeon 880m",
+    "ryzen ai 7 350": "radeon 860m",
+    "ryzen ai 7 345": "radeon 840m",
+    "ryzen ai 5 340": "radeon 840m",
+    "ryzen ai 5 330": "radeon 820m",
+
+    # AMD Ryzen 200
+    "ryzen 9 270": "radeon 780m",
+    "ryzen 7 260": "radeon 780m",
+    "ryzen 7 250": "radeon 780m",
+    "ryzen 5 240": "radeon 760m",
+    "ryzen 5 230": "radeon 760m",
+    "ryzen 5 220": "radeon 740m",
+    "ryzen 3 210": "radeon 740m",
+
+    # AMD Ryzen AI Max 300
+    "ryzen ai max+ 395": "radeon 8060s",
+    "ryzen ai max+ 392": "radeon 8060s",
+    "ryzen ai max+ 388": "radeon 8060s",
+    "ryzen ai max 390": "radeon 8050s",
+    "ryzen ai max 385": "radeon 8050s",
+
+    # PRO variants with the same published graphics configuration
+    "ryzen ai 9 hx pro 475": "radeon 890m",
+    "ryzen ai 9 hx pro 470": "radeon 890m",
+    "ryzen ai 9 pro 465": "radeon 880m",
+    "ryzen ai 7 pro 450": "radeon 860m",
+    "ryzen ai 5 pro 440": "radeon 840m",
+    "ryzen ai 5 pro 435": "radeon 840m",
+    "ryzen ai 9 hx pro 375": "radeon 890m",
+    "ryzen ai 9 hx pro 370": "radeon 890m",
+    "ryzen ai 7 pro 350": "radeon 860m",
+    "ryzen ai 5 pro 340": "radeon 840m",
+    "ryzen ai max+ pro 395": "radeon 8060s",
+    "ryzen ai max pro 390": "radeon 8050s",
+    "ryzen ai max pro 385": "radeon 8050s",
+    "ryzen ai max pro 380": "radeon 8040s",
+    "ryzen 7 pro 250": "radeon 780m",
+    "ryzen 5 pro 230": "radeon 760m",
+    "ryzen 5 pro 220": "radeon 740m",
+    "ryzen 5 pro 215": "radeon 740m",
+    "ryzen 3 pro 210": "radeon 740m",
+}
+
+
+def gpu_capability(model: object) -> dict | None:
+    key = str(model or "").strip().lower()
+    value = GPU_CAPABILITIES.get(key)
+    return dict(value) if value is not None else None
+
+
+def cpu_integrated_gpu(cpu_model: object) -> str | None:
+    return CPU_IGPU_MAP.get(str(cpu_model or "").strip().lower())
