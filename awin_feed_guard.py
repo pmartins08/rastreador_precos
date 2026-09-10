@@ -10,6 +10,14 @@ from urllib.parse import urlparse
 
 FEED_LIST_TEMPLATE = "https://productdata.awin.com/datafeed/list/apikey/{api_key}"
 
+# IDs públicos dos programas PT. A presença nesta tabela não ativa nada: o guard
+# só faz pedidos quando AWIN_DATAFEED_API_KEY existir no ambiente do runner.
+DEFAULT_ADVERTISERS = {
+    "Darty": "120908",
+    "PcComponentes": "20983",
+    "Worten": "99897",
+}
+
 
 def _decode_csv_bytes(content: bytes) -> str:
     raw = bytes(content or b"")
@@ -51,6 +59,11 @@ def _row_value(row: dict[str, str], *names: str) -> str:
         if value:
             return value
     return ""
+
+
+def _advertiser_id(cat: dict) -> str:
+    configured = str(cat.get("awin_advertiser_id") or "").strip()
+    return configured or DEFAULT_ADVERTISERS.get(str(cat.get("loja") or ""), "")
 
 
 def _direct_merchant_url(value: object, cat: dict) -> str | None:
@@ -110,7 +123,7 @@ def _feed_is_laptop(row: dict[str, str], cat: dict, scraper_module) -> bool:
 
 
 def _feed_candidates(content: bytes, cat: dict, tracker_module) -> list[dict]:
-    expected_id = str(cat.get("awin_advertiser_id") or "").strip()
+    expected_id = _advertiser_id(cat)
     limit = max(1, int(cat.get("awin_feed_candidate_limit", cat.get("target_candidates", 60))))
     out: list[dict] = []
     seen: set[str] = set()
@@ -139,12 +152,12 @@ def _feed_candidates(content: bytes, cat: dict, tracker_module) -> list[dict]:
         if price is None:
             continue
 
+        # Nunca usamos aw_deep_link: isso criaria um clique de afiliado durante
+        # scraping. Só aceitamos URL direta do próprio merchant.
         url = _direct_merchant_url(
             _row_value(row, "merchant_deep_link", "merchantdeeplink", "deep_link"), cat
         )
-        if not url:
-            continue
-        if url in seen:
+        if not url or url in seen:
             continue
 
         stock = _stock_value(row)
@@ -170,9 +183,8 @@ def _feed_candidates(content: bytes, cat: dict, tracker_module) -> list[dict]:
         if sku:
             item["sku"] = sku
 
-        # Specs do feed são evidência útil para pré-ranking/matching, mas não são
-        # marcadas como `item['specs']`: a ficha live/cache continua a ser a fonte
-        # autoritativa de hardware/teclado no pipeline normal.
+        # Specs do feed ajudam apenas o pré-ranking. Não são `item['specs']`:
+        # ficha live/cache continua autoritativa para avaliação final/teclado.
         feed_spec_text = " ".join(
             filter(
                 None,
@@ -195,16 +207,30 @@ def _feed_candidates(content: bytes, cat: dict, tracker_module) -> list[dict]:
 
 
 def _feed_urls_from_list(content: bytes) -> dict[str, str]:
-    found: dict[str, str] = {}
+    """Escolhe a melhor feed visível por advertiser, preferindo PT e Joined."""
+    best: dict[str, tuple[int, str]] = {}
     for row in _csv_rows(content):
         advertiser_id = _row_value(row, "Advertiser ID", "advertiser_id", "merchant_id")
         url = _row_value(row, "URL", "download_url", "feed_url")
-        joined = _row_value(row, "Membership Status", "membership_status").lower()
         if not advertiser_id or not url:
             continue
-        if advertiser_id not in found or "joined" in joined:
-            found[advertiser_id] = url
-    return found
+
+        membership = _row_value(row, "Membership Status", "membership_status").lower()
+        language = _row_value(row, "Language", "language").lower()
+        feed_name = _row_value(row, "Feed Name", "feed_name").lower()
+        vertical = _row_value(row, "Vertical", "vertical").lower()
+        joined = "joined" in membership and "not joined" not in membership
+        portuguese = language in {"pt", "pt-pt", "portuguese", "português", "portugues"}
+        score = (
+            (100 if joined else 0)
+            + (30 if portuguese else 0)
+            + (5 if any(token in feed_name for token in ("default", "product", "produto", "catalog")) else 0)
+            + (2 if vertical in {"", "general"} else 0)
+        )
+        previous = best.get(advertiser_id)
+        if previous is None or score > previous[0]:
+            best[advertiser_id] = (score, url)
+    return {advertiser_id: value[1] for advertiser_id, value in best.items()}
 
 
 def _request_bytes(tracker_module, url: str, store: str, method: str, timeout_s: float):
@@ -262,8 +288,8 @@ def install(tracker_module) -> None:
 
     def scan_store(cat: dict, config: dict, settings: dict):
         items, stat = base_scan_store(cat, config, settings)
-        advertiser_id = str(cat.get("awin_advertiser_id") or "").strip()
-        below = max(0, int(cat.get("awin_feed_below", cat.get("target_candidates", 60))))
+        advertiser_id = _advertiser_id(cat)
+        below = max(0, int(cat.get("awin_feed_below", 20)))
         if not advertiser_id or len(items) >= below or not tracker_module.budget_available(cat["loja"]):
             return items, stat
 
@@ -311,8 +337,7 @@ def install(tracker_module) -> None:
             stat["bloqueada"] = False
         return items, stat
 
-    # Feed hints can improve pre-ranking before a live detail fetch, while cached
-    # specs and live specs remain authoritative for final evaluation.
+    # Hints do feed melhoram pré-ranking; specs live/cache continuam autoritativas.
     base_candidate_priority = tracker_module.candidate_priority
 
     def candidate_priority(item, weights, settings):
