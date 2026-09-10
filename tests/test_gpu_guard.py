@@ -63,7 +63,7 @@ class DummyTracker:
             "exceptional_deal_bonus": 0.0,
             "score_final": 75.0,
             "score_ranking": 74.0,
-            "detalhes": {"Gaming": 50.0},
+            "detalhes": {"Gaming": float(settings.get("test_gaming", 50.0))},
         }
 
 
@@ -76,6 +76,7 @@ class GpuGuardTests(unittest.TestCase):
             "ouro_value_min": 110,
             "diamante_value_min": 125,
             "test_value": 120,
+            "test_gaming": 50,
         }
 
     def _modules(self):
@@ -84,35 +85,43 @@ class GpuGuardTests(unittest.TestCase):
         gpu_guard.install(scraper, tracker)
         return scraper, tracker
 
+    def test_tier_influence_uses_agreed_continuous_formula(self):
+        influence = gpu_guard.tier_influence(120.0, 50.0)
+        self.assertEqual(influence["value"], 120.0)
+        self.assertAlmostEqual(influence["multiplier"], 0.925)
+        self.assertAlmostEqual(influence["tier_score"], 111.0)
+
     def test_mapped_dedicated_gpu_can_be_gold(self):
         scraper, tracker = self._modules()
         spec = {"gpu_tipo": "dedicada", "gpu_modelo": "rtx 5070"}
         assessment = tracker.score_allow_unknown(spec, 1200, self.weights, self.settings)
         self.assertEqual(assessment["value_score"], 120.0)
         self.assertTrue(assessment["gpu_tier_guard"]["confirmed"])
+        self.assertAlmostEqual(assessment["gpu_tier_influence"]["tier_score"], 111.0)
         self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "OURO")
 
-    def test_unknown_gpu_is_capped_at_silver_without_changing_value(self):
+    def test_unknown_gpu_has_no_artificial_silver_cap(self):
         scraper, tracker = self._modules()
         spec = {"gpu_tipo": "desconhecida", "gpu_modelo": None}
         assessment = tracker.score_allow_unknown(spec, 800, self.weights, self.settings)
         self.assertEqual(assessment["value_score"], 120.0)
         self.assertFalse(assessment["gpu_tier_guard"]["confirmed"])
-        self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "PRATA")
+        self.assertEqual(assessment["gpu_tier_guard"]["status"], "GPU_DESCONHECIDA")
+        self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "OURO")
 
-    def test_unmapped_dedicated_gpu_is_capped_at_silver(self):
+    def test_unmapped_dedicated_gpu_uses_continuous_tier_score(self):
         scraper, tracker = self._modules()
         spec = {"gpu_tipo": "dedicada", "gpu_modelo": None}
         assessment = tracker.score_allow_unknown(spec, 900, self.weights, self.settings)
         self.assertEqual(assessment["gpu_tier_guard"]["status"], "DEDICADA_NAO_MAPEADA")
-        self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "PRATA")
+        self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "OURO")
 
-    def test_generic_integrated_gpu_remains_capped(self):
+    def test_generic_integrated_gpu_uses_continuous_tier_score(self):
         scraper, tracker = self._modules()
         spec = {"gpu_tipo": "integrada", "gpu_modelo": None}
         assessment = tracker.score_allow_unknown(spec, 700, self.weights, self.settings)
         self.assertEqual(assessment["gpu_tier_guard"]["status"], "INTEGRADA_NAO_MAPEADA")
-        self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "PRATA")
+        self.assertEqual(scraper.tier_from_value(assessment["value_score"], self.settings), "OURO")
 
     def test_known_arc_140v_is_identified_and_confirmed(self):
         scraper, tracker = self._modules()
@@ -177,15 +186,21 @@ class GpuGuardTests(unittest.TestCase):
         self.assertGreater(gpu_guard.IGPU_BASE["intel arc graphics 140v"], 30.0)
         self.assertLess(gpu_guard.IGPU_BASE["radeon 780m"], 30.0)
 
-    def test_diamond_also_requires_mapped_gpu(self):
+    def test_low_gaming_reduces_diamond_to_gold_without_hard_cap(self):
         scraper, tracker = self._modules()
-        settings = dict(self.settings, test_value=135)
+        settings = dict(self.settings, test_value=135, test_gaming=20)
         unknown = {"gpu_tipo": "desconhecida", "gpu_modelo": None}
         assessment = tracker.score_allow_unknown(unknown, 600, self.weights, settings)
-        self.assertEqual(scraper.tier_from_value(assessment["value_score"], settings), "PRATA")
+        self.assertEqual(assessment["value_score"], 135.0)
+        self.assertAlmostEqual(assessment["gpu_tier_influence"]["tier_score"], 118.8)
+        self.assertEqual(scraper.tier_from_value(assessment["value_score"], settings), "OURO")
 
+    def test_high_gaming_preserves_diamond(self):
+        scraper, tracker = self._modules()
+        settings = dict(self.settings, test_value=135, test_gaming=100)
         mapped = {"gpu_tipo": "dedicada", "gpu_modelo": "rtx 5070"}
         assessment = tracker.score_allow_unknown(mapped, 600, self.weights, settings)
+        self.assertAlmostEqual(assessment["gpu_tier_influence"]["tier_score"], 135.0)
         self.assertEqual(scraper.tier_from_value(assessment["value_score"], settings), "DIAMANTE")
 
     def test_plain_value_calls_keep_original_tier_logic(self):
