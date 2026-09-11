@@ -36,7 +36,7 @@ def main():
             state = json.loads((isolated / "data/history.json").read_text())
             report = state["learning"]["runs"][-1]
             args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+            args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print("FULL_RUN " + json.dumps(report, ensure_ascii=False), flush=True)
         return
     before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT / "data").glob("*.json")}
