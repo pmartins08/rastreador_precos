@@ -16,6 +16,7 @@ from awin_feed_guard import install as install_awin_feed_guard
 from brain_guard import install as install_brain_guard
 from catalog_guard import install as install_catalog_guard
 from coverage_guard import install as install_coverage_guard
+from display_guard import install as install_display_guard
 from gpu_guard import install as install_gpu_guard
 from hardware_guard import install as install_hardware_guard
 from historical_guard import install as install_historical_guard
@@ -204,6 +205,9 @@ install_version_guard(tracker)
 install_promotion_guard(tracker)
 install_gpu_guard(scraper, tracker)
 install_hardware_guard(scraper, tracker)
+# Display Guard corrige resolução explícita antes de mercado/matching para que
+# cache antigo e fichas live usem a mesma identidade de painel.
+install_display_guard(scraper, tracker)
 install_market_guard(scraper, tracker)
 # Matching vem depois do Market Guard para poder vetar também confirmação de
 # preço cross-store quando um EAN/MPN entra em conflito com hardware conhecido.
