@@ -3,6 +3,7 @@
 Esta pasta contém as camadas especializadas que complementam o motor principal da raiz sem esconder o fluxo central do projeto.
 
 - `*_guard.py` — validação, cobertura, histórico, matching, scoring contextual e observabilidade.
+- `matching_guard.py` — impede que EAN/MPN contraditórios fundam configurações ou confirmem preços e gera `data/matching_state.json` como estado derivado auditável.
 - `hardware_catalog.py` — catálogo factual usado pelo reconhecimento de CPU/iGPU.
 - `awin_feed_guard.py` e `catalog_guard.py` — fontes públicas/autorizadas alternativas para descoberta.
 
