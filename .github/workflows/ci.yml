@@ -38,7 +38,7 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Validar sintaxe Python
-        run: python -m compileall -q runner.py tracker.py scraper.py version.py src tests
+        run: python -m compileall -q runner.py tracker.py scraper.py version.py src tests scripts
 
       - name: Validar configuração JSON
         run: python -m json.tool config/config.json > /dev/null

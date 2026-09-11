@@ -1,7 +1,18 @@
 from __future__ import annotations
 
 import math
+import re
+import unicodedata
+from datetime import datetime, timezone
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
+
+
+def _laptop_product(product: dict) -> bool:
+    text = " ".join(str(product.get(field) or "") for field in ("title", "handle", "product_type"))
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+    if re.search(r"\b(?:consola|console|monitor|impressora|desktop|all.in.one|mochila|carregador)\b", text):
+        return False
+    return bool(re.search(r"\b(?:portatil|portateis|laptop|notebook|chromebook)\b", text))
 
 
 def _shopify_candidates(payload: object, cat: dict, tracker_module) -> list[dict]:
@@ -12,6 +23,8 @@ def _shopify_candidates(payload: object, cat: dict, tracker_module) -> list[dict
     limit = max(1, int(cat.get("catalog_json_candidate_limit", cat.get("target_candidates", 60))))
     for product in payload["products"]:
         if not isinstance(product, dict):
+            continue
+        if cat.get("catalog_laptop_only") and not _laptop_product(product):
             continue
         title = str(product.get("title") or "").strip()
         handle = str(product.get("handle") or "").strip()
@@ -94,12 +107,46 @@ def _usable_candidates(rows: list[dict], settings: dict) -> list[dict]:
     ]
 
 
+def _reusable_live_catalog_price(previous: dict, hint: float, *, now=None, ttl_hours=6) -> float | None:
+    spec = previous.get("specs") or {}
+    try:
+        if float(spec.get("catalog_price_hint")) != float(hint):
+            return None
+        stamp = datetime.fromisoformat(str(spec.get("price_checked_at")).replace("Z", "+00:00"))
+        current = now or datetime.now(timezone.utc)
+        age = (current - stamp).total_seconds()
+        price = float(previous["price"])
+        confirmed = float(spec["price_confirmed"])
+        if not (0 <= age < float(ttl_hours) * 3600):
+            return None
+        if not (math.isfinite(price) and price > 0 and abs(price - confirmed) < 0.01):
+            return None
+        if spec.get("price_page_confidence") not in {"MEDIUM", "HIGH"}:
+            return None
+        return price
+    except (TypeError, ValueError, KeyError, OverflowError):
+        return None
+
+
 def install(tracker_module) -> None:
     """Prefere o catálogo público validado; mantém HTML/sitemap como fallback."""
     if getattr(tracker_module, "_CATALOG_GUARD_INSTALLED", False):
         return
 
     base_scan_store = tracker_module.scan_store
+    base_enrich = getattr(tracker_module, "enrich", None)
+    previous_cache = {}
+    previous_loaded = False
+
+    def previous_offers():
+        nonlocal previous_loaded
+        if not previous_loaded:
+            loader = getattr(tracker_module, "load_history", None)
+            latest = getattr(tracker_module, "latest_offer_by_url", None)
+            if loader and latest:
+                previous_cache.update(latest(loader()))
+            previous_loaded = True
+        return previous_cache
 
     def read_catalog(cat, config, settings):
         store = str(cat["loja"])
@@ -169,6 +216,16 @@ def install(tracker_module) -> None:
                 return items, stat
             found, outcome, spent, count, pages, exhausted = read_catalog(cat, config, settings)
 
+        # The public catalogue price is a hint; promotions can live only on the
+        # product page. Reuse a recent page price only while the hint is unchanged.
+        for item in found:
+            item["_catalog_price_hint"] = item["preco"]
+            previous = previous_offers().get(item["url"], {})
+            cached_price = _reusable_live_catalog_price(previous, item["preco"])
+            if previous.get("loja") == cat["loja"] and cached_price is not None:
+                item["preco"] = cached_price
+                item["_catalog_live_price_cached"] = True
+
         known = {str(item.get("url")) for item in items if item.get("url")}
         added = 0
         for item in found:
@@ -197,5 +254,30 @@ def install(tracker_module) -> None:
             stat["bloqueada"] = False
         return items, stat
 
+    def enrich(item, config):
+        if "_catalog_price_hint" not in item:
+            return base_enrich(item, config)
+        seed = dict(item)
+        hint = seed["_catalog_price_hint"]
+        # Do not let the seed's list price override a current promotional price.
+        seed["preco"] = None
+        result, status = base_enrich(seed, config)
+        if status.get("error"):
+            return item, status
+        spec = dict(result.get("specs") or {})
+        try:
+            confirmed = float(spec.get("price_confirmed"))
+        except (TypeError, ValueError, OverflowError):
+            confirmed = float("nan")
+        if not math.isfinite(confirmed) or confirmed <= 0 or spec.get("price_page_confidence") not in {"MEDIUM", "HIGH"}:
+            return item, {**status, "error": "catalog_live_price_unconfirmed"}
+        result = dict(result)
+        result["preco"] = confirmed
+        spec["catalog_price_hint"] = hint
+        result["specs"] = spec
+        return result, status
+
     tracker_module.scan_store = scan_store
+    if base_enrich is not None:
+        tracker_module.enrich = enrich
     tracker_module._CATALOG_GUARD_INSTALLED = True

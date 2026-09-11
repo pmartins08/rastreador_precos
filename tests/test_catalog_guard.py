@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from unittest.mock import Mock
+from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock, patch
 import types
 import unittest
 
@@ -233,6 +234,81 @@ class CatalogGuardTests(unittest.TestCase):
         _, stats = module.scan_store(self._cat(), {}, {})
         module.requests.get.assert_not_called()
         self.assertEqual(stats["catalog_json_outcome"], "request_budget_exhausted")
+
+    def test_laptop_catalog_excludes_consoles_desktops_and_accessories(self):
+        module = self._module({})
+        payload = {"products": [
+            {**self._product(1), "title": "Consola Portátil Asus ROG Xbox Ally"},
+            {**self._product(2), "title": "Desktop Lenovo IdeaCentre"},
+            {**self._product(3), "title": "Monitor HP para portátil"},
+            {**self._product(4), "title": "Portátil ASUS TUF A16"},
+            {**self._product(5), "title": "HP", "product_type": "Computadores Portáteis"},
+        ]}
+        rows = catalog_guard._shopify_candidates(payload, self._cat(catalog_laptop_only=True), module)
+        self.assertEqual([r["url"].rsplit("-", 1)[-1] for r in rows], ["4", "5"])
+
+    def test_catalog_hint_does_not_override_live_promotional_price(self):
+        module = self._module({})
+        module.enrich = Mock(return_value=(
+            {"preco": 699.99, "specs": {"price_confirmed": 699.99, "price_page_confidence": "MEDIUM"}},
+            {"error": None, "access": "http_success"},
+        ))
+        base = module.enrich
+        catalog_guard.install(module)
+        seed = {"preco": 899.99, "_catalog_price_hint": 899.99}
+        item, status = module.enrich(seed, {})
+        self.assertIsNone(base.call_args.args[0]["preco"])
+        self.assertEqual(seed["preco"], 899.99)
+        self.assertEqual(item["preco"], 699.99)
+        self.assertEqual(item["specs"]["catalog_price_hint"], 899.99)
+        self.assertEqual(item["specs"]["price_page_confidence"], "MEDIUM")
+        self.assertIsNone(status["error"])
+
+    def test_catalog_missing_live_price_cannot_be_scored_as_confirmed(self):
+        module = self._module({})
+        module.enrich = Mock(return_value=({"preco": 899.99, "specs": {}}, {"error": None}))
+        catalog_guard.install(module)
+        _, status = module.enrich({"preco": 899.99, "_catalog_price_hint": 899.99}, {})
+        self.assertEqual(status["error"], "catalog_live_price_unconfirmed")
+
+    def test_failed_catalog_product_keeps_access_failure(self):
+        module = self._module({})
+        module.enrich = Mock(return_value=({}, {"error": "access_failed", "access": "http_403"}))
+        catalog_guard.install(module)
+        _, status = module.enrich({"preco": 899.99, "_catalog_price_hint": 899.99}, {})
+        self.assertEqual(status["access"], "http_403")
+        self.assertEqual(status["error"], "access_failed")
+
+    def test_regular_store_seed_is_unchanged(self):
+        module = self._module({})
+        module.enrich = Mock(return_value=({}, {"error": None}))
+        base = module.enrich
+        catalog_guard.install(module)
+        seed = {"preco": 899.99}
+        module.enrich(seed, {})
+        self.assertIs(base.call_args.args[0], seed)
+
+    def test_live_catalog_price_cache_requires_same_hint_and_fresh_confirmation(self):
+        now = datetime(2026, 9, 11, 23, tzinfo=timezone.utc)
+        previous = {"price": 699.99, "specs": {
+            "catalog_price_hint": 899.99, "price_confirmed": 699.99,
+            "price_page_confidence": "MEDIUM",
+            "price_checked_at": (now - timedelta(hours=1)).isoformat(),
+        }}
+        self.assertEqual(catalog_guard._reusable_live_catalog_price(previous, 899.99, now=now), 699.99)
+        self.assertIsNone(catalog_guard._reusable_live_catalog_price(previous, 999.99, now=now))
+        self.assertIsNone(catalog_guard._reusable_live_catalog_price(previous, 899.99, now=now + timedelta(hours=5)))
+        self.assertIsNone(catalog_guard._reusable_live_catalog_price(previous, 899.99, now=now - timedelta(hours=2)))
+        previous["specs"]["price_page_confidence"] = "UNKNOWN"
+        self.assertIsNone(catalog_guard._reusable_live_catalog_price(previous, 899.99, now=now))
+
+    def test_catalog_promotion_still_uses_real_price_guard_for_suspicious_prices(self):
+        import price_guard
+        validation = price_guard.validate_price({
+            "gpu_tipo": "dedicada", "gpu_modelo": "rtx 5070",
+            "price_confirmed": 399.99, "price_page_confidence": "MEDIUM",
+        }, 399.99, {})
+        self.assertEqual(validation["status"], "PRICE_UNCONFIRMED")
 
 
 if __name__ == "__main__":
