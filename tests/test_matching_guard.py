@@ -37,6 +37,30 @@ class DummyTracker:
             return {"level": "EXATO", "reason": "MPN/part number idêntico"}
         return {"level": "SEM_MATCH", "reason": "evidência insuficiente"}
 
+    @staticmethod
+    def apply_exact_market_price_evidence(records, settings):
+        groups = {}
+        for record in records:
+            item = record["item"]
+            key = None
+            if item.get("ean"):
+                key = f"ean:{item['ean']}"
+            elif item.get("mpn"):
+                key = f"mpn:{item['mpn']}"
+            if key:
+                groups.setdefault(key, []).append(record)
+
+        confirmed = 0
+        for key, members in groups.items():
+            stores = {member["item"].get("loja") for member in members}
+            if len(stores) < 2:
+                continue
+            confirmed += 1
+            for member in members:
+                member["spec"]["market_price_confirmed"] = 999.0
+                member["spec"]["market_price_identifier"] = key
+        return {"confirmed_groups": confirmed, "outliers": 0}
+
     def build_cross_store_matches(self, records):
         counts = {"EXATO": 0, "FORTE": 0, "PROVAVEL": 0, "NAO_FUNDIR": 0}
         for left in range(len(records)):
@@ -68,14 +92,48 @@ class MatchingGuardTests(unittest.TestCase):
         matching_guard.install(tracker)
         return tracker
 
+    @staticmethod
+    def _conflicting_records():
+        return [
+            {
+                "item": {
+                    "ean": "1234567890123",
+                    "loja": "A",
+                    "url": "https://a/item",
+                    "titulo": "Laptop A",
+                    "preco": 1000,
+                },
+                "spec": {
+                    "cpu_modelo": "ryzen 7",
+                    "gpu_modelo": "rtx 5050",
+                    "ram_gb": 32,
+                    "armazenamento_tb": 1.0,
+                },
+            },
+            {
+                "item": {
+                    "ean": "1234567890123",
+                    "loja": "B",
+                    "url": "https://b/item",
+                    "titulo": "Laptop B",
+                    "preco": 1050,
+                },
+                "spec": {
+                    "cpu_modelo": "ryzen 7",
+                    "gpu_modelo": "rtx 5070",
+                    "ram_gb": 32,
+                    "armazenamento_tb": 1.0,
+                },
+            },
+        ]
+
     def test_same_ean_never_overrides_gpu_conflict(self):
         tracker = self._tracker()
-        left_item = {"ean": "1234567890123", "loja": "A", "url": "https://a/item"}
-        right_item = {"ean": "1234567890123", "loja": "B", "url": "https://b/item"}
-        left_spec = {"cpu_modelo": "ryzen 7 260", "gpu_modelo": "rtx 5050", "ram_gb": 32, "armazenamento_tb": 1.0}
-        right_spec = {"cpu_modelo": "ryzen 7 260", "gpu_modelo": "rtx 5070", "ram_gb": 32, "armazenamento_tb": 1.0}
+        records = self._conflicting_records()
 
-        result = tracker.match_configurations(left_item, left_spec, right_item, right_spec)
+        result = tracker.match_configurations(
+            records[0]["item"], records[0]["spec"], records[1]["item"], records[1]["spec"]
+        )
 
         self.assertEqual(result["level"], "NAO_FUNDIR")
         self.assertEqual(result["identifier_type"], "ean")
@@ -85,8 +143,18 @@ class MatchingGuardTests(unittest.TestCase):
         tracker = self._tracker()
         left_item = {"mpn": "ABC-123", "loja": "A", "url": "https://a/item"}
         right_item = {"mpn": "ABC-123", "loja": "B", "url": "https://b/item"}
-        left_spec = {"cpu_modelo": "core ultra 7", "gpu_modelo": "arc 140v", "ram_gb": 16, "armazenamento_tb": 0.5}
-        right_spec = {"cpu_modelo": "core ultra 7", "gpu_modelo": "arc 140v", "ram_gb": 32, "armazenamento_tb": 1.0}
+        left_spec = {
+            "cpu_modelo": "core ultra 7",
+            "gpu_modelo": "arc 140v",
+            "ram_gb": 16,
+            "armazenamento_tb": 0.5,
+        }
+        right_spec = {
+            "cpu_modelo": "core ultra 7",
+            "gpu_modelo": "arc 140v",
+            "ram_gb": 32,
+            "armazenamento_tb": 1.0,
+        }
 
         result = tracker.match_configurations(left_item, left_spec, right_item, right_spec)
 
@@ -105,18 +173,39 @@ class MatchingGuardTests(unittest.TestCase):
 
         self.assertEqual(result["level"], "EXATO")
 
+    def test_market_evidence_is_blocked_for_ambiguous_ean(self):
+        tracker = self._tracker()
+        records = self._conflicting_records()
+
+        summary = tracker.apply_exact_market_price_evidence(records, {})
+
+        self.assertEqual(summary["confirmed_groups"], 0)
+        self.assertEqual(summary["identity_conflicts"], 1)
+        self.assertEqual(summary["identity_conflict_offers"], 2)
+        for record in records:
+            self.assertNotIn("market_price_confirmed", record["spec"])
+            self.assertTrue(record["spec"]["market_identity_conflict"])
+            self.assertEqual(
+                record["spec"]["market_identity_conflict_fields"], ["gpu_modelo"]
+            )
+            self.assertEqual(record["item"]["ean"], "1234567890123")
+
+    def test_market_evidence_remains_available_when_specs_are_compatible(self):
+        tracker = self._tracker()
+        records = self._conflicting_records()
+        records[1]["spec"]["gpu_modelo"] = "rtx 5050"
+
+        summary = tracker.apply_exact_market_price_evidence(records, {})
+
+        self.assertEqual(summary["confirmed_groups"], 1)
+        self.assertNotIn("identity_conflicts", summary)
+        for record in records:
+            self.assertEqual(record["spec"]["market_price_confirmed"], 999.0)
+            self.assertNotIn("market_identity_conflict", record["spec"])
+
     def test_build_cross_store_matching_counts_identifier_conflict(self):
         tracker = self._tracker()
-        records = [
-            {
-                "item": {"ean": "1234567890123", "loja": "A", "url": "https://a/item", "titulo": "Laptop A", "preco": 1000},
-                "spec": {"cpu_modelo": "ryzen 7", "gpu_modelo": "rtx 5050", "ram_gb": 32, "armazenamento_tb": 1.0},
-            },
-            {
-                "item": {"ean": "1234567890123", "loja": "B", "url": "https://b/item", "titulo": "Laptop B", "preco": 1050},
-                "spec": {"cpu_modelo": "ryzen 7", "gpu_modelo": "rtx 5070", "ram_gb": 32, "armazenamento_tb": 1.0},
-            },
-        ]
+        records = self._conflicting_records()
 
         result = tracker.build_cross_store_matches(records)
 
@@ -163,26 +252,14 @@ class MatchingGuardTests(unittest.TestCase):
             self.assertIn('"schema_version": 1', path.read_text(encoding="utf-8"))
 
     def test_main_writes_only_derived_matching_state(self):
-        tracker = self._tracker()
-        records = [
-            {
-                "item": {"ean": "1234567890123", "loja": "A", "url": "https://a/item", "titulo": "Laptop A", "preco": 999},
-                "spec": {"cpu_modelo": "ryzen 7", "gpu_modelo": "rtx 5050", "ram_gb": 32, "armazenamento_tb": 1.0},
-            },
-            {
-                "item": {"ean": "1234567890123", "loja": "B", "url": "https://b/item", "titulo": "Laptop B", "preco": 1049},
-                "spec": {"cpu_modelo": "ryzen 7", "gpu_modelo": "rtx 5070", "ram_gb": 32, "armazenamento_tb": 1.0},
-            },
-        ]
+        records = self._conflicting_records()
 
-        original_main = tracker.main
+        tracker = DummyTracker()
 
         def run_with_matching():
             tracker.build_cross_store_matches(records)
             return {"runner_version": "8.8.9"}
 
-        # Reinstala num tracker novo para o wrapper capturar este main realista.
-        tracker = DummyTracker()
         tracker.main = run_with_matching
         matching_guard.install(tracker)
 
