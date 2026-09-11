@@ -10,7 +10,7 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 def _laptop_product(product: dict) -> bool:
     text = " ".join(str(product.get(field) or "") for field in ("title", "handle", "product_type"))
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
-    if re.search(r"\b(?:consola|console|monitor|impressora|desktop|all.in.one|mochila|carregador)\b", text):
+    if re.search(r"\b(?:consolas?|consoles?|rog[\s-]+ally|legion[\s-]+go)\b|^(?:monitor|impressora|desktop|all.in.one|mochila|carregador)\b", text):
         return False
     return bool(re.search(r"\b(?:portatil|portateis|laptop|notebook|chromebook)\b", text))
 
@@ -107,7 +107,7 @@ def _usable_candidates(rows: list[dict], settings: dict) -> list[dict]:
     ]
 
 
-def _reusable_live_catalog_price(previous: dict, hint: float, *, now=None, ttl_hours=6) -> float | None:
+def _reusable_live_catalog_price(previous: dict, hint: float, *, now=None, ttl_hours=24) -> float | None:
     spec = previous.get("specs") or {}
     try:
         if float(spec.get("catalog_price_hint")) != float(hint):
@@ -221,10 +221,15 @@ def install(tracker_module) -> None:
         for item in found:
             item["_catalog_price_hint"] = item["preco"]
             previous = previous_offers().get(item["url"], {})
-            cached_price = _reusable_live_catalog_price(previous, item["preco"])
+            cached_price = _reusable_live_catalog_price(
+                previous, item["preco"], ttl_hours=float(settings.get("price_confirmation_ttl_hours", 24)))
             if previous.get("loja") == cat["loja"] and cached_price is not None:
                 item["preco"] = cached_price
                 item["_catalog_live_price_cached"] = True
+            elif previous.get("loja") == cat["loja"]:
+                # Existing Coverage Guard reserves refresh and quarantines cached
+                # specs if current page confirmation cannot be obtained.
+                item["_coverage_force_live_price"] = True
 
         known = {str(item.get("url")) for item in items if item.get("url")}
         added = 0

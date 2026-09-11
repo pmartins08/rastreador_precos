@@ -69,3 +69,27 @@ se o orçamento de pedidos foi atingido. CI verde prova testes, não cobertura.
 - Não usar cookies de terceiros, proxies, solver de CAPTCHA ou APIs privadas.
 
 Nenhuma destas dependências foi declarada resolvida pela alteração.
+
+
+## Auditoria das ofertas antigas
+
+A auditoria #34657917070 encontrou as 41 ofertas Darty aceites na run #198:
+40 já tinham `stock=false`, confirmado pelo catálogo; apenas 1 tinha stock.
+As 750 entradas consultadas resultaram em 463 URLs elegíveis distintas,
+402 sem stock e 61 com stock (incluindo preços fora do orçamento).
+A queda da contagem bruta não representava a perda de 22 ofertas disponíveis.
+
+O catálogo também conserva preços base quando a ficha tem uma promoção.
+Os seeds passam a obter o preço da evidência atual da ficha, conservando
+a indicação original em `specs.catalog_price_hint`. Não há promoção de
+confiança MEDIUM para HIGH. Preços suspeitos continuam a exigir a confirmação
+forte definida no Price Guard, e conflitos reais continuam em quarentena.
+
+Nas runs seguintes, a mesma URL pode reutilizar o preço confirmado da ficha
+durante o TTL já configurado (24h), desde que o preço indicativo do catálogo
+não tenha mudado. Quando muda ou expira, a Coverage Guard exige refresh live.
+Sem refresh, o candidato cached fica em quarentena.
+
+A quota máxima de refresh de preços sobe de 12 para 48 para permitir renovar
+os portáteis ativos da Darty; mantém os limites globais de 90 detalhes,
+300 pedidos e 60 pedidos por loja. A quota é um máximo, não uma meta.

@@ -243,9 +243,10 @@ class CatalogGuardTests(unittest.TestCase):
             {**self._product(3), "title": "Monitor HP para portátil"},
             {**self._product(4), "title": "Portátil ASUS TUF A16"},
             {**self._product(5), "title": "HP", "product_type": "Computadores Portáteis"},
+            {**self._product(6), "title": "Pack Darty Computador Portátil Lenovo + Rato + Mochila"},
         ]}
         rows = catalog_guard._shopify_candidates(payload, self._cat(catalog_laptop_only=True), module)
-        self.assertEqual([r["url"].rsplit("-", 1)[-1] for r in rows], ["4", "5"])
+        self.assertEqual([r["url"].rsplit("-", 1)[-1] for r in rows], ["4", "5", "6"])
 
     def test_catalog_hint_does_not_override_live_promotional_price(self):
         module = self._module({})
@@ -297,7 +298,7 @@ class CatalogGuardTests(unittest.TestCase):
         }}
         self.assertEqual(catalog_guard._reusable_live_catalog_price(previous, 899.99, now=now), 699.99)
         self.assertIsNone(catalog_guard._reusable_live_catalog_price(previous, 999.99, now=now))
-        self.assertIsNone(catalog_guard._reusable_live_catalog_price(previous, 899.99, now=now + timedelta(hours=5)))
+        self.assertIsNone(catalog_guard._reusable_live_catalog_price(previous, 899.99, now=now + timedelta(hours=23)))
         self.assertIsNone(catalog_guard._reusable_live_catalog_price(previous, 899.99, now=now - timedelta(hours=2)))
         previous["specs"]["price_page_confidence"] = "UNKNOWN"
         self.assertIsNone(catalog_guard._reusable_live_catalog_price(previous, 899.99, now=now))
@@ -309,6 +310,25 @@ class CatalogGuardTests(unittest.TestCase):
             "price_confirmed": 399.99, "price_page_confidence": "MEDIUM",
         }, 399.99, {})
         self.assertEqual(validation["status"], "PRICE_UNCONFIRMED")
+
+    def test_unchanged_catalog_hint_reuses_page_price_then_forces_refresh_at_expiry(self):
+        fixed = datetime(2026, 9, 11, 23, tzinfo=timezone.utc)
+        for age, expected_price, refresh in [(1, 699.99, False), (24, 899.99, True)]:
+            with self.subTest(age=age):
+                module = self._module({"products": [self._product(1, "899.99")]})
+                previous = {"loja": "Darty", "price": 699.99, "specs": {
+                    "catalog_price_hint": 899.99, "price_confirmed": 699.99,
+                    "price_page_confidence": "MEDIUM",
+                    "price_checked_at": (fixed - timedelta(hours=age)).isoformat(),
+                }}
+                module.load_history = lambda: {"https://darty.pt/products/asus-1": previous}
+                module.latest_offer_by_url = lambda history: history
+                catalog_guard.install(module)
+                with patch.object(catalog_guard, "datetime", wraps=datetime) as clock:
+                    clock.now.return_value = fixed
+                    rows, _ = module.scan_store(self._cat(catalog_json_below=1), {}, {})
+                self.assertEqual(rows[0]["preco"], expected_price)
+                self.assertEqual(bool(rows[0].get("_coverage_force_live_price")), refresh)
 
 
 if __name__ == "__main__":
