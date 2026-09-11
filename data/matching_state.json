@@ -1,5 +1,5 @@
 {
-  "conflicting_pairs": 7,
+  "conflicting_pairs": 5,
   "conflicts": [
     {
       "fields": [],
@@ -54,21 +54,6 @@
       "right_url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-3-15AMN8-402-15-6-AMD-Ryzen-5-40-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14260768"
     },
     {
-      "fields": [
-        "ecra_res"
-      ],
-      "identifier": "0199275936708",
-      "identifier_type": "ean",
-      "left_store": "Globaldata",
-      "left_title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-708 15,3” Snapdragon X2P-42-100 32GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
-      "left_url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-708-15-3-snapdragon-x2p-42-100-32gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000UPG.html",
-      "level": "NAO_FUNDIR",
-      "reason": "identificador forte contradiz configuração técnica",
-      "right_store": "FNAC",
-      "right_title": "Computador Portátil Lenovo IdeaPad Slim 5 15Q8Y11-708 Copilot+ PC | 15.3\" | Snapdragon® X2 Plus | 32GB | 1TB SSD",
-      "right_url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-15Q8Y11-708-Copilot-PC-15-3-Snapdragon-X2-Plus-32GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260778"
-    },
-    {
       "fields": [],
       "identifier": null,
       "identifier_type": null,
@@ -80,21 +65,6 @@
       "right_store": "FNAC",
       "right_title": "Computador Portátil Lenovo IdeaPad Slim 3 15Q8X10-064 | 15,3'' | Qualcomm Snapdragon X X1-26-100 | 16GB | 512GB SSD",
       "right_url": "https://www.fnac.pt/LENOVO-IPS3X-15Q8X10-X1-16-512-SC-Computador-Portatil-Computador-Portatil/a14603783"
-    },
-    {
-      "fields": [
-        "ecra_res"
-      ],
-      "identifier": "0199275936715",
-      "identifier_type": "ean",
-      "left_store": "Globaldata",
-      "left_title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-715 15,3” Snapdragon X2P-42-100 16GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
-      "left_url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-715-15-3-snapdragon-x2p-42-100-16gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000VPG.html",
-      "level": "NAO_FUNDIR",
-      "reason": "identificador forte contradiz configuração técnica",
-      "right_store": "FNAC",
-      "right_title": "Computador Portátil Lenovo IdeaPad Slim 5 15Q8Y11-715 Copilot+ PC | 15.3\" | Snapdragon® X2 Plus | 16GB | 1TB SSD",
-      "right_url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-15Q8Y11-715-Copilot-PC-15-3-Snapdragon-X2-Plus-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260777"
     }
   ],
   "cross_store_groups": [
@@ -153,10 +123,66 @@
         "Darty",
         "Radio Popular"
       ]
+    },
+    {
+      "best_price": 999.0,
+      "best_store": "Globaldata",
+      "configuration_key": "ean:0199275936715",
+      "offers": [
+        {
+          "loja": "Globaldata",
+          "price": 999.0,
+          "tier": "PRATA",
+          "titulo": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-715 15,3” Snapdragon X2P-42-100 16GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
+          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-715-15-3-snapdragon-x2p-42-100-16gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000VPG.html",
+          "value_score": 110.1
+        },
+        {
+          "loja": "FNAC",
+          "price": 999.99,
+          "tier": "PRATA",
+          "titulo": "Computador Portátil Lenovo IdeaPad Slim 5 15Q8Y11-715 Copilot+ PC | 15.3\" | Snapdragon® X2 Plus | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-15Q8Y11-715-Copilot-PC-15-3-Snapdragon-X2-Plus-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260777",
+          "value_score": 110.7
+        }
+      ],
+      "spread_eur": 0.99,
+      "stores": [
+        "FNAC",
+        "Globaldata"
+      ]
+    },
+    {
+      "best_price": 1299.0,
+      "best_store": "Globaldata",
+      "configuration_key": "ean:0199275936708",
+      "offers": [
+        {
+          "loja": "Globaldata",
+          "price": 1299.0,
+          "tier": "PRATA",
+          "titulo": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-708 15,3” Snapdragon X2P-42-100 32GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
+          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-708-15-3-snapdragon-x2p-42-100-32gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000UPG.html",
+          "value_score": 107.2
+        },
+        {
+          "loja": "FNAC",
+          "price": 1299.99,
+          "tier": "PRATA",
+          "titulo": "Computador Portátil Lenovo IdeaPad Slim 5 15Q8Y11-708 Copilot+ PC | 15.3\" | Snapdragon® X2 Plus | 32GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-15Q8Y11-708-Copilot-PC-15-3-Snapdragon-X2-Plus-32GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260778",
+          "value_score": 107.7
+        }
+      ],
+      "spread_eur": 0.99,
+      "stores": [
+        "FNAC",
+        "Globaldata"
+      ]
     }
   ],
-  "exact_pairs": 2,
-  "generated_at": "2026-09-11T19:45:50.619531Z",
+  "exact_pairs": 4,
+  "generated_at": "2026-09-11T22:30:57.049065Z",
   "identities": [
     {
       "identity": "ean:0199251256899",
@@ -206,7 +232,7 @@
           "price": 1299.0,
           "ram_gb": 32,
           "refresh_hz": 165,
-          "resolution": "fhd",
+          "resolution": "qhd+",
           "storage_tb": 1.0,
           "store": "Globaldata",
           "title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-708 15,3” Snapdragon X2P-42-100 32GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
@@ -243,7 +269,7 @@
           "price": 999.0,
           "ram_gb": 16,
           "refresh_hz": 165,
-          "resolution": "fhd",
+          "resolution": "qhd+",
           "storage_tb": 1.0,
           "store": "Globaldata",
           "title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-715 15,3” Snapdragon X2P-42-100 16GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
@@ -1656,7 +1682,7 @@
           "ean": "0199896471862",
           "gpu": "rtx 3050",
           "mpn": null,
-          "price": 795.0,
+          "price": 799.99,
           "ram_gb": 16,
           "refresh_hz": null,
           "resolution": null,
@@ -2667,28 +2693,6 @@
       ]
     },
     {
-      "identity": "ean:4711636203593",
-      "offers": [
-        {
-          "cpu": null,
-          "ean": "4711636203593",
-          "gpu": "integrada",
-          "mpn": null,
-          "price": 906.89,
-          "ram_gb": 16,
-          "refresh_hz": 60,
-          "resolution": "fhd+",
-          "storage_tb": 1.0,
-          "store": "FNAC",
-          "title": "Computador Portátil ASUS Vivobook 16 F1605VA-74ALHDPB1 | 16'' | Intel® Core™ 7 150U | 16GB | 1TB SSD",
-          "url": "https://www.fnac.pt/Computador-Portatil-ASUS-Vivobook-16-F1605VA-74ALHDPB1-16-Intel-Core-7-150U-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a13791908?oref=4869d99f-ec78-c649-d3e6-4b65728f5994"
-        }
-      ],
-      "stores": [
-        "FNAC"
-      ]
-    },
-    {
       "identity": "ean:4711636203616",
       "offers": [
         {
@@ -2787,7 +2791,7 @@
           "price": 1299.0,
           "ram_gb": 32,
           "refresh_hz": 144,
-          "resolution": "fhd",
+          "resolution": "qhd+",
           "storage_tb": 1.0,
           "store": "Globaldata",
           "title": "Portátil ASUS Gaming V16 5050B 16\" Core 7 240H 32GB DDR5 1TB RTX 5050 WQXGA 144Hz",
@@ -3305,10 +3309,10 @@
       ]
     }
   ],
-  "identity_count": 139,
+  "identity_count": 138,
   "probable_pairs": 0,
   "probable_review": [],
-  "records_considered": 145,
+  "records_considered": 144,
   "schema_version": 1,
   "source": "current_run_records",
   "strong_pairs": 0,
