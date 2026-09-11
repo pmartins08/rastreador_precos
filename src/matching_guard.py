@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from version import VERSION
@@ -33,6 +34,32 @@ def _normal_id(value: object) -> str:
     return "".join(ch.lower() for ch in str(value or "") if ch.isalnum())
 
 
+def _resolution_dimensions(value: object) -> tuple[int, int] | None:
+    """Normaliza apenas resoluções numéricas, ignorando a ordem dos eixos.
+
+    Algumas fontes publicam 2560x1600 e outras 1600x2560 para o mesmo painel.
+    Não tentamos converter rótulos como FHD/WQXGA em números: sem dois eixos
+    explícitos, a comparação continua entregue ao comportamento base.
+    """
+    values = [int(raw) for raw in re.findall(r"\d{3,4}", str(value or ""))]
+    if len(values) < 2:
+        return None
+    return tuple(sorted(values[:2]))
+
+
+def _critical_equal(tracker_module, field: str, left: object, right: object) -> bool:
+    if field == "ecra_res":
+        left_dims = _resolution_dimensions(left)
+        right_dims = _resolution_dimensions(right)
+        if left_dims is not None and right_dims is not None:
+            return left_dims == right_dims
+
+    comparator = getattr(tracker_module, "_spec_equal", None)
+    if callable(comparator):
+        return bool(comparator(left, right))
+    return str(left).strip().lower() == str(right).strip().lower()
+
+
 def _market_key(item: dict) -> str | None:
     ean = _normal_id(item.get("ean"))
     if ean:
@@ -58,19 +85,13 @@ def _same_strong_identifier(left_item: dict, right_item: dict) -> tuple[str | No
 
 def configuration_conflicts(tracker_module, left_spec: dict, right_spec: dict) -> list[str]:
     """Campos técnicos conhecidos nos dois lados que se contradizem."""
-    comparator = getattr(tracker_module, "_spec_equal", None)
     conflicts: list[str] = []
     for field in CRITICAL_FIELDS:
         left = left_spec.get(field)
         right = right_spec.get(field)
         if left is None or right is None:
             continue
-        same = (
-            comparator(left, right)
-            if callable(comparator)
-            else str(left).strip().lower() == str(right).strip().lower()
-        )
-        if not same:
+        if not _critical_equal(tracker_module, field, left, right):
             conflicts.append(field)
     return conflicts
 
@@ -145,6 +166,8 @@ def _identity_summary(tracker_module, records: list[dict]) -> list[dict]:
                     "gpu": spec.get("gpu_modelo") or spec.get("gpu_tipo"),
                     "ram_gb": spec.get("ram_gb"),
                     "storage_tb": spec.get("armazenamento_tb"),
+                    "resolution": spec.get("ecra_res"),
+                    "refresh_hz": spec.get("ecra_hz"),
                 }
             )
         rows.append(
