@@ -173,6 +173,47 @@ class MatchingGuardTests(unittest.TestCase):
 
         self.assertEqual(result["level"], "EXATO")
 
+    def test_reversed_numeric_resolution_is_same_panel(self):
+        tracker = self._tracker()
+        left_item = {"ean": "0199275936708"}
+        right_item = {"ean": "0199275936708"}
+        left_spec = {"ecra_res": "2560x1600", "ram_gb": 32, "armazenamento_tb": 1.0}
+        right_spec = {"ecra_res": "1600 x 2560 pixels", "ram_gb": 32, "armazenamento_tb": 1.0}
+
+        result = tracker.match_configurations(left_item, left_spec, right_item, right_spec)
+
+        self.assertEqual(result["level"], "EXATO")
+
+    def test_genuinely_different_numeric_resolution_still_conflicts(self):
+        tracker = self._tracker()
+        left_item = {"ean": "1234567890123"}
+        right_item = {"ean": "1234567890123"}
+        left_spec = {"ecra_res": "1920x1080"}
+        right_spec = {"ecra_res": "2560x1600"}
+
+        result = tracker.match_configurations(left_item, left_spec, right_item, right_spec)
+
+        self.assertEqual(result["level"], "NAO_FUNDIR")
+        self.assertEqual(result["conflicting_fields"], ["ecra_res"])
+
+    def test_resolution_orientation_does_not_block_market_evidence(self):
+        tracker = self._tracker()
+        records = [
+            {
+                "item": {"ean": "0199275936715", "loja": "A"},
+                "spec": {"ecra_res": "2560 × 1600", "ram_gb": 16, "armazenamento_tb": 1.0},
+            },
+            {
+                "item": {"ean": "0199275936715", "loja": "B"},
+                "spec": {"ecra_res": "1600 x 2560 pixels", "ram_gb": 16, "armazenamento_tb": 1.0},
+            },
+        ]
+
+        summary = tracker.apply_exact_market_price_evidence(records, {})
+
+        self.assertEqual(summary["confirmed_groups"], 1)
+        self.assertNotIn("identity_conflicts", summary)
+
     def test_market_evidence_is_blocked_for_ambiguous_ean(self):
         tracker = self._tracker()
         records = self._conflicting_records()
@@ -228,6 +269,8 @@ class MatchingGuardTests(unittest.TestCase):
                     "gpu_modelo": "rtx 5050",
                     "ram_gb": 32,
                     "armazenamento_tb": 1.0,
+                    "ecra_res": "2560x1600",
+                    "ecra_hz": 165,
                 },
             }
         ]
@@ -245,6 +288,9 @@ class MatchingGuardTests(unittest.TestCase):
         self.assertEqual(state["records_considered"], 1)
         self.assertEqual(state["identity_count"], 1)
         self.assertEqual(state["identities"][0]["identity"], "ean:1234567890123")
+        offer = state["identities"][0]["offers"][0]
+        self.assertEqual(offer["resolution"], "2560x1600")
+        self.assertEqual(offer["refresh_hz"], 165)
 
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "matching_state.json"
