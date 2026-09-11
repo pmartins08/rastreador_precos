@@ -53,6 +53,12 @@ Estados principais:
 - `PRICE_CONFLICT` — fontes incompatíveis;
 - quarentena — a oferta não entra em tiers nem gera alerta até existir evidência suficiente.
 
+## Matching e identidade
+
+EAN/GTIN e MPN são os identificadores mais fortes, mas não têm autoridade para apagar contradições técnicas. Se duas ofertas com o mesmo identificador tiverem CPU, GPU, RAM, armazenamento, resolução ou refresh conhecidos incompatíveis, o sistema marca `NAO_FUNDIR` e bloqueia também a confirmação de preço cross-store desse identificador nessa run.
+
+Só matches `EXATO` e `FORTE` podem ser fundidos automaticamente. Casos `PROVAVEL` ficam disponíveis para revisão; conflitos permanecem separados e auditáveis em `data/matching_state.json`.
+
 ## Estrutura do repositório
 
 ```text
@@ -85,6 +91,7 @@ A raiz fica reservada aos quatro módulos que explicam o sistema de ponta a pont
 - `gpu_guard.py` — reconhecimento/calibração GPU e influência contínua no tier;
 - `price_guard.py` — confirmação de preço, suspeição e quarentena;
 - `market_guard.py` — consenso/desacordo cross-store;
+- `matching_guard.py` — coerência de identidade forte, veto a merges/preços contraditórios e estado derivado de matching;
 - `historical_guard.py` — histórico diário compacto a 90 dias;
 - `price_change_priority_guard.py` — prioridade a alterações materiais de preço;
 - `coverage_guard.py` — cache, fallback, cooldown e eficiência de descoberta;
@@ -102,10 +109,11 @@ A raiz fica reservada aos quatro módulos que explicam o sistema de ponta a pont
 - `history.json` — ofertas, specs, tiers, alertas e métricas recentes;
 - `access_learning.json` — aprendizagem por loja/método/perfil;
 - `price_history.json` — histórico diário compacto de preços;
+- `matching_state.json` — identidades, grupos e conflitos derivados da run atual;
 - `top5_current.json` — Top 5 agregado do mercado conhecido;
 - `state_epoch.json` — geração atual do estado persistente.
 
-Estes ficheiros são atualizados pelo workflow e não devem ser editados manualmente.
+`matching_state.json` é reconstruível e não substitui o histórico bruto. Estes ficheiros são atualizados pelo workflow e não devem ser editados manualmente.
 
 ## Desenvolvimento local
 
@@ -154,7 +162,7 @@ O workflow de produção usa budgets de tempo, requests globais, requests por lo
 
 - o cérebro não é alterado silenciosamente;
 - preço e qualidade técnica são dimensões separadas;
-- identidade cross-store exige evidência forte;
+- identidade cross-store exige evidência forte e coerência técnica;
 - preço excecional exige confirmação proporcional ao risco;
 - cache deve aumentar cobertura sem esconder alterações de preço;
 - bloqueios de lojas não justificam bypass de CAPTCHA ou mecanismos anti-bot;

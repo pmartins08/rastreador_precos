@@ -20,6 +20,7 @@ from gpu_guard import install as install_gpu_guard
 from hardware_guard import install as install_hardware_guard
 from historical_guard import install as install_historical_guard
 from market_guard import install as install_market_guard
+from matching_guard import install as install_matching_guard
 from price_change_priority_guard import install as install_price_change_priority_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_guard import install as install_promotion_guard
@@ -204,6 +205,9 @@ install_promotion_guard(tracker)
 install_gpu_guard(scraper, tracker)
 install_hardware_guard(scraper, tracker)
 install_market_guard(scraper, tracker)
+# Matching vem depois do Market Guard para poder vetar também confirmação de
+# preço cross-store quando um EAN/MPN entra em conflito com hardware conhecido.
+install_matching_guard(tracker)
 install_historical_guard(tracker)
 install_state_refresh_guard(tracker)
 install_sitemap_route_guard(tracker)

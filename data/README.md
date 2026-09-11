@@ -16,6 +16,12 @@ Aprendizagem por loja, método e perfil de acesso: tentativas, sucessos, bloquei
 
 Histórico diário compacto a 90 dias por identidade forte (EAN/MPN) ou, quando isso não existe, por URL local.
 
+### `matching_state.json`
+
+Estado **derivado** do matching da run atual. Guarda as identidades observadas, grupos cross-store EXATO/FORTE, casos PROVÁVEL para revisão e conflitos que impedem fusão. É reconstruído a partir dos registos realmente avaliados; nunca substitui `history.json` nem é fonte de verdade para preços/specs.
+
+Um EAN/MPN repetido não pode fundir nem confirmar preços entre ofertas quando CPU, GPU, RAM, armazenamento, resolução ou refresh conhecidos se contradizem.
+
 ### `top5_current.json`
 
 Snapshot agregado das cinco melhores configurações atuais conhecidas dentro do TTL configurado, deduplicadas por identidade/configuração.
@@ -30,5 +36,6 @@ Identifica a geração do estado persistente. Só muda quando existe uma migraç
 - alterações são produzidas pelo runtime e persistidas pelo GitHub Actions;
 - commits automáticos usam `[skip ci]` para não criar ciclos;
 - o workflow faz merge concorrente antes do push final;
+- `matching_state.json` pode ser regenerado sem apagar ou reescrever o histórico bruto;
 - mudanças de schema/epoch exigem migração ou compatibilidade explícita;
-- nunca apagar estes ficheiros apenas por parecerem “dados antigos”: são parte funcional do monitor de preços.
+- nunca apagar os ficheiros de histórico/aprendizagem apenas por parecerem “dados antigos”: são parte funcional do monitor de preços.
