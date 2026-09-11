@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 from curl_cffi import requests
 
 import scraper
+from src.access_health import summarize_access
 
 
 VERSION = "8.8.1"
@@ -2204,6 +2205,14 @@ def main() -> dict:
         "tiers": tiers,
         "matching": matching,
     }
+
+    run["access_health"] = summarize_access(
+        run, per_store_limit=MAX_REQUESTS_PER_STORE, total_limit=MAX_REQUESTS
+    )
+    for store, health in run["access_health"]["stores"].items():
+        LOGGER.info("Acesso | %s | estado=%s | categoria=%s | feed=%s | limite_loja=%s",
+                    store, health["state"], health["category_outcome"], health["feed_outcome"],
+                    health["store_budget_reached"])
 
     heartbeat_enabled = bool(settings.get("heartbeat_ntfy", True))
     run["heartbeat_sent"] = send_heartbeat(run) if heartbeat_enabled else False

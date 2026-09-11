@@ -16,7 +16,7 @@ concurrency:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     env:
       PYTHONPATH: src
       NTFY_TOPIC: ''
@@ -31,9 +31,11 @@ jobs:
       - run: python -m unittest discover -s tests -q
       - name: Diagnóstico limitado, sem notificações nem escrita de estado
         run: python scripts/store_access_probe.py --output /tmp/store-access.json
+      - name: Smoke completo isolado sem notificações
+        run: python scripts/store_access_probe.py --full-run --output /tmp/store-access-full.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: store-access-${{ github.run_id }}
-          path: /tmp/store-access.json
+          path: /tmp/store-access*.json
           retention-days: 14

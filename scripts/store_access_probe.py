@@ -19,9 +19,26 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--stores", nargs="+", default=["Darty", "Worten", "CHIP7", "PcComponentes", "PCDiga"])
+    parser.add_argument("--full-run", action="store_true", help="Smoke completo numa cópia temporária sem notificações")
     args = parser.parse_args()
     if args.output.resolve().is_relative_to((ROOT / "data").resolve()):
         parser.error("O diagnóstico não escreve no estado operacional.")
+    if args.full_run:
+        import os
+        import shutil
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix="rastreador-access-") as folder:
+            isolated = Path(folder) / "repo"
+            shutil.copytree(ROOT, isolated, ignore=shutil.ignore_patterns(".git", "__pycache__", ".venv"))
+            env = {**os.environ, "NTFY_TOPIC": "", "AWIN_DATAFEED_API_KEY": ""}
+            subprocess.run([sys.executable, "runner.py"], cwd=isolated, env=env, check=True)
+            state = json.loads((isolated / "data/history.json").read_text())
+            report = state["learning"]["runs"][-1]
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+            print("FULL_RUN " + json.dumps(report, ensure_ascii=False), flush=True)
+        return
     before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT / "data").glob("*.json")}
     config = tracker.load_json(tracker.CONFIG_PATH)
     tracker.LEARNING = tracker.load_learning()
