@@ -1,0 +1,1 @@
+Este ficheiro existe apenas para validar que a branch continua gravável após a documentação inicial.
