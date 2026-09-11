@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from unittest.mock import Mock
 import types
 import unittest
 
@@ -48,7 +49,8 @@ class CatalogGuardTests(unittest.TestCase):
                 "rendimento_descoberta": {},
             }
 
-        module.scan_store = base_scan
+        module.scan_store = Mock(side_effect=base_scan)
+        module._empty_store_stats = lambda: {"candidatos": 0, "bloqueada": False, "fontes_descoberta": {}, "rendimento_descoberta": {}}
         module.profile_order = lambda store, method: ["chrome131"]
         module.headers = lambda profile: {"User-Agent": profile}
         module.budget_available = lambda store=None: True
@@ -139,6 +141,98 @@ class CatalogGuardTests(unittest.TestCase):
         )
         self.assertEqual(len(items), 20)
         self.assertNotIn("Darty", module.REQUESTS_BY_STORE)
+
+    def _cat(self, **overrides):
+        return {
+            "loja": "Darty", "url": "https://darty.pt/collections/portateis",
+            "public_catalog_json_url": "https://darty.pt/collections/portateis/products.json?limit=2",
+            "catalog_json_first": True, "catalog_json_below": 2,
+            "catalog_json_candidate_limit": 10, "catalog_json_max_pages": 3,
+            **overrides,
+        }
+
+    def _product(self, number, price="999", available=True):
+        return {"id": number, "handle": f"asus-{number}", "title": f"Portátil ASUS {number}",
+                "variants": [{"price": price, "available": available}]}
+
+    def test_primary_catalog_skips_expensive_discovery_and_keeps_live_seeds(self):
+        module = self._module({"products": [self._product(1), self._product(2)]})
+        base = module.scan_store
+        catalog_guard.install(module)
+        items, stats = module.scan_store(self._cat(catalog_json_max_pages=1), {}, {})
+        base.assert_not_called()
+        self.assertEqual(len(items), 2)
+        self.assertEqual(module.REQUESTS_BY_STORE["Darty"], 1)
+        self.assertFalse(stats["catalog_json_fallback"])
+        self.assertTrue(all("specs" not in item for item in items))
+        self.assertTrue(all(item["detail_source"] == "catalog_json_seed" for item in items))
+
+    def test_primary_catalog_paginates_and_deduplicates(self):
+        module = self._module({})
+        module.requests.get = Mock(side_effect=[
+            _Response({"products": [self._product(1), self._product(2)]}),
+            _Response({"products": [self._product(2), self._product(3)]}),
+            _Response({"products": [self._product(4)]}),
+        ])
+        catalog_guard.install(module)
+        items, stats = module.scan_store(self._cat(), {}, {})
+        self.assertEqual(len(items), 4)
+        self.assertEqual(stats["catalog_json_pages"], 3)
+        self.assertTrue(stats["catalog_json_exhausted"])
+        self.assertIn("page=2", module.requests.get.call_args_list[1].args[0])
+
+    def test_repeated_catalog_page_stops_without_duplicate_candidates(self):
+        module = self._module({"products": [self._product(1), self._product(2)]})
+        catalog_guard.install(module)
+        items, stats = module.scan_store(self._cat(), {}, {})
+        self.assertEqual(len(items), 2)
+        self.assertEqual(module.REQUESTS_BY_STORE["Darty"], 2)
+        self.assertEqual(stats["catalog_json_outcome"], "repeated_page")
+        self.assertFalse(stats["catalog_json_exhausted"])
+
+    def test_only_usable_stock_and_prices_count_towards_primary_coverage(self):
+        module = self._module({"products": [
+            self._product(1, "999", False), self._product(2, "2000"),
+            self._product(3, "NaN"), self._product(4, "99"), self._product(5),
+        ]})
+        base = module.scan_store
+        catalog_guard.install(module)
+        items, stats = module.scan_store(self._cat(catalog_json_max_pages=1), {}, {})
+        base.assert_called_once()
+        self.assertEqual(len(items), 1)
+        self.assertTrue(stats["catalog_json_fallback"])
+
+    def test_malformed_or_blocked_catalog_uses_existing_discovery_once(self):
+        for payload, outcome in [({"error": "maintenance"}, "http_success"), ({}, "http_403")]:
+            with self.subTest(outcome=outcome):
+                module = self._module(payload)
+                module.classify = lambda response: (outcome, False)
+                base = module.scan_store
+                catalog_guard.install(module)
+                items, stats = module.scan_store(self._cat(), {}, {})
+                base.assert_called_once()
+                self.assertTrue(stats["catalog_json_fallback"])
+                self.assertEqual(module.REQUESTS_BY_STORE["Darty"], 1)
+
+    def test_partial_catalog_survives_later_page_error(self):
+        module = self._module({})
+        module.requests.get = Mock(side_effect=[
+            _Response({"products": [self._product(1), self._product(2)]}),
+            ValueError("failed"),
+        ])
+        catalog_guard.install(module)
+        items, stats = module.scan_store(self._cat(), {}, {})
+        self.assertEqual(len(items), 2)
+        self.assertEqual(stats["catalog_json_outcome"], "request_error")
+
+    def test_exhausted_request_budget_does_not_fetch_catalog(self):
+        module = self._module({})
+        module.consume_request = lambda store: False
+        module.requests.get = Mock()
+        catalog_guard.install(module)
+        _, stats = module.scan_store(self._cat(), {}, {})
+        module.requests.get.assert_not_called()
+        self.assertEqual(stats["catalog_json_outcome"], "request_budget_exhausted")
 
 
 if __name__ == "__main__":

@@ -49,13 +49,16 @@ def main():
             samples.append({
                 "url": item["url"], "title": product.get("titulo"), "price": product.get("preco"),
                 "access": status, "price_status": spec.get("price_status"),
-                "price_confidence": spec.get("price_confidence"),
+                "price_confidence": spec.get("price_page_confidence"),
+                "price_confirmed": spec.get("price_confirmed"),
             })
         # One direct public request reports actual status/body shape, independently
         # of a route being skipped by historic learning. No profile/IP rotation.
         import requests
         from urllib.parse import urljoin
         routes = [("category", cat["url"]), ("robots", urljoin(cat["url"], "/robots.txt"))]
+        if store in {"CHIP7", "PcComponentes"}:
+            routes.append(("home", urljoin(cat["url"], "/")))
         if cat.get("public_catalog_json_url"):
             routes.append(("catalog", cat["public_catalog_json_url"]))
         observed = []
@@ -79,6 +82,27 @@ def main():
                         row["jsonld"] = len(soup.select('script[type="application/ld+json"]'))
                         row["parsed"] = len(tracker.scraper.discover_category(response.text, cat, 80))
                 observed.append(row)
+                if store == "Worten" and kind == "robots" and response.status_code == 200:
+                    # Inspect only the sitemap URL explicitly published by the store.
+                    seeds = [line.split(":", 1)[1].strip() for line in response.text.splitlines()
+                             if line.lower().startswith("sitemap:")]
+                    for sitemap_url in seeds[:1]:
+                        if not tracker.scraper.same_host(sitemap_url, cat["url"]) or not tracker.consume_request(store):
+                            break
+                        sitemap = requests.get(sitemap_url, timeout=8)
+                        sitemap_row = {"kind": "sitemap_index", "status": sitemap.status_code, "url": sitemap_url}
+                        if sitemap.status_code == 200:
+                            urls, children = tracker.sitemap_parse(sitemap.content, sitemap.text, 160)
+                            sitemap_row.update({"urls": len(urls), "children": len(children), "child_examples": children[:5]})
+                            for child in children[:1]:
+                                if not tracker.scraper.same_host(child, cat["url"]) or not tracker.consume_request(store):
+                                    break
+                                child_response = requests.get(child, timeout=8)
+                                urls, _ = tracker.sitemap_parse(child_response.content, child_response.text, 10)
+                                laptop_urls = [u for u in urls if tracker._looks_like_product_url(u, cat)]
+                                observed.append({"kind": "sitemap_child", "status": child_response.status_code,
+                                                 "urls": len(urls), "eligible_urls": len(laptop_urls), "url": child})
+                        observed.append(sitemap_row)
             except Exception as exc:
                 observed.append({"kind": kind, "url": url, "error_type": type(exc).__name__})
         report["stores"][store] = {"stats": stats, "samples": samples, "requests": tracker.REQUESTS_BY_STORE[store],
