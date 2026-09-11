@@ -1,0 +1,39 @@
+name: Diagnosticar acesso às lojas
+
+on:
+  push:
+    branches: ['fix/store-access-reliability']
+    paths: ['src/**', 'scripts/store_access_probe.py', 'config/config.json', '.github/workflows/store-access.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-access-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: src
+      NTFY_TOPIC: ''
+      AWIN_DATAFEED_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -q
+      - name: Diagnóstico limitado, sem notificações nem escrita de estado
+        run: python scripts/store_access_probe.py --output /tmp/store-access.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: store-access-${{ github.run_id }}
+          path: /tmp/store-access.json
+          retention-days: 14
