@@ -1,0 +1,220 @@
+name: Diagnosticar campanha Radio Popular
+
+on:
+  push:
+    branches:
+      - fix/rp-promo-coverage
+    paths:
+      - '.github/workflows/diagnose-rp-campaign.yml'
+      - 'src/**'
+      - 'runner.py'
+      - 'tracker.py'
+      - 'scraper.py'
+      - 'config/config.json'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: src
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependências
+        run: python -m pip install -r requirements.txt
+
+      - name: Diagnóstico bruto e pipeline
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          import time
+          from collections import defaultdict
+          from types import SimpleNamespace
+          from urllib.parse import urljoin
+
+          from bs4 import BeautifulSoup
+
+          import runner
+          import promotion_value_guard as promotion_value
+          import promotion_runtime_guard as promo_runtime
+          from radio_popular_pagination import listing_state
+
+          tracker = runner.tracker
+          config = tracker.load_json(tracker.CONFIG_PATH)
+          settings = config.get('settings', {})
+          weights = config.get('weights', {})
+          cat = next(row for row in config['category_urls'] if row['loja'] == 'Radio Popular')
+
+          # Runtime controlado para usar exatamente as mesmas camadas do rastreador.
+          tracker.RUN_STARTED = time.monotonic()
+          tracker.RUN_DEADLINE = tracker.RUN_STARTED + 540
+          tracker.REQUESTS_USED = 0
+          tracker.REQUESTS_BY_STORE = defaultdict(int)
+          tracker.DETAIL_FETCHES_USED = 0
+          tracker.MAX_REQUESTS = 260
+          tracker.MAX_REQUESTS_PER_STORE = 140
+          tracker.MAX_DETAIL_FETCHES = 40
+          tracker.LEARNING = tracker.load_learning()
+
+          routes = tracker.discovery_routes(cat, 'Radio Popular')
+          campaign = next(
+              route for route in routes
+              if '50_por_250_set_2026' in str(route.get('label') or '')
+          )
+          campaign_url = str(campaign['url'])
+          print('DIAG_ROUTE', campaign.get('label'), campaign_url)
+
+          profile = tracker.profile_order('Radio Popular', 'diag_campaign')[0]
+          response = tracker.requests.get(
+              campaign_url,
+              timeout=18,
+              impersonate=profile,
+              headers=tracker.headers(profile),
+              allow_redirects=True,
+          )
+          print('DIAG_LANDING', response.status_code, response.url, len(response.text))
+          state = listing_state(response.text)
+          if state is None:
+              raise SystemExit('DIAG_ERROR listing_state ausente')
+
+          wanted = ('fa608uh-r72a55cb2', '4711636134224')
+          family = ('fa608uh', 'tuf-a16', 'tuf a16')
+          raw_hits = []
+          family_hits = []
+          pages_seen = 0
+          links_seen = set()
+
+          def inspect_html(html, page_no):
+              nonlocal_placeholder = None
+              soup = BeautifulSoup(html, 'html.parser')
+              page_links = []
+              for a in soup.select('a[href*="/produto/"]'):
+                  href = urljoin('https://www.radiopopular.pt', a.get('href') or '')
+                  if not href:
+                      continue
+                  page_links.append(href)
+                  links_seen.add(href)
+                  hay = (href + ' ' + a.get_text(' ', strip=True)).lower()
+                  if any(token in hay for token in wanted):
+                      raw_hits.append((page_no, href, a.get_text(' ', strip=True)))
+                  if any(token in hay for token in family):
+                      family_hits.append((page_no, href, a.get_text(' ', strip=True)))
+              return page_links
+
+          inspect_html(response.text, 1)
+          pages_seen = 1
+          end_page = math.ceil(state['total'] / state['per_page'])
+          ajax_profile = tracker.profile_order('Radio Popular', 'campaign_public_pagination')[0]
+          for page in range(2, end_page + 1):
+              payload = dict(state['payload'], offset=(page - 1) * state['per_page'])
+              result = tracker.requests.post(
+                  'https://www.radiopopular.pt/ajax',
+                  data=payload,
+                  timeout=18,
+                  impersonate=ajax_profile,
+                  headers={**tracker.headers(ajax_profile), 'Referer': str(response.url)},
+                  allow_redirects=False,
+              )
+              if result.status_code >= 400:
+                  print('DIAG_AJAX_FAIL', page, result.status_code)
+                  break
+              data = result.json()
+              html = data.get('modules') if isinstance(data, dict) else None
+              if not isinstance(html, str):
+                  print('DIAG_AJAX_BAD_PAYLOAD', page)
+                  break
+              inspect_html(html, page)
+              pages_seen += 1
+
+          print('DIAG_RAW_SUMMARY', json.dumps({
+              'pages_seen': pages_seen,
+              'listing_total': state['total'],
+              'unique_product_links': len(links_seen),
+              'exact_hits': raw_hits,
+              'family_hits': family_hits,
+          }, ensure_ascii=False))
+
+          # Agora corre a descoberta real e mostra o que sobrevive ao parser.
+          items, stat = tracker.scan_store(cat, config, settings)
+          parsed_hits = []
+          parsed_family = []
+          for item in items:
+              hay = f"{item.get('url','')} {item.get('titulo','')} {item.get('ean','')}".lower()
+              if any(token in hay for token in wanted):
+                  parsed_hits.append(item)
+              if any(token in hay for token in family):
+                  parsed_family.append(item)
+          print('DIAG_PARSED_SUMMARY', json.dumps({
+              'items': len(items),
+              'exact_hits': parsed_hits,
+              'family_hits': parsed_family,
+              'stat': stat,
+          }, ensure_ascii=False, default=str))
+
+          if not raw_hits:
+              print('DIAG_CONCLUSION=CB2_NOT_IN_CAMPAIGN_RAW_LISTING')
+              raise SystemExit(0)
+
+          if not parsed_hits:
+              print('DIAG_CONCLUSION=CB2_IN_RAW_LISTING_BUT_LOST_BY_PARSER')
+              raise SystemExit(0)
+
+          # Avaliação exata do primeiro hit do pipeline.
+          item = dict(parsed_hits[0])
+          enriched, error = tracker.enrich(item, config)
+          print('DIAG_ENRICH_ERROR', json.dumps(error, ensure_ascii=False, default=str))
+          if error.get('error'):
+              print('DIAG_CONCLUSION=CB2_PARSED_BUT_LIVE_ENRICH_FAILED')
+              raise SystemExit(0)
+
+          spec = enriched.get('specs') or tracker.scraper.specs(enriched.get('titulo', ''))
+          price = float(enriched['preco'])
+          assessment = tracker.score_allow_unknown(spec, price, weights, settings)
+          tier = None
+          if assessment.get('status') == 'ACEITE':
+              tier = tracker.scraper.tier_from_value(assessment['value_score'], settings)
+
+          promotions = promotion_value.dedupe(enriched.get('promotions') or item.get('promotions') or [])
+          economics = promotion_value.economics(promotions, price) if promotions else {}
+          promo_assessment = None
+          promo_tier = None
+          if assessment.get('status') == 'ACEITE' and economics.get('effective_checkout_price') is not None:
+              promo_assessment = promo_runtime._revalue_from_accepted(
+                  tracker, assessment, float(economics['effective_checkout_price']), settings
+              )
+              if promo_assessment.get('status') == 'ACEITE':
+                  promo_tier = tracker.scraper.tier_from_value(promo_assessment['value_score'], settings)
+
+          print('DIAG_SCORE', json.dumps({
+              'title': enriched.get('titulo'),
+              'url': enriched.get('url'),
+              'ean': enriched.get('ean'),
+              'price': price,
+              'stock': enriched.get('stock'),
+              'cpu': spec.get('cpu'),
+              'gpu': spec.get('gpu'),
+              'ram_gb': spec.get('ram_gb'),
+              'assessment_status': assessment.get('status'),
+              'value': float(assessment['value_score']) if assessment.get('value_score') is not None else None,
+              'rank': assessment.get('score_ranking'),
+              'tier': tier,
+              'promotion_count': len(promotions),
+              'checkout': economics.get('effective_checkout_price'),
+              'discount': economics.get('checkout_discount_eur'),
+              'promo_value': float(promo_assessment['value_score']) if promo_assessment and promo_assessment.get('value_score') is not None else None,
+              'promo_tier': promo_tier,
+          }, ensure_ascii=False, default=str))
+          print('DIAG_CONCLUSION=CB2_FULLY_EVALUATED')
+          PY
