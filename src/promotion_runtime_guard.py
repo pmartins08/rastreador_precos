@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from gpu_guard import TierAwareValue
@@ -22,6 +21,25 @@ def _confirmed_checkout_promotion(item: dict) -> bool:
     return float(economics.get("checkout_discount_eur") or 0.0) > 0.0
 
 
+def _assessment_copy(assessment: dict) -> dict:
+    """Copia um assessment sem tentar reconstruir subclasses de float.
+
+    TierAwareValue é intencionalmente um float enriquecido e não suporta
+    deepcopy sem o gaming_score. Aqui só precisamos de uma cópia isolada das
+    estruturas mutáveis que podemos alterar no resultado promocional.
+    """
+    result = dict(assessment)
+    for key in ("detalhes", "gpu_tier_influence", "gpu_tier_guard"):
+        value = result.get(key)
+        if isinstance(value, dict):
+            result[key] = dict(value)
+    for key in ("alertas", "brain_corrections"):
+        value = result.get(key)
+        if isinstance(value, list):
+            result[key] = list(value)
+    return result
+
+
 def _revalue_from_accepted(tracker_module, assessment: dict, checkout_price: float, settings: dict) -> dict:
     """Recalcula apenas o efeito de preço após uma promoção já confirmada.
 
@@ -32,7 +50,7 @@ def _revalue_from_accepted(tracker_module, assessment: dict, checkout_price: flo
     visível/confirmado na ficha.
     """
     if not isinstance(assessment, dict) or assessment.get("status") != "ACEITE":
-        return deepcopy(assessment) if isinstance(assessment, dict) else {"status": "REJEITADO"}
+        return _assessment_copy(assessment) if isinstance(assessment, dict) else {"status": "REJEITADO"}
 
     ranking = assessment.get("score_ranking")
     if ranking is None:
@@ -53,7 +71,7 @@ def _revalue_from_accepted(tracker_module, assessment: dict, checkout_price: flo
     gaming = float(details.get("Gaming", 0.0) or 0.0)
     wrapped = TierAwareValue(raw_value, gaming_score=gaming)
 
-    result = deepcopy(assessment)
+    result = _assessment_copy(assessment)
     result["value_score"] = wrapped
     result["value_score_sem_bonus"] = round(raw_value, 1)
     result["exceptional_deal_bonus"] = 0.0
@@ -196,9 +214,6 @@ def install(tracker_module) -> None:
         promotions = promotion_value.dedupe(item.get("promotions") or [])
         if promotions and item.get("preco") is not None:
             economics = promotion_value.economics(promotions, float(item["preco"]))
-            promo_assessment = _revalue_from_accepted(
-                tracker_module, assessment, float(economics["effective_checkout_price"]), {}
-            )
             config = tracker_module.load_json(tracker_module.CONFIG_PATH)
             promo_assessment = _revalue_from_accepted(
                 tracker_module,
@@ -207,7 +222,9 @@ def install(tracker_module) -> None:
                 config.get("settings", {}),
             )
             promo_tier = (
-                tracker_module.scraper.tier_from_value(promo_assessment["value_score"], config.get("settings", {}))
+                tracker_module.scraper.tier_from_value(
+                    promo_assessment["value_score"], config.get("settings", {})
+                )
                 if promo_assessment.get("status") == "ACEITE"
                 else None
             )
@@ -223,7 +240,14 @@ def install(tracker_module) -> None:
                 if promo_assessment.get("status") == "ACEITE":
                     entries[-1]["promotion_value_score"] = float(promo_assessment["value_score"])
                     entries[-1]["promotion_tier_score"] = round(
-                        float(getattr(promo_assessment["value_score"], "tier_score", promo_assessment["value_score"])), 1
+                        float(
+                            getattr(
+                                promo_assessment["value_score"],
+                                "tier_score",
+                                promo_assessment["value_score"],
+                            )
+                        ),
+                        1,
                     )
                     entries[-1]["promotion_tier"] = promo_tier
                     entries[-1]["promotion_score_ranking"] = promo_assessment.get("score_ranking")
@@ -304,7 +328,14 @@ def install(tracker_module) -> None:
                     "promotion_discount_eur": discount,
                     "promotion_value_score": float(promo_assessment["value_score"]),
                     "promotion_tier_score": round(
-                        float(getattr(promo_assessment["value_score"], "tier_score", promo_assessment["value_score"])), 1
+                        float(
+                            getattr(
+                                promo_assessment["value_score"],
+                                "tier_score",
+                                promo_assessment["value_score"],
+                            )
+                        ),
+                        1,
                     ),
                     "promotion_tier": promo_tier,
                 }
