@@ -292,9 +292,11 @@ def install(tracker_module) -> None:
         )
         material = discount >= float(settings.get("promotion_alert_min_eur", 25.0))
         cap = int(settings.get("max_promotion_eligibility_alerts_per_run", 20))
+        keyboard_ok = str(spec.get("teclado_pt") or "").lower() == "confirmado"
 
         if (
             promo_assessment.get("status") == "ACEITE"
+            and keyboard_ok
             and material
             and (newly_eligible or checkout_improved)
             and eligibility_alerts_sent < cap
@@ -311,6 +313,7 @@ def install(tracker_module) -> None:
                 f"Desconto: {discount:.2f}€ | Checkout: {float(economics['effective_checkout_price']):.2f}€\n"
                 f"Value normal: {assessment['value_score']:.1f} | Value promo: {promo_assessment['value_score']:.1f}\n"
                 f"Tier normal/promo: {tier or '—'} / {promo_tier or '—'}\n"
+                f"Teclado PT: confirmado\n"
                 f"{item['url']}"
             )
             sent = tracker_module.ntfy_send(
@@ -342,9 +345,10 @@ def install(tracker_module) -> None:
                     ),
                     "promotion_tier": promo_tier,
                     "promotion_price_confidence": promo_assessment.get("promotion_price_confidence"),
+                    "promotion_keyboard_pt": "confirmado",
                 }
                 tracker_module.LOGGER.info(
-                    "Promo nova | %s | %.2f€ -> %.2f€ | Value %.1f -> %.1f | tier %s -> %s",
+                    "Promo nova | %s | %.2f€ -> %.2f€ | Value %.1f -> %.1f | tier %s -> %s | teclado PT",
                     item.get("loja"),
                     float(price),
                     float(economics["effective_checkout_price"]),
