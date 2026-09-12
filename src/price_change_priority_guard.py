@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from urllib.parse import urlparse
 
+import promotion_value_guard as promotion_value
+
 
 def _canonical_url(value: object) -> str:
     raw = str(value or "").strip()
@@ -21,17 +23,39 @@ def _normal_id(value: object) -> str:
     return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
 
 
-def install(tracker_module) -> None:
-    """Garante prioridade de avaliação a ofertas históricas cujo preço mudou.
+def _float_or_none(value: object) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
-    Não altera score, Value, tier ou critérios de alerta. Apenas atua no
-    pré-ranking, para uma alteração material já observada na descoberta atual
-    não perder um dos slots de avaliação.
+
+def _inject_value_transition(message: str, old_value: float, new_value: float) -> str:
+    delta = new_value - old_value
+    line = f"Variação Value: {old_value:.1f} → {new_value:.1f} (Δ {delta:+.1f})"
+    if line in message:
+        return message
+    lines = str(message).splitlines()
+    if lines and lines[-1].strip().lower().startswith(("http://", "https://")):
+        lines.insert(len(lines) - 1, line)
+    else:
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def install(tracker_module) -> None:
+    """Prioriza alterações materiais e torna a variação de Value visível no alerta.
+
+    Não altera score, Value, tier ou critérios de envio. A prioridade continua a
+    servir apenas para garantir que uma alteração material de preço chega à
+    avaliação. Se essa avaliação gerar uma notificação, acrescenta o Value de
+    referência, o Value recalculado e o respetivo delta.
     """
     if getattr(tracker_module, "_PRICE_CHANGE_PRIORITY_GUARD_INSTALLED", False):
         return
 
     base_candidate_priority = tracker_module.candidate_priority
+    base_maybe_alert = getattr(tracker_module, "maybe_alert", None)
     index_holder: dict[str, object] = {}
 
     def indexes():
@@ -111,5 +135,88 @@ def install(tracker_module) -> None:
             bonus = float(settings.get("historical_price_rise_priority_bonus", 100.0))
         return round(base + bonus, 3)
 
+    def value_transition(history, item, assessment, previous, alert_key, settings):
+        current_normal = _float_or_none(
+            assessment.get("value_score") if isinstance(assessment, dict) else None
+        )
+        if current_normal is None:
+            return None
+
+        alert_state = history.get("alert_state", {}) if isinstance(history, dict) else {}
+        prior = alert_state.get(alert_key) if isinstance(alert_state, dict) else None
+        prior = prior if isinstance(prior, dict) else {}
+
+        # Promoções confirmadas usam como Value efetivo o checkout derivado. Na
+        # primeira elegibilidade mostramos o impacto normal -> promo; numa
+        # alteração posterior mostramos promo anterior -> promo recalculado.
+        promotions = promotion_value.dedupe(item.get("promotions") or [])
+        if (
+            promotions
+            and item.get("promotion_price_live_confirmed") is True
+            and item.get("preco") is not None
+            and callable(getattr(tracker_module, "promotion_revalue_assessment", None))
+        ):
+            economics = promotion_value.economics(promotions, float(item["preco"]))
+            if float(economics.get("checkout_discount_eur") or 0.0) > 0.0:
+                promo_assessment = tracker_module.promotion_revalue_assessment(
+                    assessment,
+                    float(economics["effective_checkout_price"]),
+                    settings,
+                )
+                promo_current = _float_or_none(
+                    promo_assessment.get("value_score")
+                    if isinstance(promo_assessment, dict)
+                    and promo_assessment.get("status") == "ACEITE"
+                    else None
+                )
+                if promo_current is not None:
+                    promo_previous = _float_or_none(prior.get("promotion_value_score"))
+                    baseline = promo_previous if promo_previous is not None else current_normal
+                    if abs(promo_current - baseline) >= 0.05:
+                        return baseline, promo_current
+                    return None
+
+        baseline = _float_or_none(prior.get("value_score"))
+        if baseline is None and isinstance(previous, dict):
+            baseline = _float_or_none(previous.get("value_score"))
+        if baseline is None or abs(current_normal - baseline) < 0.05:
+            return None
+        return baseline, current_normal
+
+    def maybe_alert(history, item, spec, assessment, tier, previous, alert_key, settings):
+        transition = value_transition(
+            history, item, assessment, previous, alert_key, settings
+        )
+        if transition is None or not callable(base_maybe_alert):
+            return base_maybe_alert(
+                history, item, spec, assessment, tier, previous, alert_key, settings
+            )
+
+        base_ntfy_send = getattr(tracker_module, "ntfy_send", None)
+        if not callable(base_ntfy_send):
+            return base_maybe_alert(
+                history, item, spec, assessment, tier, previous, alert_key, settings
+            )
+
+        old_value, new_value = transition
+
+        def ntfy_send(title, message, *, priority=3, tags=None):
+            return base_ntfy_send(
+                title,
+                _inject_value_transition(str(message), old_value, new_value),
+                priority=priority,
+                tags=tags,
+            )
+
+        tracker_module.ntfy_send = ntfy_send
+        try:
+            return base_maybe_alert(
+                history, item, spec, assessment, tier, previous, alert_key, settings
+            )
+        finally:
+            tracker_module.ntfy_send = base_ntfy_send
+
     tracker_module.candidate_priority = candidate_priority
+    if callable(base_maybe_alert):
+        tracker_module.maybe_alert = maybe_alert
     tracker_module._PRICE_CHANGE_PRIORITY_GUARD_INSTALLED = True
