@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from gpu_guard import TierAwareValue
 import promotion_value_guard as promotion_value
+from radio_popular_pagination import collect_remaining
 
 
+_RP_CAMPAIGN_PATH = "/destaque/6a20120dc7e006.23735122"
+_RP_FILTER_LABEL = "50_por_250_set_2026_portateis"
 _TIER_ORDER = {"BRONZE": 1, "PRATA": 2, "OURO": 3, "DIAMANTE": 4}
 
 
@@ -39,12 +44,7 @@ def _assessment_copy(assessment: dict) -> dict:
 
 
 def _revalue_from_accepted(tracker_module, assessment: dict, checkout_price: float, settings: dict) -> dict:
-    """Recalcula Value a partir de ranking aceite + checkout oficial derivado.
-
-    O preço observado continua a ser validado pelo Price Guard. O checkout não
-    é tratado como um segundo preço de ficha: é derivado de preço live já
-    confirmado + promoção oficial aplicável.
-    """
+    """Recalcula Value a partir de ranking aceite + checkout oficial derivado."""
     if not isinstance(assessment, dict) or assessment.get("status") != "ACEITE":
         return _assessment_copy(assessment) if isinstance(assessment, dict) else {"status": "REJEITADO"}
 
@@ -89,11 +89,48 @@ def _revalue_from_accepted(tracker_module, assessment: dict, checkout_price: flo
     return result
 
 
+def _radio_popular_laptop_campaign(url: str) -> str:
+    parsed = urlsplit(str(url or ""))
+    if parsed.netloc.lower().removeprefix("www.") != "radiopopular.pt":
+        return str(url)
+    if parsed.path.rstrip("/") != _RP_CAMPAIGN_PATH:
+        return str(url)
+    pairs = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key not in {"filters[category_n2_name][]", "filters[disponibilidade][]"}
+    ]
+    pairs.extend(
+        [
+            ("filters[category_n2_name][]", "Computadores Portáteis"),
+            ("filters[disponibilidade][]", "Ocultar Produtos Indisponíveis"),
+        ]
+    )
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(pairs), parsed.fragment))
+
+
+def _original_campaign_url(cat: dict, current_url: str) -> str | None:
+    parsed = urlsplit(str(current_url or ""))
+    if parsed.netloc.lower().removeprefix("www.") != "radiopopular.pt":
+        return None
+    if parsed.path.rstrip("/") != _RP_CAMPAIGN_PATH:
+        return None
+    for raw in cat.get("campaign_urls", []):
+        if not isinstance(raw, dict) or not raw.get("url"):
+            continue
+        candidate = urlsplit(str(raw["url"]))
+        if candidate.path.rstrip("/") == _RP_CAMPAIGN_PATH:
+            return str(raw["url"])
+    return None
+
+
 def install(tracker_module) -> None:
-    """Liga promoções confirmadas a preço live, Value e alertas sem regras por loja."""
+    """Liga promoções confirmadas a descoberta, preço live, Value e alertas."""
     if getattr(tracker_module, "_PROMOTION_RUNTIME_GUARD_INSTALLED", False):
         return
 
+    base_discovery_routes = tracker_module.discovery_routes
+    base_discover_html = tracker_module._discover_html
     base_candidate_priority = tracker_module.candidate_priority
     base_select_with_cache = tracker_module.select_with_cache
     base_enrich = tracker_module.enrich
@@ -102,6 +139,44 @@ def install(tracker_module) -> None:
     base_maybe_alert = tracker_module.maybe_alert
 
     eligibility_alerts_sent = 0
+
+    def discovery_routes(cat: dict, store: str) -> list[dict]:
+        routes = base_discovery_routes(cat, store)
+        if str(store) != "Radio Popular":
+            return routes
+        for route in routes:
+            if str(route.get("label")) != "50_por_250_set_2026":
+                continue
+            route["url"] = _radio_popular_laptop_campaign(str(route["url"]))
+            route["label"] = _RP_FILTER_LABEL
+            route["method_key"] = f"campaign:{_RP_FILTER_LABEL}"
+            route["priority"] = max(180, int(route.get("priority", 0)))
+            route["priority_band"] = max(3, int(route.get("priority_band", 0)))
+        return sorted(
+            routes,
+            key=lambda route: (
+                -int(route.get("priority_band", 0)),
+                -float(route.get("yield_score", 0.0)),
+                -int(route.get("priority", 0)),
+                str(route.get("label") or ""),
+            ),
+        )
+
+    def discover_html(response, route_cat, target, candidates, source, stat):
+        original = _original_campaign_url(route_cat, str(route_cat.get("url") or ""))
+        if original:
+            proxy = dict(route_cat)
+            proxy["url"] = original
+            gained = base_discover_html(response, proxy, target, candidates, source, stat)
+            # A primeira landing confirma a campanha live. Os fragmentos AJAX
+            # seguintes reutilizam essa confirmação através do Promotion Live Guard.
+            if hasattr(response, "text") and stat.get("promotion_live_confirmed"):
+                gained += collect_remaining(
+                    tracker_module, response, proxy, target, candidates, source, stat,
+                    base_discover_html,
+                )
+            return gained
+        return base_discover_html(response, route_cat, target, candidates, source, stat)
 
     def candidate_priority(item: dict, weights: dict, settings: dict) -> float:
         base = float(base_candidate_priority(item, weights, settings))
@@ -287,10 +362,10 @@ def install(tracker_module) -> None:
                 )
                 return True, False
 
-        # Uma promoção de checkout confirmada decide a elegibilidade; não se
-        # envia em paralelo um alerta normal que ignore o preço promocional.
         return False, not tier_ok
 
+    tracker_module.discovery_routes = discovery_routes
+    tracker_module._discover_html = discover_html
     tracker_module.candidate_priority = candidate_priority
     tracker_module.select_with_cache = select_with_cache
     tracker_module.enrich = enrich
