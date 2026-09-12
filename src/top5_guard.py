@@ -142,7 +142,23 @@ def _notification_key(item: dict) -> str:
     return str(item.get("configuration_key") or item.get("url") or item.get("title"))
 
 
-def _notify_item(tracker_module, item: dict) -> bool:
+def _notification_tier_allowed(item: dict, configured_minimum: object = "OURO") -> bool:
+    """Nunca permite alertas Top 5 abaixo de Ouro.
+
+    A configuração pode tornar o filtro mais restritivo (por exemplo,
+    DIAMANTE), mas nunca o pode baixar para PRATA/BRONZE.
+    """
+    order = {"BRONZE": 1, "PRATA": 2, "OURO": 3, "DIAMANTE": 4}
+    configured = str(configured_minimum or "OURO").upper()
+    minimum_rank = max(order["OURO"], order.get(configured, order["OURO"]))
+    tier = str(item.get("tier") or "").upper()
+    return order.get(tier, 0) >= minimum_rank
+
+
+def _notify_item(tracker_module, item: dict, *, configured_minimum: object = "OURO") -> bool:
+    if not _notification_tier_allowed(item, configured_minimum):
+        return False
+
     rank = int(item.get("rank", 0))
     tier = str(item.get("tier") or "SEM TIER")
     title = str(item.get("title") or "Portátil")
@@ -167,6 +183,7 @@ def persist_and_notify(tracker_module, run: dict | None = None) -> dict:
     config = tracker_module.load_json(tracker_module.CONFIG_PATH)
     settings = config.get("settings", {}) if isinstance(config, dict) else {}
     ttl_hours = float(settings.get("top5_current_ttl_hours", 26.0))
+    configured_minimum = settings.get("alerta_min_tier", "OURO")
     items = build_current_top5(tracker_module, ttl_hours=ttl_hours)
 
     previous = _load()
@@ -188,24 +205,27 @@ def persist_and_notify(tracker_module, run: dict | None = None) -> dict:
 
     sent_now = 0
     release = str(settings.get("top5_notify_once_version") or "").strip()
-    if release and release == VERSION and items:
+    eligible_items = [
+        item for item in items if _notification_tier_allowed(item, configured_minimum)
+    ]
+    if release and release == VERSION and eligible_items:
         campaign = snapshot["notification_campaigns"].setdefault(
             release,
             {"sent_keys": [], "complete": False, "started_at": tracker_module.now_iso()},
         )
         sent_keys = set(campaign.get("sent_keys") or [])
-        for item in items:
+        for item in eligible_items:
             key = _notification_key(item)
             if key in sent_keys:
                 continue
-            if _notify_item(tracker_module, item):
+            if _notify_item(tracker_module, item, configured_minimum=configured_minimum):
                 sent_keys.add(key)
                 sent_now += 1
                 campaign["sent_keys"] = sorted(sent_keys)
                 campaign["last_sent_at"] = tracker_module.now_iso()
                 _save(snapshot)
-        current_keys = {_notification_key(item) for item in items}
-        campaign["complete"] = len(items) >= 5 and current_keys.issubset(sent_keys)
+        eligible_keys = {_notification_key(item) for item in eligible_items}
+        campaign["complete"] = bool(eligible_keys) and eligible_keys.issubset(sent_keys)
         if campaign["complete"]:
             campaign["completed_at"] = tracker_module.now_iso()
 
