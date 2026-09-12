@@ -36,6 +36,26 @@ _CATALOG_IGPUS = tuple(
     )
 )
 
+# Algumas fichas oficiais, em particular a Radio Popular, publicam as
+# características como sequência label/valor em vez de table/dl. São campos
+# explícitos da própria ficha; não há inferência de hardware aqui.
+_EXTRA_LINEAR_LABELS = {
+    "modelo da placa grafica discreto": "gpu",
+    "modelo da placa grafica discreta": "gpu",
+    "capacidade da memoria incorporada": "ram",
+    "slots de memoria": "ram_slots",
+    "tipo de memoria interna": "ram_type",
+    "capacidade total de armazenamento": "storage",
+    "capacidade total de ssds": "storage",
+    "capacidade da drive ssd": "storage",
+    "capacidade de bateria": "battery",
+    "taxa maxima de actualizacao": "refresh",
+    "taxa maxima de atualizacao": "refresh",
+    "tipo de painel": "panel",
+    "luminosidade": "brightness",
+    "tamanho do ecra na diagonal": "screen",
+}
+
 
 def _normalized(text: object, scraper_module) -> str:
     raw = re.sub(r"[™®©℠]", " ", str(text or ""))
@@ -88,6 +108,40 @@ def identify_catalog_igpu(text: object, scraper_module) -> str | None:
         if re.search(scraper_module.gp(model), value):
             return model
     return None
+
+
+def _extra_linear_pairs(soup, scraper_module) -> list[tuple]:
+    strings = [str(value).strip() for value in soup.stripped_strings if str(value).strip()]
+    normalized = [scraper_module.norm(value) for value in strings]
+    out: list[tuple] = []
+    values_by_label: dict[str, str] = {}
+
+    for index, label in enumerate(normalized[:-1]):
+        values_by_label.setdefault(label, strings[index + 1])
+        key = _EXTRA_LINEAR_LABELS.get(label)
+        if not key:
+            continue
+        value = strings[index + 1]
+        if key == "screen":
+            inch = re.search(r"\((\d{1,2}(?:[.,]\d+)?)\s*\"\)", value)
+            if inch:
+                value = f"{inch.group(1)} pol"
+        out.append((key, strings[index], value, "label_value", 0.96))
+
+    # A RP separa família e modelo do CPU em linhas diferentes. Só juntamos
+    # quando ambos são explícitos na mesma ficha.
+    family = values_by_label.get("familia de processador")
+    model = values_by_label.get("modelo de processador") or values_by_label.get("modelo do processador")
+    if family and model:
+        out.append(("cpu", "Família + modelo de processador", f"{family} {model}", "label_value", 0.97))
+
+    # VRAM e tipo também podem vir separados; juntar evita confundir RAM do
+    # sistema com memória gráfica e mantém a evidência explícita.
+    vram = values_by_label.get("memoria de placa grafica discreta")
+    vram_type = values_by_label.get("tipo de memoria grafica discreta")
+    if vram and vram_type:
+        out.append(("vram", "Memória gráfica discreta", f"{vram} {vram_type}", "label_value", 0.97))
+    return out
 
 
 def upgrade_spec(spec: dict, scraper_module, title: object = None) -> dict:
@@ -151,6 +205,7 @@ def install(scraper_module, tracker_module) -> None:
 
     base_cpu = scraper_module.cpu
     base_gpus = scraper_module.gpus
+    base_pairs = scraper_module.pairs
     base_score_allow_unknown = tracker_module.score_allow_unknown
     base_select_with_cache = tracker_module.select_with_cache
 
@@ -167,8 +222,12 @@ def install(scraper_module, tracker_module) -> None:
             return [mapped], "integrada", mapped
         return models, gpu_type, model
 
+    def pairs(soup):
+        return [*base_pairs(soup), *_extra_linear_pairs(soup, scraper_module)]
+
     scraper_module.cpu = cpu
     scraper_module.gpus = gpus
+    scraper_module.pairs = pairs
 
     def score_allow_unknown(spec, price, weights, settings):
         upgrade_spec(spec, scraper_module)
