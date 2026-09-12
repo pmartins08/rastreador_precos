@@ -91,11 +91,20 @@ jobs:
 
           forbidden = []
           for key, value in changed.items():
-              tier = str(value.get('tier') or '').upper()
-              if tier and tier not in {'OURO', 'DIAMANTE'}:
-                  forbidden.append((key, tier))
+              # Um alerta promocional pode partir de PRATA e tornar-se OURO no
+              # checkout. A regra é sobre o tier EFETIVO que causou o envio.
+              # promotion_tier existe apenas quando esse Value foi recalculado
+              # com preço promocional live confirmado.
+              base_tier = str(value.get('tier') or '').upper()
+              promo_tier = str(value.get('promotion_tier') or '').upper()
+              effective_tier = promo_tier or base_tier
+              if effective_tier and effective_tier not in {'OURO', 'DIAMANTE'}:
+                  forbidden.append((key, base_tier or '—', promo_tier or '—'))
           if forbidden:
-              raise SystemExit(f'ERRO: alertas abaixo de OURO registados nesta run: {forbidden}')
+              raise SystemExit(
+                  'ERRO: alertas com tier efetivo abaixo de OURO registados nesta run: '
+                  f'{forbidden}'
+              )
 
           runs = (after.get('learning', {}) or {}).get('runs', []) or []
           latest = runs[-1] if runs and isinstance(runs[-1], dict) else {}
