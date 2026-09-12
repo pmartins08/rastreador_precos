@@ -1,5 +1,6 @@
 import unittest
 
+from gpu_guard import TierAwareValue
 import promotion_runtime_guard
 
 
@@ -129,7 +130,7 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
     def accepted_assessment():
         return {
             "status": "ACEITE",
-            "value_score": 80.0,
+            "value_score": TierAwareValue(80.0, gaming_score=60.0),
             "score_ranking": 80.0,
             "score_final": 82.0,
             "detalhes": {"Gaming": 60.0},
@@ -170,6 +171,8 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         self.assertGreater(float(promo["value_score"]), 80.0)
         self.assertEqual(promo["promotion_checkout_price"], 599.99)
         self.assertTrue(hasattr(promo["value_score"], "tier_score"))
+        self.assertIsInstance(assessment["value_score"], TierAwareValue)
+        self.assertEqual(float(assessment["value_score"]), 80.0)
 
     def test_new_eligibility_notifies_even_without_ouro(self):
         item = self.item()
