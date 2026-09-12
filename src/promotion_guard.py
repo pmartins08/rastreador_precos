@@ -26,11 +26,7 @@ def route_is_active(route: dict, today: date | None = None) -> bool:
     day = today or datetime.now(timezone.utc).date()
     start = _parse_day(route.get("active_from") or route.get("valid_from"))
     end = _parse_day(route.get("expires_at") or route.get("valid_until"))
-    if start and day < start:
-        return False
-    if end and day > end:
-        return False
-    return True
+    return (not start or day >= start) and (not end or day <= end)
 
 
 def _route(raw: Any, index: int, kind: str) -> dict | None:
@@ -93,7 +89,7 @@ def _discovery_attempts(tracker_module, store: str, method_key: str) -> int:
 
 
 def _campaign_routes_from_html(html: str, base_url: str) -> list[dict]:
-    """Descobre apenas cards com link + sinal promocional inequívoco."""
+    """Descobre cards públicos de promoção que apontam para uma listagem."""
     soup = BeautifulSoup(html or "", "html.parser")
     out, seen = [], set()
     base_host = urlparse(base_url).netloc.lower()
@@ -123,9 +119,8 @@ def _campaign_routes_from_html(html: str, base_url: str) -> list[dict]:
             continue
         seen.add(marker)
         primary = promotions[0]
-        label_hash = hashlib.sha1(marker.encode("utf-8")).hexdigest()[:8]
         route = {
-            "label": f"auto_{label_hash}",
+            "label": f"auto_{hashlib.sha1(marker.encode('utf-8')).hexdigest()[:8]}",
             "url": href,
             "priority": 125,
             "promotion": primary,
@@ -261,9 +256,9 @@ def install(tracker_module) -> None:
         return round(base, 3)
 
     if base_adaptive_fetch is not None:
-        def adaptive_fetch(url, config, timeout_s, *, store, method, max_attempts=3):
+        def adaptive_fetch(url, config, timeout_s=8.0, *, store=None, method="page", **_ignored):
             response, profile, outcome = base_adaptive_fetch(
-                url, config, timeout_s, store=store, method=method, max_attempts=max_attempts
+                url, config, timeout_s, store=store, method=method
             )
             if response is not None and response.status_code < 400 and str(method).startswith("product"):
                 for key in {str(url), str(getattr(response, "url", url))}:
@@ -280,8 +275,7 @@ def install(tracker_module) -> None:
                 if not watch_url or not tracker_module.budget_available(store):
                     continue
                 response, _profile, _outcome = tracker_module.adaptive_fetch(
-                    watch_url, config, 7, store=store,
-                    method=f"promotion_watch:{index + 1}", max_attempts=1
+                    watch_url, config, 7, store=store, method=f"promotion_watch:{index + 1}"
                 )
                 if response is not None and response.status_code < 400:
                     detected.extend(_campaign_routes_from_html(response.text, watch_url))
@@ -348,6 +342,7 @@ def install(tracker_module) -> None:
             promotions = promotion_value.dedupe(item.get("promotions"))
             if not promotions:
                 return base_maybe_alert(history, item, spec, assessment, tier, previous, alert_key, settings)
+
             econ = promotion_value.economics(promotions, float(item["preco"]))
             config = tracker_module.load_json(tracker_module.CONFIG_PATH)
             promo_assessment, promo_tier = _promo_assessment(
@@ -358,6 +353,7 @@ def install(tracker_module) -> None:
             min_notify = str(settings.get("alerta_min_tier", "OURO")).upper()
             if order.get(effective_tier or "", 0) < order.get(min_notify, 3):
                 return base_maybe_alert(history, item, spec, assessment, tier, previous, alert_key, settings)
+
             prior = history["alert_state"].get(alert_key) or {}
             promo_fp = promotion_value.fingerprint(promotions, float(item["preco"]))
             changed = prior.get("promotion_fingerprint") != promo_fp
