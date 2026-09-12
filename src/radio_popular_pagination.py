@@ -57,17 +57,27 @@ def collect_remaining(tracker, response, route_cat, target, candidates, source, 
     method = "campaign_public_pagination"
     profile = tracker.profile_order(store, method)[0]
     for page in range(state["current_page"] + 1, min(end_page, max_pages) + 1):
-        if not tracker.consume_request(store):
-            report["stop_reason"] = "request_budget_exhausted"
-            break
         payload = dict(state["payload"], offset=(page - 1) * state["per_page"])
         try:
-            result = tracker.requests.post(
-                "https://www.radiopopular.pt/ajax", data=payload, timeout=8,
-                impersonate=profile,
-                headers={**tracker.headers(profile), "Referer": response.url},
-                allow_redirects=False,
-            )
+            result = None
+            for attempt in range(2):
+                if not tracker.consume_request(store):
+                    report["stop_reason"] = "request_budget_exhausted"
+                    break
+                try:
+                    result = tracker.requests.post(
+                        "https://www.radiopopular.pt/ajax", data=payload, timeout=15,
+                        impersonate=profile,
+                        headers={**tracker.headers(profile), "Referer": response.url},
+                        allow_redirects=False,
+                    )
+                    break
+                except Exception:
+                    tracker.record_learning(store, profile, "request_error", method)
+                    if attempt == 1:
+                        raise
+            if result is None:
+                break
             outcome, _ = tracker.classify(result)
             tracker.record_learning(store, profile, "success" if outcome == "http_success" else outcome, method)
             if outcome != "http_success":
