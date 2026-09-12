@@ -79,7 +79,7 @@ class PromotionValueGuardTests(unittest.TestCase):
 
     def test_parser_recognizes_radio_popular_tiered_promotion(self):
         promos = guard.parse_promotion_text(
-            "12 a 15 de setembro de 2026. Ganha 50€ por cada 250€ em compras. Até 500€ desconto.",
+            "Válido de 12 a 15 de setembro de 2026. Ganha 50€ por cada 250€ em compras. Até 500€ desconto.",
             source="official", eligibility="campaign_listing",
         )
         promo = next(p for p in promos if p["kind"] == "TIERED_DISCOUNT")
@@ -88,6 +88,9 @@ class PromotionValueGuardTests(unittest.TestCase):
         self.assertEqual(promo["cap_eur"], 500.0)
         self.assertEqual(promo["valid_from"], "2026-09-12")
         self.assertEqual(promo["valid_until"], "2026-09-15")
+        self.assertTrue(guard.is_active(promo, date(2026, 9, 12)))
+        self.assertTrue(guard.is_active(promo, date(2026, 9, 15)))
+        self.assertFalse(guard.is_active(promo, date(2026, 9, 16)))
 
     def test_parser_recognizes_fnac_credit_without_calling_it_discount(self):
         promos = guard.parse_promotion_text("5% em Cartão FNAC. Acumula 30€", source="product")
