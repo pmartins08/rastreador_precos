@@ -31,7 +31,15 @@ for page in (2, 3):
     print("PAGE_STATUS", page, r.status_code)
     r.raise_for_status()
     payload = r.json()
-    html = payload.get("content", {}).get("products", "")
+    html = payload.get("modules") or payload.get("content", {}).get("products", "")
+    if not isinstance(html, str):
+        print("MODULE_TYPE", type(html).__name__, str(html)[:2000])
+        html = ""
     products = BeautifulSoup(html, "html.parser")
     links = sorted({a["href"] for a in products.select('a[href*="/produto/"]')})
-    print("PAGE", json.dumps({"page":page, "keys":list(payload), "total":payload.get("productsTotal"), "current":payload.get("productsCurrent"), "urls":links, "sample":html[:1400]}, ensure_ascii=False))
+    print("PAGE", json.dumps({"page":page, "keys":list(payload), "total":payload.get("total", payload.get("productsTotal")), "current":payload.get("productsCurrent"), "urls":links, "sample":html[:1400]}, ensure_ascii=False))
+
+js = requests.get(base + "/includes/js/rp.js?v=202609091153", timeout=20, impersonate="chrome131").text
+import re
+for m in list(re.finditer("productsFilters", js))[:15]:
+    print("FILTER_JS", js[max(0,m.start()-500):m.start()+600])
