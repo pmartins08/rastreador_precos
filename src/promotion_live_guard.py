@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 import promotion_value_guard as promotion_value
 
 
@@ -69,6 +71,45 @@ def _verified_promotions(configured: list[dict], live: list[dict]) -> list[dict]
     return promotion_value.dedupe(verified)
 
 
+def _route_identity(url: str) -> tuple[str, str]:
+    """Identifica uma landing independentemente de filtros/query de categoria."""
+    parsed = urlsplit(str(url or ""))
+    return parsed.netloc.lower(), parsed.path.rstrip("/").lower()
+
+
+def _configured_route_promotions(route_cat: dict) -> list[dict]:
+    """Recupera a promoção configurada para variantes filtradas da mesma landing.
+
+    A Radio Popular acrescenta filtros de categoria ao URL da campanha para
+    restringir a listagem a portáteis. O caminho da landing continua a ser o
+    mesmo; a query não pode fazer perder a regra económica oficial.
+    """
+    current = _route_identity(route_cat.get("url") or "")
+    if not all(current):
+        return []
+
+    out: list[dict] = []
+    for raw in route_cat.get("campaign_urls", []):
+        if not isinstance(raw, dict) or not raw.get("url"):
+            continue
+        if _route_identity(raw.get("url") or "") != current:
+            continue
+        promo = raw.get("promotion")
+        if not isinstance(promo, dict):
+            continue
+        value = dict(promo)
+        value.setdefault("source", "official_campaign")
+        value.setdefault("eligibility", "campaign_listing")
+        value.setdefault("applicable", True)
+        if raw.get("active_from"):
+            value.setdefault("valid_from", raw["active_from"])
+        if raw.get("expires_at"):
+            value.setdefault("valid_until", raw["expires_at"])
+        if promotion_value.is_active(value):
+            out.append(value)
+    return promotion_value.dedupe(out)
+
+
 def install(tracker_module) -> None:
     """Exige confirmação na landing live antes de aplicar economia de campanha."""
     if getattr(tracker_module, "_PROMOTION_LIVE_GUARD_INSTALLED", False):
@@ -92,6 +133,17 @@ def install(tracker_module) -> None:
         ]
         if not newly_promoted:
             return gained
+
+        # A camada de descoberta mais antiga comparava URLs completos. Quando a
+        # RP acrescenta filtros à mesma landing, a origem promocional sobrevive
+        # mas a regra configurada podia perder-se. Reanexa-a aqui antes da
+        # validação live, usando apenas host+caminho iguais.
+        configured_for_route = _configured_route_promotions(route_cat)
+        if configured_for_route:
+            for row in newly_promoted:
+                row["promotions"] = promotion_value.dedupe(
+                    [*(row.get("promotions") or []), *configured_for_route]
+                )
 
         route_key = str(route_cat.get("url") or "").rstrip("/").lower()
         html = ""
