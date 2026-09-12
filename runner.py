@@ -28,6 +28,7 @@ from promotion_coverage_guard import install as install_promotion_coverage_guard
 from promotion_guard import install as install_promotion_guard
 from promotion_live_guard import install as install_promotion_live_guard
 from promotion_runtime_guard import install as install_promotion_runtime_guard
+from radio_popular_card_guard import install as install_radio_popular_card_guard
 from rejection_guard import install as install_rejection_guard
 from sitemap_route_guard import install as install_sitemap_route_guard
 from sitemap_strategy_epoch_guard import install as install_sitemap_strategy_epoch_guard
@@ -171,6 +172,10 @@ scraper._card_prices = _contextual_card_prices
 # pequenas, testáveis e independentes.
 install_brain_guard(scraper)
 install_price_guard(scraper)
+# A RP pode colocar uma oferta (ex.: Norton) antes da designação. Este fallback
+# recupera apenas cartões que o parser genérico rejeitou por confundir a oferta
+# com o título do portátil; não altera scoring nem preços das restantes lojas.
+install_radio_popular_card_guard(scraper)
 
 import tracker
 
