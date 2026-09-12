@@ -25,6 +25,7 @@ from matching_guard import install as install_matching_guard
 from price_change_priority_guard import install as install_price_change_priority_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_guard import install as install_promotion_guard
+from promotion_runtime_guard import install as install_promotion_runtime_guard
 from rejection_guard import install as install_rejection_guard
 from sitemap_route_guard import install as install_sitemap_route_guard
 from sitemap_strategy_epoch_guard import install as install_sitemap_strategy_epoch_guard
@@ -203,6 +204,9 @@ tracker.page_identifiers = _enhanced_page_identifiers
 # mesmas regras de cache/fallback/live confirmation das restantes fontes.
 install_version_guard(tracker)
 install_promotion_guard(tracker)
+# Runtime promocional fica imediatamente depois da descoberta de campanhas:
+# força ficha live, corrige preço económico e trata nova elegibilidade como evento.
+install_promotion_runtime_guard(tracker)
 install_gpu_guard(scraper, tracker)
 install_hardware_guard(scraper, tracker)
 # Display Guard corrige resolução explícita antes de mercado/matching para que
