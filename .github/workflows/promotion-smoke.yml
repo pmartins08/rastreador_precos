@@ -3,7 +3,7 @@ name: Validar promoções
 on:
   push:
     branches: ['v8.8.9-promotion-intelligence']
-    paths: ['src/promotion*.py', 'tests/test_promotion*.py', 'scripts/promotion_probe.py', 'scripts/rp_filter_probe.py', 'config/config.json', '.github/workflows/promotion-smoke.yml']
+    paths: ['src/promotion*.py', 'tests/test_promotion*.py', 'scripts/promotion_probe.py', 'scripts/rp_filter_probe.py', 'scripts/promotion_evaluation_probe.py', 'config/config.json', '.github/workflows/promotion-smoke.yml']
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ concurrency:
 jobs:
   promotion-probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
       PYTHONPATH: src
       NTFY_TOPIC: ''
@@ -33,9 +33,13 @@ jobs:
         run: python scripts/rp_filter_probe.py
       - name: Radio Popular — campanha ativa
         run: python scripts/promotion_probe.py --store 'Radio Popular' --output /tmp/rp-promotion.json
+      - name: Radio Popular — preços e Value live
+        run: python scripts/promotion_evaluation_probe.py --output /tmp/rp-promotion-evaluation.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: promotion-smoke-${{ github.run_id }}
-          path: /tmp/rp-promotion.json
+          path: |
+            /tmp/rp-promotion.json
+            /tmp/rp-promotion-evaluation.json
           retention-days: 14
