@@ -4,6 +4,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from gpu_guard import TierAwareValue
 import promotion_value_guard as promotion_value
+from radio_popular_pagination import collect_remaining
 
 
 _RP_CAMPAIGN_PATH = "/destaque/6a20120dc7e006.23735122"
@@ -172,7 +173,13 @@ def install(tracker_module) -> None:
         if original:
             proxy = dict(route_cat)
             proxy["url"] = original
-            return base_discover_html(response, proxy, target, candidates, source, stat)
+            gained = base_discover_html(response, proxy, target, candidates, source, stat)
+            if hasattr(response, "text"):
+                gained += collect_remaining(
+                    tracker_module, response, proxy, target, candidates, source, stat,
+                    base_discover_html,
+                )
+            return gained
         return base_discover_html(response, route_cat, target, candidates, source, stat)
 
     def candidate_priority(item: dict, weights: dict, settings: dict) -> float:

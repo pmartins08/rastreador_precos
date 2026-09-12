@@ -1,40 +1,28 @@
-"""Read-only verification of the public getProducts listing operation."""
+"""Audita cobertura da campanha sem enviar notificações nem guardar estado."""
 import json
-from urllib.parse import parse_qsl, urlencode
-from bs4 import BeautifulSoup
-from curl_cffi import requests
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import runner
+import tracker
+from promotion_runtime_guard import _radio_popular_laptop_campaign
 
-base = "https://www.radiopopular.pt"
-query = {"filters[category_n2_name][]": "Computadores Portáteis", "filters[disponibilidade][]": "Ocultar Produtos Indisponíveis"}
-url = base + "/destaque/6a20120dc7e006.23735122?" + urlencode(query)
-r = requests.get(url, timeout=20, impersonate="chrome131")
-r.raise_for_status()
-soup = BeautifulSoup(r.text, "html.parser")
-grid = soup.select_one("[data-products-page][data-products-total]")
-assert grid is not None
-fields = []
-for el in soup.select("#filters .filter-form input[name]"):
-    if el.has_attr("disabled") or (el.get("type") in ("checkbox", "radio") and not el.has_attr("checked")):
-        continue
-    fields.append((el.get("name"), el.get("value", "")))
-print("FORM", json.dumps(fields, ensure_ascii=False))
-filters = {}
-for name, value in fields:
-    if name not in ("priceMin", "priceMax"):
-        filters.setdefault(name, []).append(value)
-print("GRID", {k:v for k,v in grid.attrs.items() if k != "data-products-where"})
-for page in (2, 3):
-    data = {"method": "getProducts", "page": grid["data-products-page"], "where": grid["data-products-where"],
-            "filters": urlencode(fields), "order": grid.get("data-products-order", "relevancia asc"),
-            "limit": 12, "offset": (page-1)*12}
-    r = requests.post(base + "/ajax", data=data, timeout=20, impersonate="chrome131", headers={"Referer": url})
-    print("PAGE_STATUS", page, r.status_code)
-    r.raise_for_status()
-    payload = r.json()
-    html = payload.get("modules") or payload.get("content", {}).get("products", "")
-    if not isinstance(html, str):
-        print("MODULE_TYPE", type(html).__name__, str(html)[:2000])
-        html = ""
-    products = BeautifulSoup(html, "html.parser")
-    links = sorted({a["href"] for a in products.select('a[href*="/produto/"]')})
-    print("PAGE", json.dumps({"page":page, "keys":list(payload), "total":payload.get("total", payload.get("productsTotal")), "current":payload.get("productsCurrent"), "urls":links, "sample":html[:1400]}, ensure_ascii=False))
+config = tracker.load_json(tracker.CONFIG_PATH)
+cat = next(dict(c) for c in config["category_urls"] if c["loja"] == "Radio Popular")
+campaign = next(c for c in cat["campaign_urls"] if c["label"] == "50_por_250_set_2026")
+cat["url"] = _radio_popular_laptop_campaign(campaign["url"])
+response, _, outcome = tracker.adaptive_fetch(cat["url"], config, 15, store="Radio Popular", method="campaign_audit")
+assert response is not None and response.status_code == 200, outcome
+candidates = {}
+stat = tracker._empty_store_stats()
+tracker._discover_html(response, cat, 80, candidates, "segmento", stat)
+promoted = [c for c in candidates.values() if c.get("promotions")]
+print("CAMPAIGN_AUDIT", json.dumps({
+    "pagination": stat.get("promotion_pagination"),
+    "candidates": len(candidates), "promoted": len(promoted),
+    "within_budget": sum(250 <= float(c.get("preco") or 0) <= 1500 for c in promoted),
+    "requests": tracker.REQUESTS_USED, "notifications_sent": 0,
+    "items": [{"title":c.get("titulo"), "price":c.get("preco"), "url":c["url"]} for c in promoted],
+}, ensure_ascii=False))
+assert stat.get("promotion_pagination", {}).get("complete"), stat
+assert len(promoted) > 9, len(promoted)
