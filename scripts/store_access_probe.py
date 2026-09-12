@@ -1,0 +1,138 @@
+"""Reproduz acesso no runner, sem chamar main/ntfy nem gravar data/."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+import time
+from collections import defaultdict
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+import runner
+import tracker
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--stores", nargs="+", default=["Darty", "Worten", "CHIP7", "PcComponentes", "PCDiga"])
+    parser.add_argument("--full-run", action="store_true", help="Smoke completo numa cópia temporária sem notificações")
+    args = parser.parse_args()
+    if args.output.resolve().is_relative_to((ROOT / "data").resolve()):
+        parser.error("O diagnóstico não escreve no estado operacional.")
+    if args.full_run:
+        import os
+        import shutil
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix="rastreador-access-") as folder:
+            isolated = Path(folder) / "repo"
+            shutil.copytree(ROOT, isolated, ignore=shutil.ignore_patterns(".git", "__pycache__", ".venv"))
+            env = {**os.environ, "NTFY_TOPIC": "", "AWIN_DATAFEED_API_KEY": ""}
+            code = "import json\nfrom collections import Counter\nfrom datetime import datetime, timedelta\nfrom pathlib import Path\nimport runner, tracker, catalog_guard\n\nold = tracker.load_json(tracker.HISTORY_PATH)\nlast_stamp = old[\"learning\"][\"runs\"][-1][\"timestamp\"]\ncutoff = datetime.fromisoformat(last_stamp.replace(\"Z\", \"+00:00\")) - timedelta(minutes=2)\nprevious = []\nfor entries in old.get(\"offers\", {}).values():\n    if not entries:\n        continue\n    entry = entries[-1]\n    if entry.get(\"loja\") == \"Darty\" and datetime.fromisoformat(entry[\"timestamp\"].replace(\"Z\", \"+00:00\")) >= cutoff:\n        previous.append(entry)\nraw_catalog = {}\nrejected = []\noriginal_catalog = catalog_guard._shopify_candidates\ndef capture_catalog(payload, cat, module):\n    rows = original_catalog(payload, cat, module)\n    if cat[\"loja\"] == \"Darty\":\n        raw_catalog.update({r[\"url\"]: dict(r) for r in rows})\n    return rows\ncatalog_guard._shopify_candidates = capture_catalog\noriginal_market = tracker.apply_exact_market_price_evidence\nrecords_seen = {}\ndef capture_market(records, settings):\n    result = original_market(records, settings)\n    for record in records:\n        records_seen[id(record[\"spec\"])] = record[\"item\"]\n    return result\ntracker.apply_exact_market_price_evidence = capture_market\noriginal_score = tracker.score_allow_unknown\ndef capture_score(spec, price, weights, settings):\n    result = original_score(spec, price, weights, settings)\n    item = records_seen.get(id(spec), {})\n    if item.get(\"loja\") == \"Darty\" and result.get(\"status\") != \"ACEITE\":\n        rejected.append({\"title\": item.get(\"titulo\"), \"url\": item.get(\"url\"), \"price\": price,\n                         \"alerts\": result.get(\"alertas\"), \"price_status\": result.get(\"price_status\"),\n                         \"spec_price_status\": spec.get(\"price_status\"), \"stock\": item.get(\"stock\")})\n    return result\ntracker.score_allow_unknown = capture_score\nrun = runner.main()\naudit = []\nfor old_item in previous:\n    current = raw_catalog.get(old_item[\"url\"])\n    aliases = [r for r in raw_catalog.values() if old_item.get(\"ean\") and\n               str(r.get(\"ean\") or \"\").lstrip(\"0\") == str(old_item[\"ean\"]).lstrip(\"0\")]\n    audit.append({\"url\": old_item[\"url\"], \"ean\": old_item.get(\"ean\"), \"old_title\": old_item.get(\"titulo\"),\n                  \"old_price\": old_item.get(\"price\"), \"old_stock\": old_item.get(\"stock\"),\n                  \"current\": current, \"same_ean\": aliases})\nsummary = {\"previous_count\": len(previous), \"catalog_unique\": len(raw_catalog),\n           \"stock_counts\": dict(Counter(str(r.get(\"stock\")) for r in raw_catalog.values())),\n           \"previous_offers\": audit, \"rejected\": rejected}\nPath(\"/tmp/store-access-audit.json\").write_text(json.dumps(summary, ensure_ascii=False, indent=2))\nprint(\"CATALOG_AUDIT \" + json.dumps(summary, ensure_ascii=False), flush=True)\n"
+            subprocess.run([sys.executable, "-c", code], cwd=isolated, env=env, check=True)
+            state = json.loads((isolated / "data/history.json").read_text())
+            report = state["learning"]["runs"][-1]
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print("FULL_RUN " + json.dumps(report, ensure_ascii=False), flush=True)
+        return
+    before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT / "data").glob("*.json")}
+    config = tracker.load_json(tracker.CONFIG_PATH)
+    tracker.LEARNING = tracker.load_learning()
+    tracker.RUN_STARTED = time.monotonic()
+    tracker.RUN_DEADLINE = tracker.RUN_STARTED + 300
+    tracker.MAX_REQUESTS = 100
+    tracker.MAX_REQUESTS_PER_STORE = 35
+    tracker.MAX_DETAIL_FETCHES = 25
+    tracker.REQUESTS_USED = 0
+    tracker.REQUESTS_BY_STORE = defaultdict(int)
+    tracker.DETAIL_FETCHES_USED = 0
+    report = {"version": tracker.VERSION, "timestamp": tracker.now_iso(), "stores": {}}
+    for cat in config["category_urls"]:
+        store = cat["loja"]
+        if store not in args.stores:
+            continue
+        start = time.monotonic()
+        items, stats = tracker.scan_store(dict(cat), config, config["settings"])
+        samples = []
+        for item in items[:3]:
+            if not tracker.budget_available(store):
+                break
+            product, status = tracker.enrich(item, config)
+            spec = product.get("specs", {})
+            samples.append({
+                "url": item["url"], "title": product.get("titulo"), "price": product.get("preco"),
+                "access": status, "price_status": spec.get("price_status"),
+                "price_confidence": spec.get("price_page_confidence"),
+                "price_confirmed": spec.get("price_confirmed"),
+            })
+        # One direct public request reports actual status/body shape, independently
+        # of a route being skipped by historic learning. No profile/IP rotation.
+        import requests
+        from urllib.parse import urljoin
+        routes = [("category", cat["url"]), ("robots", urljoin(cat["url"], "/robots.txt"))]
+        if store in {"CHIP7", "PcComponentes"}:
+            routes.append(("home", urljoin(cat["url"], "/")))
+        if cat.get("public_catalog_json_url"):
+            routes.append(("catalog", cat["public_catalog_json_url"]))
+        observed = []
+        for kind, url in routes:
+            if not tracker.consume_request(store):
+                break
+            try:
+                response = requests.get(url, timeout=8, headers={"User-Agent": "rastreador-precos/8.8.9 (+https://github.com/pmartins08/rastreador_precos)"})
+                row = {"kind": kind, "url": url, "status": response.status_code,
+                       "content_type": response.headers.get("Content-Type"), "bytes": len(response.content)}
+                if response.status_code == 200:
+                    if kind == "robots":
+                        row["rules"] = response.text[:8000]
+                    elif kind == "catalog":
+                        payload = response.json()
+                        row["products"] = len(payload.get("products", []))
+                        row["parsed"] = len(__import__("catalog_guard")._shopify_candidates(payload, cat, tracker))
+                    else:
+                        soup = tracker.BeautifulSoup(response.text, "html.parser")
+                        row["title"] = soup.title.get_text() if soup.title else ""
+                        row["jsonld"] = len(soup.select('script[type="application/ld+json"]'))
+                        row["parsed"] = len(tracker.scraper.discover_category(response.text, cat, 80))
+                observed.append(row)
+                if store == "Worten" and kind == "robots" and response.status_code == 200:
+                    # Inspect only the sitemap URL explicitly published by the store.
+                    seeds = [line.split(":", 1)[1].strip() for line in response.text.splitlines()
+                             if line.lower().startswith("sitemap:")]
+                    for sitemap_url in seeds[:1]:
+                        if not tracker.scraper.same_host(sitemap_url, cat["url"]) or not tracker.consume_request(store):
+                            break
+                        sitemap = requests.get(sitemap_url, timeout=8)
+                        sitemap_row = {"kind": "sitemap_index", "status": sitemap.status_code, "url": sitemap_url}
+                        if sitemap.status_code == 200:
+                            urls, children = tracker.sitemap_parse(sitemap.content, sitemap.text, 160)
+                            sitemap_row.update({"urls": len(urls), "children": len(children), "child_examples": children[:5]})
+                            for child in children[:1]:
+                                if not tracker.scraper.same_host(child, cat["url"]) or not tracker.consume_request(store):
+                                    break
+                                child_response = requests.get(child, timeout=8)
+                                urls, _ = tracker.sitemap_parse(child_response.content, child_response.text, 10)
+                                laptop_urls = [u for u in urls if tracker._looks_like_product_url(u, cat)]
+                                observed.append({"kind": "sitemap_child", "status": child_response.status_code,
+                                                 "urls": len(urls), "eligible_urls": len(laptop_urls), "url": child})
+                        observed.append(sitemap_row)
+            except Exception as exc:
+                observed.append({"kind": kind, "url": url, "error_type": type(exc).__name__})
+        report["stores"][store] = {"stats": stats, "samples": samples, "requests": tracker.REQUESTS_BY_STORE[store],
+                                    "seconds": round(time.monotonic() - start, 2), "observed": observed}
+        print(json.dumps({"store": store, **report["stores"][store]}, ensure_ascii=False), flush=True)
+    after = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT / "data").glob("*.json")}
+    report["state_unchanged"] = before == after
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if before != after:
+        raise RuntimeError("O diagnóstico alterou o estado operacional.")
+
+
+if __name__ == "__main__":
+    main()
