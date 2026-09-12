@@ -4,7 +4,7 @@ import hashlib
 import json
 import math
 import re
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 from bs4 import BeautifulSoup
@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 
 CASH_KINDS = {"DIRECT_DISCOUNT", "TIERED_DISCOUNT", "COUPON"}
 ECONOMIC_KINDS = CASH_KINDS | {"STORE_CREDIT", "CASHBACK"}
-NON_CASH_KINDS = {"GIFT", "BUNDLE_DISCOUNT", "FINANCING"}
+NON_CASH_KINDS = {"GIFT", "BUNDLE_DISCOUNT", "FINANCING", "REFERENCE_DISCOUNT"}
 
 
 def _number(value: Any) -> float | None:
@@ -66,8 +66,6 @@ def promotion_discount(promotion: dict, price: float) -> float:
             cap_eur=_number(promotion.get("cap_eur")),
         )
     if kind in {"DIRECT_DISCOUNT", "COUPON"}:
-        # Condições pessoais não verificadas ficam visíveis mas não são
-        # transformadas em preço de checkout universal.
         if promotion.get("requires_membership") or promotion.get("requires_subscription"):
             if not promotion.get("qualification_confirmed"):
                 return 0.0
@@ -117,8 +115,6 @@ def economics(promotions: list[dict] | None, price: float) -> dict:
     """Separa preço pago em caixa de crédito/cashback e ofertas não monetárias."""
     current = [promo for promo in dedupe(promotions) if is_active(promo)]
     checkout_discounts = [promotion_discount(promo, price) for promo in current]
-    # Promoções diretas normalmente não acumulam entre si; usar a melhor é
-    # conservador até existir evidência explícita de cumulatividade.
     checkout_discount = max(checkout_discounts, default=0.0)
     credits = [store_credit_value(promo, price) for promo in current]
     credit = max(credits, default=0.0)
@@ -186,7 +182,7 @@ def _dates_from_text(text: str) -> tuple[str | None, str | None]:
 
 
 def parse_promotion_text(text: str, *, source: str = "page", eligibility: str = "explicit") -> list[dict]:
-    """Extrai apenas padrões monetários/benefícios claros; não interpreta slogans."""
+    """Extrai benefícios claros sem descontar duas vezes preços já promocionais."""
     clean = " ".join(str(text or "").split())
     lower = clean.lower()
     if not clean:
@@ -215,6 +211,10 @@ def parse_promotion_text(text: str, *, source: str = "page", eligibility: str = 
     if cart:
         out.append({**common, "kind": "DIRECT_DISCOUNT", "title": f"{cart.group(1)}€ extra no carrinho", "value_eur": _number(cart.group(1))})
 
+    cart_percent = re.search(r"(\d{1,2}(?:[.,]\d+)?)\s*%\s*(?:de\s*)?(?:desconto\s*)?extra\s+(?:no\s+)?carrinho", lower)
+    if cart_percent:
+        out.append({**common, "kind": "DIRECT_DISCOUNT", "title": f"{cart_percent.group(1)}% extra no carrinho", "percent": _number(cart_percent.group(1))})
+
     percent_code = re.search(r"(\d{1,2}(?:[.,]\d+)?)\s*%\s*(?:de\s*)?(?:desconto\s*)?extra.{0,100}?(?:c[oó]digo|cup[aã]o)\s*[:\-]?\s*([A-Z0-9_-]{3,20})", clean, re.I)
     if percent_code:
         out.append({**common, "kind": "COUPON", "title": f"{percent_code.group(1)}% extra com código {percent_code.group(2)}", "percent": _number(percent_code.group(1)), "code": percent_code.group(2).upper()})
@@ -233,6 +233,34 @@ def parse_promotion_text(text: str, *, source: str = "page", eligibility: str = 
     voucher = re.search(r"-?\s*(\d+(?:[.,]\d+)?)\s*€\s+(?:em\s+)?tal[aã]o", lower)
     if voucher:
         out.append({**common, "kind": "STORE_CREDIT", "title": f"{voucher.group(1)}€ em talão", "value_eur": _number(voucher.group(1))})
+    voucher_percent = re.search(r"(\d{1,2}(?:[.,]\d+)?)\s*%\s+(?:em\s+)?tal[aã]o", lower)
+    if voucher_percent:
+        out.append({**common, "kind": "STORE_CREDIT", "title": f"{voucher_percent.group(1)}% em talão", "percent": _number(voucher_percent.group(1))})
+
+    cashback_percent = re.search(r"(?:cashback|reembolso)\s*(?:de|até|ate)?\s*(\d{1,2}(?:[.,]\d+)?)\s*%", lower)
+    if not cashback_percent:
+        cashback_percent = re.search(r"(\d{1,2}(?:[.,]\d+)?)\s*%\s*(?:de\s*)?(?:cashback|reembolso)", lower)
+    if cashback_percent:
+        out.append({**common, "kind": "CASHBACK", "title": f"{cashback_percent.group(1)}% cashback", "percent": _number(cashback_percent.group(1))})
+    cashback_fixed = re.search(r"(?:cashback|reembolso)\s*(?:de|até|ate)?\s*(\d+(?:[.,]\d+)?)\s*€", lower)
+    if cashback_fixed:
+        out.append({**common, "kind": "CASHBACK", "title": f"{cashback_fixed.group(1)}€ cashback", "value_eur": _number(cashback_fixed.group(1))})
+
+    reference = re.search(r"(?:pvpr|pvp\s+recomendado|pre[cç]o\s+recomendado)\s*[:\-]?\s*(\d{2,5}(?:[.,]\d{1,2})?)\s*€", lower)
+    if reference:
+        percent = None
+        around = lower[max(0, reference.start() - 80): reference.end() + 80]
+        pct_match = re.search(r"-?\s*(\d{1,2}(?:[.,]\d+)?)\s*%\s*(?:sobre\s+)?(?:o\s+)?(?:pvpr|pvp)?", around)
+        if pct_match:
+            percent = _number(pct_match.group(1))
+        out.append({
+            **common,
+            "kind": "REFERENCE_DISCOUNT",
+            "title": f"Referência PVPR/PVP {reference.group(1)}€",
+            "reference_price_eur": _number(reference.group(1)),
+            "percent": percent,
+            "applicable": False,
+        })
 
     if re.search(r"\b(?:oferta|gr[aá]tis)\b", lower):
         gift = None
@@ -284,9 +312,4 @@ def _product_context(html: str, title: str) -> str:
 
 def extract_product_promotions(html: str, *, store: str, title: str = "") -> list[dict]:
     context = _product_context(html, title)
-    promotions = parse_promotion_text(context, source="product_page", eligibility="explicit")
-    # Restringe regras muito específicas por loja para reduzir falsos positivos
-    # vindos de menus/recomendações globais.
-    if store == "Radio Popular":
-        return [promo for promo in promotions if promo["kind"] in {"TIERED_DISCOUNT", "COUPON", "DIRECT_DISCOUNT", "STORE_CREDIT", "GIFT", "FINANCING"}]
-    return promotions
+    return parse_promotion_text(context, source="product_page", eligibility="explicit")
