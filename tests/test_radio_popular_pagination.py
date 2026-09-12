@@ -78,3 +78,15 @@ class PaginationTests(unittest.TestCase):
 
     def test_malformed_grid_is_ignored(self):
         self.assertIsNone(listing_state('<div data-products-page="destaque" data-products-total="bad"></div>'))
+
+    def test_transient_timeout_retries_once_and_counts_each_request(self):
+        tracker = self.tracker([])
+        tracker.requests.post.side_effect = [
+            TimeoutError("transient"),
+            SimpleNamespace(json=lambda: {"modules": '<a href="/produto/second">Second</a>', "total": 36}),
+            SimpleNamespace(json=lambda: {"modules": '<a href="/produto/third">Third</a>', "total": 36}),
+        ]
+        gained, stat, _ = self.run_pages(tracker)
+        self.assertEqual(gained, 2)
+        self.assertTrue(stat["promotion_pagination"]["complete"])
+        self.assertEqual(tracker.consume_request.call_count, 3)
