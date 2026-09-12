@@ -57,6 +57,9 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: test -n "$NTFY_TOPIC"
 
+      - name: Guardar estado de alertas antes da run
+        run: cp data/history.json /tmp/history-before-run.json
+
       - name: Executar rastreador
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
@@ -68,6 +71,43 @@ jobs:
           LOG_LEVEL: INFO
           PYTHONUNBUFFERED: '1'
         run: python runner.py
+
+      - name: Auditar notificações NTFY da run
+        if: success()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          before = json.loads(Path('/tmp/history-before-run.json').read_text(encoding='utf-8'))
+          after = json.loads(Path('data/history.json').read_text(encoding='utf-8'))
+          before_alerts = before.get('alert_state', {}) if isinstance(before.get('alert_state'), dict) else {}
+          after_alerts = after.get('alert_state', {}) if isinstance(after.get('alert_state'), dict) else {}
+          changed = {
+              key: value
+              for key, value in after_alerts.items()
+              if isinstance(value, dict) and value != before_alerts.get(key)
+          }
+
+          forbidden = []
+          for key, value in changed.items():
+              tier = str(value.get('tier') or '').upper()
+              if tier and tier not in {'OURO', 'DIAMANTE'}:
+                  forbidden.append((key, tier))
+          if forbidden:
+              raise SystemExit(f'ERRO: alertas abaixo de OURO registados nesta run: {forbidden}')
+
+          runs = (after.get('learning', {}) or {}).get('runs', []) or []
+          latest = runs[-1] if runs and isinstance(runs[-1], dict) else {}
+          top5 = int(latest.get('top5_notifications_sent', 0) or 0)
+          heartbeat = int(bool(latest.get('heartbeat_sent')))
+          opportunities = len(changed)
+          total = opportunities + top5 + heartbeat
+          print(
+              f'NTFY nesta run | oportunidades={opportunities} | '
+              f'top5={top5} | heartbeat={heartbeat} | total={total}'
+          )
+          PY
 
       - name: Garantir heartbeat NTFY
         if: success()
