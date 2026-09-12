@@ -7,7 +7,7 @@ Sistema de monitorização e avaliação de **portáteis novos no mercado portug
 O pipeline combina quatro áreas principais:
 
 - **Descoberta** — categorias, paginação, campanhas, sitemaps, catálogos públicos e feeds autorizados opcionais.
-- **Avaliação** — CPU, GPU, RAM, armazenamento, ecrã, bateria, peso e adequação do teclado.
+- **Avaliação** — CPU, GPU, RAM, armazenamento, ecrã, bateria, peso; o layout do teclado é guardado apenas como informação.
 - **Mercado** — histórico de preços, confirmação de preço, matching por EAN/MPN e comparação cross-store.
 - **Operação** — cache, aprendizagem de acesso, budgets, cooldowns, heartbeat e persistência automática no GitHub Actions.
 
@@ -41,6 +41,10 @@ Por defeito:
 - alertas de oportunidade são enviados apenas a partir de **OURO**;
 - o último preço que gerou alerta funciona como referência para evitar spam por pequenas oscilações;
 - uma subida de tier também pode originar novo alerta.
+
+Nas promoções confirmadas, o checkout é derivado do preço live e o Value/tier é recalculado antes da decisão. Mesmo com desconto, Prata e Bronze nunca geram alertas. O teclado PT não é obrigatório. Uma nova queda material do checkout só volta a notificar se a oferta continuar Ouro/Diamante; o estado só é atualizado após envio confirmado.
+
+A campanha Radio Popular usa também as páginas do carregador público, com os mesmos filtros de portáteis e disponibilidade da página oficial. A paginação respeita o orçamento de pedidos e regista quando a cobertura fica incompleta.
 
 ## Confiança de preço
 

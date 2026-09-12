@@ -4,10 +4,12 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from gpu_guard import TierAwareValue
 import promotion_value_guard as promotion_value
+from radio_popular_pagination import collect_remaining
 
 
 _RP_CAMPAIGN_PATH = "/destaque/6a20120dc7e006.23735122"
 _RP_FILTER_LABEL = "50_por_250_set_2026_portateis"
+_TIER_ORDER = {"BRONZE": 1, "PRATA": 2, "OURO": 3, "DIAMANTE": 4}
 
 
 def _confirmed_checkout_promotion(item: dict) -> bool:
@@ -19,6 +21,12 @@ def _confirmed_checkout_promotion(item: dict) -> bool:
         return False
     economics = promotion_value.economics(promotions, float(price))
     return float(economics.get("checkout_discount_eur") or 0.0) > 0.0
+
+
+def _tier_meets_alert_minimum(tier: str | None, settings: dict) -> bool:
+    current = _TIER_ORDER.get(str(tier or "").upper(), 0)
+    minimum = _TIER_ORDER.get(str(settings.get("alerta_min_tier", "OURO")).upper(), 3)
+    return current >= max(3, minimum)
 
 
 def _assessment_copy(assessment: dict) -> dict:
@@ -165,7 +173,13 @@ def install(tracker_module) -> None:
         if original:
             proxy = dict(route_cat)
             proxy["url"] = original
-            return base_discover_html(response, proxy, target, candidates, source, stat)
+            gained = base_discover_html(response, proxy, target, candidates, source, stat)
+            if hasattr(response, "text"):
+                gained += collect_remaining(
+                    tracker_module, response, proxy, target, candidates, source, stat,
+                    base_discover_html,
+                )
+            return gained
         return base_discover_html(response, route_cat, target, candidates, source, stat)
 
     def candidate_priority(item: dict, weights: dict, settings: dict) -> float:
@@ -192,6 +206,8 @@ def install(tracker_module) -> None:
         return result, status
 
     def needs_price_refresh(previous_meta, item, settings, *, current_time=None):
+        # Promoção ativa precisa de preço atual para recalcular checkout/Value.
+        # Mudanças materiais do preço observado continuam tratadas pelo guard base.
         if _confirmed_checkout_promotion(item):
             return True
         return base_needs_price_refresh(
@@ -283,7 +299,13 @@ def install(tracker_module) -> None:
 
         prior = history.get("alert_state", {}).get(alert_key) or {}
         eligibility_fp = promotion_value.fingerprint(promotions)
-        newly_eligible = prior.get("promotion_eligibility_fingerprint") != eligibility_fp
+        # Um alerta antigo PRATA/BRONZE não é baseline válido: se este portátil
+        # agora chegar a OURO pela promoção/preço, deve poder ser notificado.
+        prior_promo_alert_valid = _tier_meets_alert_minimum(prior.get("promotion_tier"), settings)
+        newly_eligible = (
+            not prior_promo_alert_valid
+            or prior.get("promotion_eligibility_fingerprint") != eligibility_fp
+        )
         prior_checkout = prior.get("promotion_checkout_price")
         checkout_improved = (
             prior_checkout is not None
@@ -292,12 +314,14 @@ def install(tracker_module) -> None:
         )
         material = discount >= float(settings.get("promotion_alert_min_eur", 25.0))
         cap = int(settings.get("max_promotion_eligibility_alerts_per_run", 20))
-        keyboard_ok = str(spec.get("teclado_pt") or "").lower() == "confirmado"
+        tier_ok = _tier_meets_alert_minimum(promo_tier, settings)
 
         if (
             promo_assessment.get("status") == "ACEITE"
-            and keyboard_ok
-            and material
+            and tier_ok
+            and item.get("stock") is not False
+            and float(promo_assessment["value_score"]) >= float(settings.get("min_value_score_alerta", 70))
+            and (material or checkout_improved)
             and (newly_eligible or checkout_improved)
             and eligibility_alerts_sent < cap
         ):
@@ -313,11 +337,11 @@ def install(tracker_module) -> None:
                 f"Desconto: {discount:.2f}€ | Checkout: {float(economics['effective_checkout_price']):.2f}€\n"
                 f"Value normal: {assessment['value_score']:.1f} | Value promo: {promo_assessment['value_score']:.1f}\n"
                 f"Tier normal/promo: {tier or '—'} / {promo_tier or '—'}\n"
-                f"Teclado PT: confirmado\n"
+                f"Layout teclado: {spec.get('teclado_pt', 'desconhecido')} (informativo)\n"
                 f"{item['url']}"
             )
             sent = tracker_module.ntfy_send(
-                f"🏷️ NOVA PROMO: {item['titulo']}",
+                f"🏷️ PROMO {promo_tier}: {item['titulo']}",
                 message,
                 priority=4,
                 tags=["computer", "moneybag"],
@@ -345,10 +369,9 @@ def install(tracker_module) -> None:
                     ),
                     "promotion_tier": promo_tier,
                     "promotion_price_confidence": promo_assessment.get("promotion_price_confidence"),
-                    "promotion_keyboard_pt": "confirmado",
                 }
                 tracker_module.LOGGER.info(
-                    "Promo nova | %s | %.2f€ -> %.2f€ | Value %.1f -> %.1f | tier %s -> %s | teclado PT",
+                    "Promo nova | %s | %.2f€ -> %.2f€ | Value %.1f -> %.1f | tier %s -> %s",
                     item.get("loja"),
                     float(price),
                     float(economics["effective_checkout_price"]),
@@ -359,12 +382,8 @@ def install(tracker_module) -> None:
                 )
                 return True, False
 
-        normal_item = dict(item)
-        normal_item.pop("promotions", None)
-        normal_item.pop("promotion_economics", None)
-        return base_maybe_alert(
-            history, normal_item, spec, assessment, tier, previous, alert_key, settings
-        )
+        # A promoção confirmada decide o tier; não voltar a um alerta com Value normal.
+        return False, not tier_ok
 
     tracker_module.discovery_routes = discovery_routes
     tracker_module._discover_html = discover_html

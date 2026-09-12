@@ -351,7 +351,7 @@ def install(tracker_module) -> None:
             order = {"BRONZE": 1, "PRATA": 2, "OURO": 3, "DIAMANTE": 4}
             effective_tier = promo_tier if order.get(promo_tier or "", 0) > order.get(tier or "", 0) else tier
             min_notify = str(settings.get("alerta_min_tier", "OURO")).upper()
-            if order.get(effective_tier or "", 0) < order.get(min_notify, 3):
+            if order.get(effective_tier or "", 0) < max(3, order.get(min_notify, 3)):
                 return base_maybe_alert(history, item, spec, assessment, tier, previous, alert_key, settings)
 
             prior = history["alert_state"].get(alert_key) or {}

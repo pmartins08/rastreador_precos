@@ -35,7 +35,7 @@ class DummyScraper:
     @staticmethod
     def tier_from_value(value, settings):
         adjusted = getattr(value, "tier_score", float(value))
-        return "PRATA" if adjusted >= 90 else "BRONZE" if adjusted >= 70 else None
+        return "DIAMANTE" if adjusted >= 125 else "OURO" if adjusted >= 110 else "PRATA" if adjusted >= 90 else "BRONZE" if adjusted >= 70 else None
 
 
 DummyScraper._PRICE_GUARD_ORIGINALS = {"value_score": DummyScraper.value_score}
@@ -180,43 +180,75 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         self.assertIsInstance(assessment["value_score"], TierAwareValue)
         self.assertEqual(float(assessment["value_score"]), 80.0)
 
-    def test_new_eligibility_notifies_even_without_ouro(self):
-        item = self.item()
-        history = {"offers": {}, "alert_state": {}}
-        sent, suppressed = self.tracker.maybe_alert(
-            history,
-            item,
-            {"teclado_pt": "confirmado"},
-            self.accepted_assessment(),
-            "BRONZE",
-            None,
-            item["url"],
-            {"promotion_alert_min_eur": 25.0, "alerta_queda_preco_eur": 5.0},
+    def alert(self, item=None, assessment=None, history=None, keyboard="desconhecido", settings=None):
+        item = item or self.item()
+        return self.tracker.maybe_alert(
+            history if history is not None else {"offers": {}, "alert_state": {}},
+            item, {"teclado_pt": keyboard}, assessment or self.accepted_assessment(),
+            "BRONZE", None, item["url"], settings or {},
         )
-        self.assertTrue(sent)
-        self.assertFalse(suppressed)
-        self.assertEqual(len(self.tracker.alert_messages), 1)
-        state = history["alert_state"][item["url"]]
-        self.assertEqual(state["promotion_discount_eur"], 100.0)
-        self.assertEqual(state["promotion_checkout_price"], 599.99)
-        self.assertGreater(state["promotion_value_score"], 80.0)
 
-    def test_unknown_keyboard_does_not_get_promo_eligibility_alert(self):
+    def gold_assessment(self):
+        result = self.accepted_assessment()
+        result["score_ranking"] = 95.0
+        return result
+
+    def test_silver_after_discount_never_notifies_even_with_low_config_minimum(self):
+        for keyboard in ("confirmado", "desconhecido", "nao_pt"):
+            with self.subTest(keyboard=keyboard):
+                sent, suppressed = self.alert(keyboard=keyboard, settings={"alerta_min_tier": "PRATA"})
+                self.assertFalse(sent)
+                self.assertTrue(suppressed)
+        self.assertEqual(self.tracker.alert_messages, [])
+        self.assertEqual(self.tracker.normal_alert_calls, [])
+
+    def test_gold_notifies_with_any_keyboard_and_records_actual_economics(self):
+        for keyboard in ("confirmado", "desconhecido", "nao_pt"):
+            with self.subTest(keyboard=keyboard):
+                history = {"offers": {}, "alert_state": {}}
+                self.assertTrue(self.alert(assessment=self.gold_assessment(), history=history, keyboard=keyboard)[0])
+                state = history["alert_state"][self.item()["url"]]
+                self.assertEqual(state["promotion_tier"], "OURO")
+                self.assertEqual(state["promotion_checkout_price"], 599.99)
+                self.assertEqual(state["promotion_discount_eur"], 100.0)
+                self.assertIn(keyboard, self.tracker.alert_messages[-1][1])
+
+    def test_material_drop_recalculates_value_and_notifies_once(self):
         item = self.item()
         history = {"offers": {}, "alert_state": {}}
-        sent, _ = self.tracker.maybe_alert(
-            history,
-            item,
-            {"teclado_pt": "desconhecido"},
-            self.accepted_assessment(),
-            "BRONZE",
-            None,
-            item["url"],
-            {"promotion_alert_min_eur": 25.0, "alerta_queda_preco_eur": 5.0},
-        )
-        self.assertFalse(sent)
+        assessment = self.gold_assessment()
+        self.assertTrue(self.alert(item, assessment, history)[0])
+        first = history["alert_state"][item["url"]]["promotion_value_score"]
+        self.assertFalse(self.alert(item, assessment, history)[0])
+        item["preco"] -= 4.0
+        self.assertFalse(self.alert(item, assessment, history)[0])
+        item["preco"] -= 1.0
+        self.assertTrue(self.alert(item, assessment, history)[0])
+        self.assertGreater(history["alert_state"][item["url"]]["promotion_value_score"], first)
+        self.assertFalse(self.alert(item, assessment, history)[0])
+        self.assertEqual(len(self.tracker.alert_messages), 2)
+
+    def test_previous_silver_alert_does_not_block_new_gold(self):
+        item = self.item()
+        history = {"offers": {}, "alert_state": {item["url"]: {
+            "promotion_tier": "PRATA",
+            "promotion_checkout_price": 599.99,
+            "promotion_eligibility_fingerprint": promotion_runtime_guard.promotion_value.fingerprint(item["promotions"]),
+        }}}
+        self.assertTrue(self.alert(item, self.gold_assessment(), history)[0])
+
+    def test_out_of_stock_and_rejected_never_notify(self):
+        item = self.item()
+        item["stock"] = False
+        self.assertFalse(self.alert(item, self.gold_assessment())[0])
+        self.assertFalse(self.alert(assessment={"status": "REJEITADO"})[0])
         self.assertEqual(self.tracker.alert_messages, [])
-        self.assertEqual(len(self.tracker.normal_alert_calls), 1)
+
+    def test_failed_delivery_is_not_recorded(self):
+        history = {"offers": {}, "alert_state": {}}
+        self.tracker.ntfy_send = lambda *args, **kwargs: False
+        self.assertFalse(self.alert(assessment=self.gold_assessment(), history=history)[0])
+        self.assertEqual(history["alert_state"], {})
 
     def test_unconfirmed_promo_price_does_not_alert(self):
         item = self.item()
@@ -244,6 +276,7 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
                 item["url"]: {
                     "promotion_eligibility_fingerprint": fp,
                     "promotion_checkout_price": 599.99,
+                    "promotion_tier": "OURO",
                 }
             },
         }
@@ -251,7 +284,7 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
             history,
             item,
             {"teclado_pt": "confirmado"},
-            self.accepted_assessment(),
+            self.gold_assessment(),
             "BRONZE",
             None,
             item["url"],
@@ -259,8 +292,7 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         )
         self.assertFalse(sent)
         self.assertEqual(self.tracker.alert_messages, [])
-        self.assertEqual(len(self.tracker.normal_alert_calls), 1)
-        self.assertNotIn("promotions", self.tracker.normal_alert_calls[0])
+        self.assertEqual(self.tracker.normal_alert_calls, [])
 
 
 if __name__ == "__main__":
