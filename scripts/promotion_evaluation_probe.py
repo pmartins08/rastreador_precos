@@ -57,8 +57,8 @@ def main() -> None:
         spec = result.get("specs") or tracker.scraper.specs(result.get("titulo", ""))
         assessment = tracker.score_allow_unknown(spec, price, weights, settings)
         economics = tracker.promotion_economics(result.get("promotions") or discovered.get("promotions"), price)
-        promo_assessment = tracker.score_allow_unknown(
-            spec, float(economics["effective_checkout_price"]), weights, settings
+        promo_assessment = tracker.promotion_revalue_assessment(
+            assessment, float(economics["effective_checkout_price"]), settings
         )
         normal_tier = (
             tracker.scraper.tier_from_value(assessment["value_score"], settings)
@@ -77,14 +77,17 @@ def main() -> None:
             "discount_eur": economics["checkout_discount_eur"],
             "checkout_price": economics["effective_checkout_price"],
             "normal_status": assessment.get("status"),
-            "normal_value": assessment.get("value_score"),
+            "normal_value": float(assessment["value_score"]) if assessment.get("value_score") is not None else None,
+            "normal_tier_score": round(float(getattr(assessment.get("value_score"), "tier_score", assessment.get("value_score") or 0)), 1) if assessment.get("value_score") is not None else None,
             "normal_tier": normal_tier,
             "promo_status": promo_assessment.get("status"),
-            "promo_value": promo_assessment.get("value_score"),
+            "promo_value": float(promo_assessment["value_score"]) if promo_assessment.get("value_score") is not None else None,
+            "promo_tier_score": round(float(getattr(promo_assessment.get("value_score"), "tier_score", promo_assessment.get("value_score") or 0)), 1) if promo_assessment.get("value_score") is not None else None,
             "promo_tier": promo_tier,
             "alerts": assessment.get("alertas") or promo_assessment.get("alertas") or [],
             "cpu": spec.get("cpu_modelo"),
             "gpu": spec.get("gpu_modelo") or spec.get("gpu_tipo"),
+            "gaming": (assessment.get("detalhes") or {}).get("Gaming"),
             "ram_gb": spec.get("ram_gb"),
             "storage_tb": spec.get("armazenamento_tb"),
             "keyboard_pt": spec.get("teclado_pt"),
