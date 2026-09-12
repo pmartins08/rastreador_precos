@@ -16,16 +16,31 @@ PROMO = {
 }
 
 
+class DummyLogger:
+    @staticmethod
+    def info(*args, **kwargs):
+        return None
+
+
 class DummyScraper:
     @staticmethod
+    def value_score(ranking, price, settings):
+        return round(float(ranking) + max(0.0, (1000.0 - float(price)) / 20.0), 1)
+
+    @staticmethod
     def tier_from_value(value, settings):
-        return "PRATA" if value >= 90 else "BRONZE" if value >= 70 else None
+        adjusted = getattr(value, "tier_score", float(value))
+        return "PRATA" if adjusted >= 90 else "BRONZE" if adjusted >= 70 else None
+
+
+DummyScraper._PRICE_GUARD_ORIGINALS = {"value_score": DummyScraper.value_score}
 
 
 class DummyTracker:
     def __init__(self):
         self._PROMOTION_RUNTIME_GUARD_INSTALLED = False
         self.scraper = DummyScraper()
+        self.LOGGER = DummyLogger()
         self.CONFIG_PATH = "config"
         self.enrich_seen_price = "unset"
         self.alert_messages = []
@@ -80,14 +95,6 @@ class DummyTracker:
     def load_json(path):
         return {"weights": {}, "settings": {}}
 
-    @staticmethod
-    def score_allow_unknown(spec, price, weights, settings):
-        return {
-            "status": "ACEITE",
-            "value_score": 95.0 if price < 700 else 80.0,
-            "score_ranking": 75.0,
-        }
-
     def ntfy_send(self, title, message, *, priority=3, tags=None):
         self.alert_messages.append((title, message))
         return True
@@ -118,6 +125,19 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
             "promotions": [dict(PROMO)],
         }
 
+    @staticmethod
+    def accepted_assessment():
+        return {
+            "status": "ACEITE",
+            "value_score": 80.0,
+            "score_ranking": 80.0,
+            "score_final": 82.0,
+            "detalhes": {"Gaming": 60.0},
+            "exceptional_deal_bonus": 7.0,
+            "price_status": "OK",
+            "price_confirmed": 699.99,
+        }
+
     def test_campaign_route_is_filtered_to_laptops(self):
         route = self.tracker.discovery_routes(self.cat, "Radio Popular")[0]
         self.assertIn("category_n2_name", route["url"])
@@ -140,6 +160,17 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         self.assertEqual(result["preco"], 699.99)
         self.assertTrue(result["promotion_price_live_confirmed"])
 
+    def test_revalue_keeps_technical_ranking_and_drops_page_price_bonus(self):
+        assessment = self.accepted_assessment()
+        promo = self.tracker.promotion_revalue_assessment(assessment, 599.99, {})
+        self.assertEqual(promo["status"], "ACEITE")
+        self.assertEqual(promo["score_ranking"], 80.0)
+        self.assertEqual(promo["price_confirmed"], 699.99)
+        self.assertEqual(promo["exceptional_deal_bonus"], 0.0)
+        self.assertGreater(float(promo["value_score"]), 80.0)
+        self.assertEqual(promo["promotion_checkout_price"], 599.99)
+        self.assertTrue(hasattr(promo["value_score"], "tier_score"))
+
     def test_new_eligibility_notifies_even_without_ouro(self):
         item = self.item()
         history = {"offers": {}, "alert_state": {}}
@@ -147,7 +178,7 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
             history,
             item,
             {"teclado_pt": "confirmado"},
-            {"value_score": 80.0, "score_ranking": 70.0},
+            self.accepted_assessment(),
             "BRONZE",
             None,
             item["url"],
@@ -159,6 +190,7 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         state = history["alert_state"][item["url"]]
         self.assertEqual(state["promotion_discount_eur"], 100.0)
         self.assertEqual(state["promotion_checkout_price"], 599.99)
+        self.assertGreater(state["promotion_value_score"], 80.0)
 
     def test_same_eligibility_does_not_send_duplicate_promo(self):
         item = self.item()
@@ -176,7 +208,7 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
             history,
             item,
             {"teclado_pt": "confirmado"},
-            {"value_score": 80.0, "score_ranking": 70.0},
+            self.accepted_assessment(),
             "BRONZE",
             None,
             item["url"],
