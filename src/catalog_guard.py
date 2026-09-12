@@ -55,9 +55,12 @@ def _shopify_candidates(payload: object, cat: dict, tracker_module) -> list[dict
             "detail_source": "catalog_json_seed",
             "discovery_sources": ["catalog_json"],
         }
+        # Shopify SKU is merchant-internal metadata. Keep it for diagnostics,
+        # but never promote it to tracker `sku`, because that field participates
+        # in configuration identity and can produce a FORTE cross-store match.
         sku = variant.get("sku")
         if sku:
-            row["sku"] = str(sku).strip()
+            row["_catalog_sku"] = str(sku).strip()
         barcode = str(variant.get("barcode") or "").strip()
         if barcode and tracker_module.gtin_valid(barcode):
             row["ean"] = barcode
@@ -91,7 +94,6 @@ def _single_public_fetch(tracker_module, url: str, config: dict, store: str, met
     except Exception:
         tracker_module.record_learning(store, profile, "request_error", method)
         return None, profile, "request_error"
-
 
 
 def _usable_candidates(rows: list[dict], settings: dict) -> list[dict]:
