@@ -9,6 +9,10 @@ def _listing_promotion(item: dict) -> bool:
     )
 
 
+def _item_key(item: dict) -> tuple[str, str]:
+    return str(item.get("loja") or ""), str(item.get("url") or "")
+
+
 def install(tracker_module) -> None:
     """Evita que uma campanha live transforme toda a loja em detail fetch.
 
@@ -16,6 +20,11 @@ def install(tracker_module) -> None:
     preço corrente do cartão. A ficha de produto continua necessária para
     hardware novo, mas hardware conhecido pode vir da cache sem desperdiçar o
     orçamento HTTP da loja.
+
+    Produtos de uma campanha live confirmada também têm cobertura prioritária:
+    nunca são os primeiros candidatos cortados pelo limite global de avaliação.
+    Isto é especialmente importante quando a campanha contém quase tantos
+    portáteis como o orçamento total da run.
     """
     if getattr(tracker_module, "_PROMOTION_COVERAGE_GUARD_INSTALLED", False):
         return
@@ -23,7 +32,7 @@ def install(tracker_module) -> None:
     base_needs_price_refresh = tracker_module.needs_price_refresh
     base_adaptive_fetch = tracker_module.adaptive_fetch
 
-    def select_with_cache(items, spec_cache, max_items, weights, settings):
+    def _select_regular(items, spec_cache, max_items, weights, settings):
         if max_items <= 0:
             return []
         cached = [
@@ -33,18 +42,41 @@ def install(tracker_module) -> None:
         cached_selected = tracker_module.select_for_evaluation(
             cached, min(max_items, len(cached)), weights, settings
         ) if cached else []
-        cached_keys = {(item["loja"], item["url"]) for item in cached_selected}
+        cached_keys = {_item_key(item) for item in cached_selected}
         remaining_slots = max(0, max_items - len(cached_selected))
         if remaining_slots == 0:
             return cached_selected
         uncached = [
             item for item in items
-            if (item["loja"], item["url"]) not in cached_keys
+            if _item_key(item) not in cached_keys
             and not item.get("specs")
             and item.get("url") not in spec_cache
         ]
         return cached_selected + tracker_module.select_for_evaluation(
             uncached, min(remaining_slots, len(uncached)), weights, settings
+        )
+
+    def select_with_cache(items, spec_cache, max_items, weights, settings):
+        if max_items <= 0:
+            return []
+
+        # Uma campanha confirmada live é um universo explicitamente pedido pelo
+        # utilizador e observado na loja nesta run. Reserva esses candidatos antes
+        # do corte global; dentro da própria campanha continua a valer o seletor
+        # normal caso, excecionalmente, a campanha ultrapasse todo o orçamento.
+        promoted = [item for item in items if _listing_promotion(item)]
+        promoted_selected = tracker_module.select_for_evaluation(
+            promoted, min(max_items, len(promoted)), weights, settings
+        ) if promoted else []
+        promoted_keys = {_item_key(item) for item in promoted_selected}
+
+        remaining_slots = max(0, max_items - len(promoted_selected))
+        if remaining_slots == 0:
+            return promoted_selected
+
+        regular = [item for item in items if _item_key(item) not in promoted_keys]
+        return promoted_selected + _select_regular(
+            regular, spec_cache, remaining_slots, weights, settings
         )
 
     def needs_price_refresh(previous_meta, item, settings, *, current_time=None):

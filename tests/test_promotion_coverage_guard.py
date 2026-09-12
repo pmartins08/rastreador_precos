@@ -58,6 +58,35 @@ class PromotionCoverageGuardTests(unittest.TestCase):
         self.assertIn(item["url"], cache)
         self.assertEqual(cache[item["url"]]["ram_gb"], 32)
 
+    def test_confirmed_campaign_item_is_not_cut_by_global_limit(self):
+        normal_a = {"loja": "FNAC", "url": "https://example.com/a", "preco": 700.0}
+        normal_b = {"loja": "Darty", "url": "https://example.com/b", "preco": 800.0}
+        promo = self.promo_item("https://www.radiopopular.pt/produto/cb2")
+
+        selected = self.tracker.select_with_cache(
+            [normal_a, normal_b, promo], {}, 2, {}, {}
+        )
+
+        self.assertIn(promo, selected)
+        self.assertEqual(len(selected), 2)
+
+    def test_all_confirmed_campaign_items_are_reserved_before_regular_candidates(self):
+        promos = [
+            self.promo_item(f"https://www.radiopopular.pt/produto/promo-{index}")
+            for index in range(3)
+        ]
+        normals = [
+            {"loja": "FNAC", "url": f"https://example.com/{index}", "preco": 700.0 + index}
+            for index in range(3)
+        ]
+
+        selected = self.tracker.select_with_cache(
+            [*normals, *promos], {}, 4, {}, {}
+        )
+
+        self.assertEqual(selected[:3], promos)
+        self.assertEqual(len(selected), 4)
+
     def test_live_campaign_listing_does_not_require_second_price_fetch(self):
         item = self.promo_item()
         self.assertFalse(self.tracker.needs_price_refresh({}, item, {}))
