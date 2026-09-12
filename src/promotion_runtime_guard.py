@@ -44,13 +44,7 @@ def _assessment_copy(assessment: dict) -> dict:
 
 
 def _revalue_from_accepted(tracker_module, assessment: dict, checkout_price: float, settings: dict) -> dict:
-    """Recalcula Value a partir de ranking aceite + checkout oficial derivado.
-
-    O preço observado continua a ser validado pelo Price Guard. O checkout não
-    é tratado como um segundo preço de ficha: é derivado de preço live já
-    confirmado + promoção oficial aplicável. Por isso pode usar a mesma curva
-    económica de oportunidade, mas fica explicitamente marcado como derivado.
-    """
+    """Recalcula Value a partir de ranking aceite + checkout oficial derivado."""
     if not isinstance(assessment, dict) or assessment.get("status") != "ACEITE":
         return _assessment_copy(assessment) if isinstance(assessment, dict) else {"status": "REJEITADO"}
 
@@ -131,7 +125,7 @@ def _original_campaign_url(cat: dict, current_url: str) -> str | None:
 
 
 def install(tracker_module) -> None:
-    """Fecha a lacuna entre descoberta promocional e preço/alerta operacional."""
+    """Liga promoções confirmadas a descoberta, preço live, Value e alertas."""
     if getattr(tracker_module, "_PROMOTION_RUNTIME_GUARD_INSTALLED", False):
         return
 
@@ -174,7 +168,9 @@ def install(tracker_module) -> None:
             proxy = dict(route_cat)
             proxy["url"] = original
             gained = base_discover_html(response, proxy, target, candidates, source, stat)
-            if hasattr(response, "text"):
+            # A primeira landing confirma a campanha live. Os fragmentos AJAX
+            # seguintes reutilizam essa confirmação através do Promotion Live Guard.
+            if hasattr(response, "text") and stat.get("promotion_live_confirmed"):
                 gained += collect_remaining(
                     tracker_module, response, proxy, target, candidates, source, stat,
                     base_discover_html,
@@ -206,8 +202,6 @@ def install(tracker_module) -> None:
         return result, status
 
     def needs_price_refresh(previous_meta, item, settings, *, current_time=None):
-        # Promoção ativa precisa de preço atual para recalcular checkout/Value.
-        # Mudanças materiais do preço observado continuam tratadas pelo guard base.
         if _confirmed_checkout_promotion(item):
             return True
         return base_needs_price_refresh(
@@ -247,13 +241,7 @@ def install(tracker_module) -> None:
                 if promo_assessment.get("status") == "ACEITE":
                     entries[-1]["promotion_value_score"] = float(promo_assessment["value_score"])
                     entries[-1]["promotion_tier_score"] = round(
-                        float(
-                            getattr(
-                                promo_assessment["value_score"],
-                                "tier_score",
-                                promo_assessment["value_score"],
-                            )
-                        ),
+                        float(getattr(promo_assessment["value_score"], "tier_score", promo_assessment["value_score"])),
                         1,
                     )
                     entries[-1]["promotion_tier"] = promo_tier
@@ -299,8 +287,6 @@ def install(tracker_module) -> None:
 
         prior = history.get("alert_state", {}).get(alert_key) or {}
         eligibility_fp = promotion_value.fingerprint(promotions)
-        # Um alerta antigo PRATA/BRONZE não é baseline válido: se este portátil
-        # agora chegar a OURO pela promoção/preço, deve poder ser notificado.
         prior_promo_alert_valid = _tier_meets_alert_minimum(prior.get("promotion_tier"), settings)
         newly_eligible = (
             not prior_promo_alert_valid
@@ -358,13 +344,7 @@ def install(tracker_module) -> None:
                     "promotion_discount_eur": discount,
                     "promotion_value_score": float(promo_assessment["value_score"]),
                     "promotion_tier_score": round(
-                        float(
-                            getattr(
-                                promo_assessment["value_score"],
-                                "tier_score",
-                                promo_assessment["value_score"],
-                            )
-                        ),
+                        float(getattr(promo_assessment["value_score"], "tier_score", promo_assessment["value_score"])),
                         1,
                     ),
                     "promotion_tier": promo_tier,
@@ -382,7 +362,6 @@ def install(tracker_module) -> None:
                 )
                 return True, False
 
-        # A promoção confirmada decide o tier; não voltar a um alerta com Value normal.
         return False, not tier_ok
 
     tracker_module.discovery_routes = discovery_routes

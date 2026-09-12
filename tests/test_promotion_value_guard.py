@@ -47,6 +47,25 @@ class PromotionValueGuardTests(unittest.TestCase):
         self.assertEqual(economics["checkout_discount_eur"], 250.0)
         self.assertEqual(economics["effective_checkout_price"], 1049.99)
 
+    def test_current_rp_campaign_applies_while_old_10_percent_voucher_is_expired(self):
+        campaign = {
+            "kind": "TIERED_DISCOUNT", "step_discount_eur": 50,
+            "threshold_step_eur": 250, "cap_eur": 500,
+            "eligibility": "campaign_listing", "applicable": True,
+            "valid_from": "2026-09-12", "valid_until": "2026-09-15",
+        }
+        expired_voucher = {
+            "kind": "STORE_CREDIT", "percent": 10,
+            "eligibility": "explicit", "applicable": True,
+            "valid_from": "2026-09-05", "valid_until": "2026-09-08",
+        }
+        self.assertTrue(guard.is_active(campaign, date(2026, 9, 12)))
+        self.assertFalse(guard.is_active(expired_voucher, date(2026, 9, 12)))
+        economics = guard.economics([campaign, expired_voucher], 1299.99)
+        self.assertEqual(economics["checkout_discount_eur"], 250.0)
+        self.assertEqual(economics["effective_checkout_price"], 1049.99)
+        self.assertEqual(economics["store_credit_eur"], 0.0)
+
     def test_fnac_card_credit_does_not_fake_checkout_price(self):
         promo = {
             "kind": "STORE_CREDIT", "percent": 5, "eligibility": "explicit",
@@ -79,7 +98,7 @@ class PromotionValueGuardTests(unittest.TestCase):
 
     def test_parser_recognizes_radio_popular_tiered_promotion(self):
         promos = guard.parse_promotion_text(
-            "12 a 15 de setembro de 2026. Ganha 50€ por cada 250€ em compras. Até 500€ desconto.",
+            "Válido de 12 a 15 de setembro de 2026. Ganha 50€ por cada 250€ em compras. Até 500€ desconto.",
             source="official", eligibility="campaign_listing",
         )
         promo = next(p for p in promos if p["kind"] == "TIERED_DISCOUNT")
@@ -88,6 +107,9 @@ class PromotionValueGuardTests(unittest.TestCase):
         self.assertEqual(promo["cap_eur"], 500.0)
         self.assertEqual(promo["valid_from"], "2026-09-12")
         self.assertEqual(promo["valid_until"], "2026-09-15")
+        self.assertTrue(guard.is_active(promo, date(2026, 9, 12)))
+        self.assertTrue(guard.is_active(promo, date(2026, 9, 15)))
+        self.assertFalse(guard.is_active(promo, date(2026, 9, 16)))
 
     def test_parser_recognizes_fnac_credit_without_calling_it_discount(self):
         promos = guard.parse_promotion_text("5% em Cartão FNAC. Acumula 30€", source="product")
@@ -98,9 +120,26 @@ class PromotionValueGuardTests(unittest.TestCase):
     def test_parser_recognizes_cart_discount_and_coupon(self):
         cart = guard.parse_promotion_text("-5€ extra no carrinho", source="product")
         self.assertEqual(cart[0]["kind"], "DIRECT_DISCOUNT")
+        cart_pct = guard.parse_promotion_text("10% desconto extra no carrinho", source="product")
+        self.assertEqual(cart_pct[0]["kind"], "DIRECT_DISCOUNT")
+        self.assertEqual(cart_pct[0]["percent"], 10.0)
         coupon = guard.parse_promotion_text("10% desconto extra com código AULAS10", source="product")
         self.assertEqual(coupon[0]["kind"], "COUPON")
         self.assertEqual(coupon[0]["code"], "AULAS10")
+
+    def test_parser_recognizes_percent_voucher_and_cashback(self):
+        promos = guard.parse_promotion_text("Recebe 10% em talão e cashback de 5%", source="product")
+        self.assertTrue(any(p["kind"] == "STORE_CREDIT" and p.get("percent") == 10.0 for p in promos))
+        self.assertTrue(any(p["kind"] == "CASHBACK" and p.get("percent") == 5.0 for p in promos))
+
+    def test_pvpr_is_reference_only_and_never_double_discounted(self):
+        promos = guard.parse_promotion_text("PVPR: 1799,99€ | 1299,99€ | -28% sobre PVPR", source="product")
+        ref = next(p for p in promos if p["kind"] == "REFERENCE_DISCOUNT")
+        self.assertEqual(ref["reference_price_eur"], 1799.99)
+        self.assertFalse(ref["applicable"])
+        economics = guard.economics(promos, 1299.99)
+        self.assertEqual(economics["effective_checkout_price"], 1299.99)
+        self.assertEqual(economics["checkout_discount_eur"], 0.0)
 
     def test_parser_recognizes_gift_and_zero_interest_as_non_cash(self):
         promos = guard.parse_promotion_text("OFERTA: Norton. Até 24x Sem Juros", source="product")

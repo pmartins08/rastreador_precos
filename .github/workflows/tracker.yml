@@ -99,13 +99,12 @@ jobs:
 
           runs = (after.get('learning', {}) or {}).get('runs', []) or []
           latest = runs[-1] if runs and isinstance(runs[-1], dict) else {}
-          top5 = int(latest.get('top5_notifications_sent', 0) or 0)
           heartbeat = int(bool(latest.get('heartbeat_sent')))
           opportunities = len(changed)
-          total = opportunities + top5 + heartbeat
+          total = opportunities + heartbeat
           print(
               f'NTFY nesta run | oportunidades={opportunities} | '
-              f'top5={top5} | heartbeat={heartbeat} | total={total}'
+              f'heartbeat={heartbeat} | total={total}'
           )
           PY
 
@@ -183,14 +182,14 @@ jobs:
             done
           fi
 
-      - name: Guardar estado, aprendizagem, histórico, matching e Top 5
+      - name: Guardar estado, aprendizagem, histórico e matching
         if: success()
         run: |
           set -e
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          TRACKED_STATE="data/history.json data/access_learning.json data/price_history.json data/matching_state.json data/top5_current.json data/state_epoch.json"
+          TRACKED_STATE="data/history.json data/access_learning.json data/price_history.json data/matching_state.json data/state_epoch.json"
           if [ -z "$(git status --porcelain -- $TRACKED_STATE)" ]; then
             echo "Sem alterações de dados."
             exit 0
@@ -200,13 +199,12 @@ jobs:
           cp data/access_learning.json /tmp/access-learning-run.json
           cp data/price_history.json /tmp/price-history-run.json
           [ -f data/matching_state.json ] && cp data/matching_state.json /tmp/matching-state-run.json
-          [ -f data/top5_current.json ] && cp data/top5_current.json /tmp/top5-current-run.json
           [ -f data/state_epoch.json ] && cp data/state_epoch.json /tmp/state-epoch-run.json
 
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --hard origin/main
-            git clean -f -- data/price_history.json data/matching_state.json data/top5_current.json data/state_epoch.json
+            git clean -f -- data/price_history.json data/matching_state.json data/state_epoch.json
 
             python runner.py merge-state \
               --history-current data/history.json \
@@ -239,10 +237,9 @@ jobs:
             fi
 
             [ -f /tmp/matching-state-run.json ] && cp /tmp/matching-state-run.json data/matching_state.json
-            [ -f /tmp/top5-current-run.json ] && cp /tmp/top5-current-run.json data/top5_current.json
             [ -f /tmp/state-epoch-run.json ] && cp /tmp/state-epoch-run.json data/state_epoch.json
 
-            git add data/history.json data/access_learning.json data/price_history.json data/matching_state.json data/top5_current.json data/state_epoch.json
+            git add data/history.json data/access_learning.json data/price_history.json data/matching_state.json data/state_epoch.json
             if git diff --cached --quiet; then
               echo "Sem alterações após merge com main."
               exit 0

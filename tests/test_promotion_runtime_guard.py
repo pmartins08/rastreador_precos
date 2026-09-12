@@ -54,9 +54,9 @@ class DummyTracker:
     @staticmethod
     def discovery_routes(cat, store):
         return [{
-            "label": "50_por_250_set_2026",
+            "label": "promo",
             "url": cat["campaign_urls"][0]["url"],
-            "method_key": "campaign:50_por_250_set_2026",
+            "method_key": "campaign:promo",
             "priority": 160,
             "priority_band": 2,
             "yield_score": 0.0,
@@ -114,19 +114,19 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         self.tracker = DummyTracker()
         promotion_runtime_guard.install(self.tracker)
         self.cat = {
-            "loja": "Radio Popular",
+            "loja": "TEST",
             "campaign_urls": [{
-                "label": "50_por_250_set_2026",
-                "url": "https://www.radiopopular.pt/destaque/6a20120dc7e006.23735122?filters%5Bdisponibilidade%5D%5B%5D=Ocultar+Produtos+Indispon%C3%ADveis",
+                "label": "promo",
+                "url": "https://example.com/promo",
             }],
         }
 
     def item(self):
         return {
-            "loja": "Radio Popular",
+            "loja": "TEST",
             "titulo": "PC PORTÁTIL ASUS TEST",
             "preco": 699.99,
-            "url": "https://www.radiopopular.pt/produto/test",
+            "url": "https://example.com/produto/test",
             "promotions": [dict(PROMO)],
             "promotion_price_live_confirmed": True,
         }
@@ -144,12 +144,11 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
             "price_confirmed": 699.99,
         }
 
-    def test_campaign_route_is_filtered_to_laptops(self):
-        route = self.tracker.discovery_routes(self.cat, "Radio Popular")[0]
-        self.assertIn("category_n2_name", route["url"])
-        self.assertIn("Computadores+Port%C3%A1teis", route["url"])
-        self.assertEqual(route["method_key"], "campaign:50_por_250_set_2026_portateis")
-        self.assertGreaterEqual(route["priority_band"], 3)
+    def test_runtime_does_not_rewrite_store_campaign_routes(self):
+        route = self.tracker.discovery_routes(self.cat, "TEST")[0]
+        self.assertEqual(route["url"], "https://example.com/promo")
+        self.assertEqual(route["method_key"], "campaign:promo")
+        self.assertEqual(route["priority_band"], 2)
 
     def test_promotion_candidate_loses_runtime_cache(self):
         item = self.item()
