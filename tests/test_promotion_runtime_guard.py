@@ -29,6 +29,10 @@ class DummyScraper:
         return round(float(ranking) + max(0.0, (1000.0 - float(price)) / 20.0), 1)
 
     @staticmethod
+    def exceptional_deal_bonus(price, confidence, settings):
+        return 5.0 if confidence == "HIGH" and float(price) < 1000.0 else 0.0
+
+    @staticmethod
     def tier_from_value(value, settings):
         adjusted = getattr(value, "tier_score", float(value))
         return "PRATA" if adjusted >= 90 else "BRONZE" if adjusted >= 70 else None
@@ -124,6 +128,7 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
             "preco": 699.99,
             "url": "https://www.radiopopular.pt/produto/test",
             "promotions": [dict(PROMO)],
+            "promotion_price_live_confirmed": True,
         }
 
     @staticmethod
@@ -161,13 +166,14 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         self.assertEqual(result["preco"], 699.99)
         self.assertTrue(result["promotion_price_live_confirmed"])
 
-    def test_revalue_keeps_technical_ranking_and_drops_page_price_bonus(self):
+    def test_revalue_keeps_ranking_and_uses_derived_opportunity_bonus(self):
         assessment = self.accepted_assessment()
         promo = self.tracker.promotion_revalue_assessment(assessment, 599.99, {})
         self.assertEqual(promo["status"], "ACEITE")
         self.assertEqual(promo["score_ranking"], 80.0)
         self.assertEqual(promo["price_confirmed"], 699.99)
-        self.assertEqual(promo["exceptional_deal_bonus"], 0.0)
+        self.assertEqual(promo["exceptional_deal_bonus"], 5.0)
+        self.assertEqual(promo["promotion_price_confidence"], "HIGH_DERIVED")
         self.assertGreater(float(promo["value_score"]), 80.0)
         self.assertEqual(promo["promotion_checkout_price"], 599.99)
         self.assertTrue(hasattr(promo["value_score"], "tier_score"))
@@ -194,6 +200,40 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         self.assertEqual(state["promotion_discount_eur"], 100.0)
         self.assertEqual(state["promotion_checkout_price"], 599.99)
         self.assertGreater(state["promotion_value_score"], 80.0)
+
+    def test_unknown_keyboard_does_not_get_promo_eligibility_alert(self):
+        item = self.item()
+        history = {"offers": {}, "alert_state": {}}
+        sent, _ = self.tracker.maybe_alert(
+            history,
+            item,
+            {"teclado_pt": "desconhecido"},
+            self.accepted_assessment(),
+            "BRONZE",
+            None,
+            item["url"],
+            {"promotion_alert_min_eur": 25.0, "alerta_queda_preco_eur": 5.0},
+        )
+        self.assertFalse(sent)
+        self.assertEqual(self.tracker.alert_messages, [])
+        self.assertEqual(len(self.tracker.normal_alert_calls), 1)
+
+    def test_unconfirmed_promo_price_does_not_alert(self):
+        item = self.item()
+        item["promotion_price_live_confirmed"] = False
+        history = {"offers": {}, "alert_state": {}}
+        sent, _ = self.tracker.maybe_alert(
+            history,
+            item,
+            {"teclado_pt": "confirmado"},
+            self.accepted_assessment(),
+            "BRONZE",
+            None,
+            item["url"],
+            {"promotion_alert_min_eur": 25.0, "alerta_queda_preco_eur": 5.0},
+        )
+        self.assertFalse(sent)
+        self.assertEqual(self.tracker.alert_messages, [])
 
     def test_same_eligibility_does_not_send_duplicate_promo(self):
         item = self.item()
