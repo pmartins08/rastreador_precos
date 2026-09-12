@@ -22,12 +22,7 @@ def _confirmed_checkout_promotion(item: dict) -> bool:
 
 
 def _assessment_copy(assessment: dict) -> dict:
-    """Copia um assessment sem tentar reconstruir subclasses de float.
-
-    TierAwareValue é intencionalmente um float enriquecido e não suporta
-    deepcopy sem o gaming_score. Aqui só precisamos de uma cópia isolada das
-    estruturas mutáveis que podemos alterar no resultado promocional.
-    """
+    """Copia um assessment sem reconstruir subclasses de float."""
     result = dict(assessment)
     for key in ("detalhes", "gpu_tier_influence", "gpu_tier_guard"):
         value = result.get(key)
@@ -41,13 +36,12 @@ def _assessment_copy(assessment: dict) -> dict:
 
 
 def _revalue_from_accepted(tracker_module, assessment: dict, checkout_price: float, settings: dict) -> dict:
-    """Recalcula apenas o efeito de preço após uma promoção já confirmada.
+    """Recalcula Value a partir de ranking aceite + checkout oficial derivado.
 
-    A evidência da ficha continua a validar o preço observado. O checkout
-    promocional não volta a passar pelo Price Guard como se fosse um segundo
-    preço anunciado; reutiliza o ranking técnico já aceite e recalcula apenas
-    Value. Não atribui exceptional-deal bonus porque esse bónus exige preço HIGH
-    visível/confirmado na ficha.
+    O preço observado continua a ser validado pelo Price Guard. O checkout não
+    é tratado como um segundo preço de ficha: é derivado de preço live já
+    confirmado + promoção oficial aplicável. Por isso pode usar a mesma curva
+    económica de oportunidade, mas fica explicitamente marcado como derivado.
     """
     if not isinstance(assessment, dict) or assessment.get("status") != "ACEITE":
         return _assessment_copy(assessment) if isinstance(assessment, dict) else {"status": "REJEITADO"}
@@ -59,26 +53,33 @@ def _revalue_from_accepted(tracker_module, assessment: dict, checkout_price: flo
     originals = getattr(tracker_module.scraper, "_PRICE_GUARD_ORIGINALS", {})
     base_value_score = originals.get("value_score")
     if not callable(base_value_score):
-        # Fallback compatível: UNKNOWN impede o Price Guard de somar o bónus
-        # extraordinário caso a instalação futura deixe de expor originals.
         def base_value_score(rank, price, cfg):
             safe = dict(cfg)
             safe["_price_confidence"] = "UNKNOWN"
             return tracker_module.scraper.value_score(rank, price, safe)
 
     raw_value = float(base_value_score(float(ranking), float(checkout_price), settings))
+    bonus_fn = getattr(tracker_module.scraper, "exceptional_deal_bonus", None)
+    promo_bonus = (
+        float(bonus_fn(float(checkout_price), "HIGH", settings))
+        if callable(bonus_fn)
+        else 0.0
+    )
+    promo_value = max(0.0, min(150.0, raw_value + promo_bonus))
+
     details = assessment.get("detalhes") if isinstance(assessment.get("detalhes"), dict) else {}
     gaming = float(details.get("Gaming", 0.0) or 0.0)
-    wrapped = TierAwareValue(raw_value, gaming_score=gaming)
+    wrapped = TierAwareValue(promo_value, gaming_score=gaming)
 
     result = _assessment_copy(assessment)
     result["value_score"] = wrapped
     result["value_score_sem_bonus"] = round(raw_value, 1)
-    result["exceptional_deal_bonus"] = 0.0
+    result["exceptional_deal_bonus"] = round(promo_bonus, 1)
     result["promotion_checkout_price"] = round(float(checkout_price), 2)
-    result["promotion_revalue_basis"] = "ranking_tecnico_aceite+checkout_promocional_confirmado"
+    result["promotion_price_confidence"] = "HIGH_DERIVED"
+    result["promotion_revalue_basis"] = "ranking_tecnico_aceite+preco_live_confirmado+promocao_oficial"
     result["gpu_tier_influence"] = {
-        "raw_value": round(raw_value, 3),
+        "raw_value": round(promo_value, 3),
         "gaming_score": round(wrapped.gaming_score, 3),
         "multiplier": round(wrapped.tier_multiplier, 6),
         "tier_score": round(wrapped.tier_score, 3),
@@ -122,12 +123,7 @@ def _original_campaign_url(cat: dict, current_url: str) -> str | None:
 
 
 def install(tracker_module) -> None:
-    """Fecha a lacuna entre descoberta promocional e preço/alerta operacional.
-
-    A landing promocional pode conter preços auxiliares plausíveis. Qualquer
-    candidato com desconto de checkout confirmado perde a cache apenas nesta
-    run e é reaberto na ficha do produto antes de entrar no histórico.
-    """
+    """Fecha a lacuna entre descoberta promocional e preço/alerta operacional."""
     if getattr(tracker_module, "_PROMOTION_RUNTIME_GUARD_INSTALLED", False):
         return
 
@@ -151,8 +147,6 @@ def install(tracker_module) -> None:
                 continue
             route["url"] = _radio_popular_laptop_campaign(str(route["url"]))
             route["label"] = _RP_FILTER_LABEL
-            # Novo método = nova aprendizagem; não herda o yield zero da landing
-            # não filtrada que só mostrava eletrodomésticos na primeira página.
             route["method_key"] = f"campaign:{_RP_FILTER_LABEL}"
             route["priority"] = max(180, int(route.get("priority", 0)))
             route["priority_band"] = max(3, int(route.get("priority_band", 0)))
@@ -177,14 +171,10 @@ def install(tracker_module) -> None:
     def candidate_priority(item: dict, weights: dict, settings: dict) -> float:
         base = float(base_candidate_priority(item, weights, settings))
         if _confirmed_checkout_promotion(item):
-            # Só pré-ranking. Garante que uma campanha curta não perde os seus
-            # produtos para a cauda do catálogo; não toca em Value/tier.
             base += float(settings.get("promotion_confirmed_selection_bonus", 120.0))
         return round(base, 3)
 
     def select_with_cache(items, spec_cache, max_items, weights, settings):
-        # A cache de hardware permanece no history.json; só é retirada do mapa
-        # em memória para forçar uma ficha live nesta run promocional.
         for item in items:
             if _confirmed_checkout_promotion(item) and item.get("url"):
                 spec_cache.pop(item["url"], None)
@@ -194,7 +184,6 @@ def install(tracker_module) -> None:
         probe = item
         if _confirmed_checkout_promotion(item):
             probe = dict(item)
-            # Nunca deixa um preço auxiliar da landing sobreviver à ficha live.
             probe["preco"] = None
             probe["promotion_price_requires_live"] = True
         result, status = base_enrich(probe, config)
@@ -212,7 +201,11 @@ def install(tracker_module) -> None:
     def record_offer(history, item, spec, assessment, tier):
         previous, key = base_record_offer(history, item, spec, assessment, tier)
         promotions = promotion_value.dedupe(item.get("promotions") or [])
-        if promotions and item.get("preco") is not None:
+        if (
+            promotions
+            and item.get("preco") is not None
+            and item.get("promotion_price_live_confirmed") is True
+        ):
             economics = promotion_value.economics(promotions, float(item["preco"]))
             config = tracker_module.load_json(tracker_module.CONFIG_PATH)
             promo_assessment = _revalue_from_accepted(
@@ -234,9 +227,7 @@ def install(tracker_module) -> None:
                 entries[-1]["promotion_checkout_price"] = economics["effective_checkout_price"]
                 entries[-1]["promotion_economic_price"] = economics["effective_economic_price"]
                 entries[-1]["promotion_eligibility_fingerprint"] = promotion_value.fingerprint(promotions)
-                entries[-1]["promotion_price_live_confirmed"] = bool(
-                    item.get("promotion_price_live_confirmed")
-                )
+                entries[-1]["promotion_price_live_confirmed"] = True
                 if promo_assessment.get("status") == "ACEITE":
                     entries[-1]["promotion_value_score"] = float(promo_assessment["value_score"])
                     entries[-1]["promotion_tier_score"] = round(
@@ -251,6 +242,7 @@ def install(tracker_module) -> None:
                     )
                     entries[-1]["promotion_tier"] = promo_tier
                     entries[-1]["promotion_score_ranking"] = promo_assessment.get("score_ranking")
+                    entries[-1]["promotion_price_confidence"] = promo_assessment.get("promotion_price_confidence")
         return previous, key
 
     def maybe_alert(history, item, spec, assessment, tier, previous, alert_key, settings):
@@ -262,11 +254,22 @@ def install(tracker_module) -> None:
                 history, item, spec, assessment, tier, previous, alert_key, settings
             )
 
+        if item.get("promotion_price_live_confirmed") is not True:
+            normal_item = dict(item)
+            normal_item.pop("promotions", None)
+            normal_item.pop("promotion_economics", None)
+            return base_maybe_alert(
+                history, normal_item, spec, assessment, tier, previous, alert_key, settings
+            )
+
         economics = promotion_value.economics(promotions, float(price))
         discount = float(economics.get("checkout_discount_eur") or 0.0)
         if discount <= 0.0:
+            normal_item = dict(item)
+            normal_item.pop("promotions", None)
+            normal_item.pop("promotion_economics", None)
             return base_maybe_alert(
-                history, item, spec, assessment, tier, previous, alert_key, settings
+                history, normal_item, spec, assessment, tier, previous, alert_key, settings
             )
 
         promo_assessment = _revalue_from_accepted(
@@ -338,6 +341,7 @@ def install(tracker_module) -> None:
                         1,
                     ),
                     "promotion_tier": promo_tier,
+                    "promotion_price_confidence": promo_assessment.get("promotion_price_confidence"),
                 }
                 tracker_module.LOGGER.info(
                     "Promo nova | %s | %.2f€ -> %.2f€ | Value %.1f -> %.1f | tier %s -> %s",
@@ -351,9 +355,6 @@ def install(tracker_module) -> None:
                 )
                 return True, False
 
-        # A Promo Guard anterior também tem um alerta promocional baseado em
-        # tier. Removemos as promoções apenas nesta chamada para cair diretamente
-        # no alerta normal e evitar duplicados depois da nova elegibilidade.
         normal_item = dict(item)
         normal_item.pop("promotions", None)
         normal_item.pop("promotion_economics", None)
