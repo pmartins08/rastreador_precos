@@ -78,44 +78,53 @@ def install(tracker_module) -> None:
     if getattr(tracker_module, "_PROMOTION_COVERAGE_GUARD_INSTALLED", False):
         return
 
-    base_discover_html = tracker_module._discover_html
-    base_scan_store = tracker_module.scan_store
+    # Os testes unitários desta camada usam trackers mínimos que expõem apenas os
+    # métodos que estão a validar. A propagação live é instalada só no runtime
+    # completo, sem quebrar esses contratos isolados.
+    base_discover_html = getattr(tracker_module, "_discover_html", None)
+    base_scan_store = getattr(tracker_module, "scan_store", None)
     base_needs_price_refresh = tracker_module.needs_price_refresh
     base_adaptive_fetch = tracker_module.adaptive_fetch
     verified_rp: list[dict] = []
 
-    def discover_html(response, route_cat, target, candidates, source, stat):
-        nonlocal verified_rp
-        configured = _configured_rp_promotion(route_cat)
-        if configured and response is not None and getattr(response, "status_code", 200) < 400:
-            live = _active_live_promotions(str(getattr(response, "text", "") or ""))
-            verified = _verified_promotions([configured], live) if live else []
-            verified = [promo for promo in verified if promo.get("live_verified")]
-            if verified:
-                verified_rp = verified
+    if base_discover_html is not None:
+        def discover_html(response, route_cat, target, candidates, source, stat):
+            nonlocal verified_rp
+            configured = _configured_rp_promotion(route_cat)
+            if configured and response is not None and getattr(response, "status_code", 200) < 400:
+                live = _active_live_promotions(str(getattr(response, "text", "") or ""))
+                verified = _verified_promotions([configured], live) if live else []
+                verified = [promo for promo in verified if promo.get("live_verified")]
+                if verified:
+                    verified_rp = verified
 
-        gained = base_discover_html(response, route_cat, target, candidates, source, stat)
+            gained = base_discover_html(response, route_cat, target, candidates, source, stat)
 
-        # Última camada de segurança: algumas wrappers internas trocam o URL
-        # filtrado pelo URL canónico durante a descoberta. Se a landing desta run
-        # confirmou a regra, todos os candidatos realmente descobertos pela fonte
-        # promocional herdam a mesma promoção; candidatos só de categoria não.
-        if verified_rp and str(route_cat.get("loja") or "") == "Radio Popular":
-            for row in candidates.values():
-                _mark_verified_listing(row, verified_rp)
-            stat["promotion_live_confirmed"] = 1
-        return gained
+            # Última camada de segurança: algumas wrappers internas trocam o URL
+            # filtrado pelo URL canónico durante a descoberta. Se a landing desta run
+            # confirmou a regra, todos os candidatos realmente descobertos pela fonte
+            # promocional herdam a mesma promoção; candidatos só de categoria não.
+            if verified_rp and str(route_cat.get("loja") or "") == "Radio Popular":
+                for row in candidates.values():
+                    _mark_verified_listing(row, verified_rp)
+                stat["promotion_live_confirmed"] = 1
+            return gained
 
-    def scan_store(cat: dict, config: dict, settings: dict):
-        nonlocal verified_rp
-        if str(cat.get("loja") or "") == "Radio Popular":
-            verified_rp = []
-        items, stat = base_scan_store(cat, config, settings)
-        if verified_rp and str(cat.get("loja") or "") == "Radio Popular":
-            for item in items:
-                _mark_verified_listing(item, verified_rp)
-            stat["promotion_live_confirmed"] = 1
-        return items, stat
+        tracker_module._discover_html = discover_html
+
+    if base_scan_store is not None:
+        def scan_store(cat: dict, config: dict, settings: dict):
+            nonlocal verified_rp
+            if str(cat.get("loja") or "") == "Radio Popular":
+                verified_rp = []
+            items, stat = base_scan_store(cat, config, settings)
+            if verified_rp and str(cat.get("loja") or "") == "Radio Popular":
+                for item in items:
+                    _mark_verified_listing(item, verified_rp)
+                stat["promotion_live_confirmed"] = 1
+            return items, stat
+
+        tracker_module.scan_store = scan_store
 
     def _select_regular(items, spec_cache, max_items, weights, settings):
         if max_items <= 0:
@@ -182,8 +191,6 @@ def install(tracker_module) -> None:
             url, config, effective_timeout, store=store, method=method, **kwargs
         )
 
-    tracker_module._discover_html = discover_html
-    tracker_module.scan_store = scan_store
     tracker_module.select_with_cache = select_with_cache
     tracker_module.needs_price_refresh = needs_price_refresh
     tracker_module.adaptive_fetch = adaptive_fetch
