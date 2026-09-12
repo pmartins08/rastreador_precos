@@ -3,7 +3,7 @@ name: Validar promoções
 on:
   push:
     branches: ['v8.8.9-promotion-intelligence']
-    paths: ['src/promotion*.py', 'tests/test_promotion*.py', 'scripts/promotion_probe.py', 'config/config.json', '.github/workflows/promotion-smoke.yml']
+    paths: ['src/promotion*.py', 'tests/test_promotion*.py', 'scripts/promotion_probe.py', 'scripts/rp_filter_probe.py', 'config/config.json', '.github/workflows/promotion-smoke.yml']
   workflow_dispatch:
 
 permissions:
@@ -29,6 +29,8 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements.txt
       - run: python -m unittest discover -s tests -q
+      - name: Radio Popular — testar filtros da campanha
+        run: python scripts/rp_filter_probe.py
       - name: Radio Popular — campanha ativa
         run: python scripts/promotion_probe.py --store 'Radio Popular' --output /tmp/rp-promotion.json
       - uses: actions/upload-artifact@v4
