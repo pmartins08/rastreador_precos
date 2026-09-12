@@ -139,8 +139,14 @@ def install(tracker_module) -> None:
                 row.pop("promotion_listing_live_confirmed", None)
                 row.pop("promotion_price_live_confirmed", None)
 
+        # Mantém a semântica deste estado: confirma que a REGRA da campanha foi
+        # validada ao vivo, independentemente de um cartão individual ter preço.
+        # A confirmação de preço por produto fica no marker separado acima.
         confirmed = any(
-            row.get("promotion_listing_live_confirmed") is True
+            any(
+                _campaign_promotion(promo) and promo.get("live_verified")
+                for promo in row.get("promotions", [])
+            )
             for row in newly_promoted
         )
         stat["promotion_live_confirmed"] = int(bool(confirmed))
