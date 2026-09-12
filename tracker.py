@@ -1643,10 +1643,7 @@ def reusable_price_evidence(previous_meta: dict | None, item: dict, settings: di
     return {field: previous_spec[field] for field in fields if field in previous_spec}
 
 def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict) -> dict:
-    adjusted = dict(spec)
-    if adjusted.get("teclado_pt") == "desconhecido":
-        adjusted["teclado_pt"] = "confirmado"
-    return scraper.score(adjusted, price, weights, settings)
+    return scraper.score(dict(spec), price, weights, settings)
 
 
 # ---------------------------------------------------------------------------
@@ -1852,7 +1849,7 @@ def maybe_alert(
     upgrade = bool(old_tier and order.get(tier, 0) > order.get(old_tier, 0))
     first = prior is None
     should_notify = first or opportunity or upgrade or price_drop
-    can_push = order.get(tier, 0) >= order.get(min_notify, 3)
+    can_push = order.get(tier, 0) >= max(3, order.get(min_notify, 3))
     if not should_notify:
         return False, False
     if not can_push:
@@ -1898,7 +1895,7 @@ def maybe_alert_cross_store(history: dict, group: dict, settings: dict) -> bool:
 
     order = {"BRONZE": 1, "PRATA": 2, "OURO": 3, "DIAMANTE": 4}
     min_notify = str(settings.get("alerta_min_tier", "OURO")).upper()
-    if order.get(str(best.get("tier") or ""), 0) < order.get(min_notify, 3):
+    if order.get(str(best.get("tier") or ""), 0) < max(3, order.get(min_notify, 3)):
         return False
 
     key = f"cross_store:{group['configuration_key']}"

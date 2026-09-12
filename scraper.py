@@ -763,13 +763,7 @@ def value_score(ranking: float, price_value: float, settings: dict) -> float:
 
 
 def score(spec: dict, price_value: float, weights: dict, settings: dict) -> dict:
-    if spec.get("teclado_pt") == "nao_pt":
-        return {"status": "REJEITADO", "alertas": ["Teclado não é português."]}
-    if spec.get("teclado_pt") != "confirmado":
-        return {
-            "status": "REJEITADO",
-            "alertas": ["Teclado PT não confirmado — fora do ranking automático."],
-        }
+    # Layout do teclado é apenas informativo; preservar a evidência do parser.
     if spec.get("ram_gb") == 8:
         return {"status": "REJEITADO", "alertas": ["8GB RAM confirmado - insuficiente."]}
     if spec.get("peso_kg") and spec["peso_kg"] > 2.8:

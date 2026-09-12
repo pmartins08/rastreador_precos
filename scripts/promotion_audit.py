@@ -1,8 +1,8 @@
 """Inspect the public listing loader; no notifications or state writes."""
 import re
-import requests
+from curl_cffi import requests
 url = "https://www.radiopopular.pt/includes/js/rp.js?v=202609091153"
-r = requests.get(url, timeout=20)
+r = requests.get(url, timeout=20, impersonate='chrome131')
 print("STATUS", r.status_code)
 r.raise_for_status()
 for pattern in [r"ajax:\s*\{", r"getData:\s*function", r"convertFormToJSON:", r"loadProducts:"]:
