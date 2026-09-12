@@ -98,9 +98,26 @@ class PromotionValueGuardTests(unittest.TestCase):
     def test_parser_recognizes_cart_discount_and_coupon(self):
         cart = guard.parse_promotion_text("-5€ extra no carrinho", source="product")
         self.assertEqual(cart[0]["kind"], "DIRECT_DISCOUNT")
+        cart_pct = guard.parse_promotion_text("10% desconto extra no carrinho", source="product")
+        self.assertEqual(cart_pct[0]["kind"], "DIRECT_DISCOUNT")
+        self.assertEqual(cart_pct[0]["percent"], 10.0)
         coupon = guard.parse_promotion_text("10% desconto extra com código AULAS10", source="product")
         self.assertEqual(coupon[0]["kind"], "COUPON")
         self.assertEqual(coupon[0]["code"], "AULAS10")
+
+    def test_parser_recognizes_percent_voucher_and_cashback(self):
+        promos = guard.parse_promotion_text("Recebe 10% em talão e cashback de 5%", source="product")
+        self.assertTrue(any(p["kind"] == "STORE_CREDIT" and p.get("percent") == 10.0 for p in promos))
+        self.assertTrue(any(p["kind"] == "CASHBACK" and p.get("percent") == 5.0 for p in promos))
+
+    def test_pvpr_is_reference_only_and_never_double_discounted(self):
+        promos = guard.parse_promotion_text("PVPR: 1799,99€ | 1299,99€ | -28% sobre PVPR", source="product")
+        ref = next(p for p in promos if p["kind"] == "REFERENCE_DISCOUNT")
+        self.assertEqual(ref["reference_price_eur"], 1799.99)
+        self.assertFalse(ref["applicable"])
+        economics = guard.economics(promos, 1299.99)
+        self.assertEqual(economics["effective_checkout_price"], 1299.99)
+        self.assertEqual(economics["checkout_discount_eur"], 0.0)
 
     def test_parser_recognizes_gift_and_zero_interest_as_non_cash(self):
         promos = guard.parse_promotion_text("OFERTA: Norton. Até 24x Sem Juros", source="product")
