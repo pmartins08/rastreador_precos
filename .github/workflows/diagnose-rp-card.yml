@@ -1,0 +1,84 @@
+name: Diagnosticar cartão CB2 Radio Popular
+
+on:
+  push:
+    branches: [fix/rp-promo-coverage]
+    paths: ['.github/workflows/diagnose-rp-card.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-card:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Inspecionar cartão e preços
+        run: |
+          python - <<'PY'
+          import json
+          from urllib.parse import urljoin
+          from bs4 import BeautifulSoup
+          import runner
+          from radio_popular_pagination import listing_state
+
+          tracker = runner.tracker
+          scraper = tracker.scraper
+          config = tracker.load_json(tracker.CONFIG_PATH)
+          cat = next(row for row in config['category_urls'] if row['loja'] == 'Radio Popular')
+          route = next(r for r in tracker.discovery_routes(cat, 'Radio Popular') if '50_por_250_set_2026' in str(r.get('label')))
+          profile = tracker.profile_order('Radio Popular', 'diag_card')[0]
+          landing = tracker.requests.get(route['url'], timeout=20, impersonate=profile, headers=tracker.headers(profile), allow_redirects=True)
+          state = listing_state(landing.text)
+          payload = dict(state['payload'], offset=4 * state['per_page'])
+          result = tracker.requests.post(
+              'https://www.radiopopular.pt/ajax', data=payload, timeout=20,
+              impersonate=profile, headers={**tracker.headers(profile), 'Referer': str(landing.url)},
+              allow_redirects=False,
+          )
+          html = result.json()['modules']
+          soup = BeautifulSoup(html, 'html.parser')
+          anchors = [a for a in soup.select('a[href*="/produto/"]') if 'fa608uh-r72a55cb2' in (a.get('href') or '').lower()]
+          print('CARD_ANCHORS', len(anchors))
+          for ai, anchor in enumerate(anchors):
+              print('ANCHOR', ai, anchor.get('href'), repr(anchor.get_text(' ', strip=True)), anchor.get('class'))
+              parent = anchor
+              for level in range(1, 10):
+                  parent = parent.parent
+                  if parent is None:
+                      break
+                  text = parent.get_text(' ', strip=True)
+                  prices = scraper._card_prices(parent, cat)
+                  candidate = scraper.candidate_from_card(parent, route['url'], cat)
+                  print('ANCESTOR', json.dumps({
+                      'anchor': ai,
+                      'level': level,
+                      'tag': parent.name,
+                      'class': parent.get('class'),
+                      'id': parent.get('id'),
+                      'text': text[:900],
+                      'prices': prices,
+                      'best': scraper.best_product_price(prices),
+                      'candidate': candidate,
+                  }, ensure_ascii=False, default=str))
+                  price_nodes = []
+                  for node in parent.select("[itemprop='price'],[data-price],[class*='price'],[class*='Price']"):
+                      price_nodes.append({
+                          'tag': node.name,
+                          'class': node.get('class'),
+                          'id': node.get('id'),
+                          'content': node.get('content'),
+                          'data-price': node.get('data-price'),
+                          'text': node.get_text(' ', strip=True)[:250],
+                      })
+                  if price_nodes:
+                      print('PRICE_NODES', level, json.dumps(price_nodes[:20], ensure_ascii=False, default=str))
+          PY
