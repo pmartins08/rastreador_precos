@@ -30,7 +30,6 @@ from rejection_guard import install as install_rejection_guard
 from sitemap_route_guard import install as install_sitemap_route_guard
 from sitemap_strategy_epoch_guard import install as install_sitemap_strategy_epoch_guard
 from state_refresh_guard import install as install_state_refresh_guard
-from top5_guard import install as install_top5_guard
 from version import VERSION
 from version_guard import install as install_version_guard
 
@@ -227,7 +226,6 @@ install_sitemap_strategy_epoch_guard(tracker)
 # bónus de seleção quando o preço atual difere materialmente do histórico.
 install_price_change_priority_guard(tracker)
 install_rejection_guard(scraper, tracker)
-install_top5_guard(tracker)
 
 
 def _safe_page_price(soup, structured_price: float | None = None) -> float | None:
