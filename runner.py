@@ -24,6 +24,7 @@ from market_guard import install as install_market_guard
 from matching_guard import install as install_matching_guard
 from price_change_priority_guard import install as install_price_change_priority_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
+from promotion_coverage_guard import install as install_promotion_coverage_guard
 from promotion_guard import install as install_promotion_guard
 from promotion_live_guard import install as install_promotion_live_guard
 from promotion_runtime_guard import install as install_promotion_runtime_guard
@@ -207,9 +208,12 @@ install_promotion_guard(tracker)
 # Uma campanha configurada só ganha efeito económico se a landing live confirmar
 # a regra e as datas atuais; evita campanhas antigas ou JSON incorreto.
 install_promotion_live_guard(tracker)
-# Runtime promocional genérico: força ficha live, recalcula checkout/Value e
-# trata nova elegibilidade OURO/DIAMANTE como evento sem regras por loja.
+# Runtime promocional recalcula checkout/Value e trata nova elegibilidade
+# OURO/DIAMANTE como evento.
 install_promotion_runtime_guard(tracker)
+# Depois do runtime, preserva cache de hardware quando preço+elegibilidade já
+# foram confirmados pela listagem promocional live e dá mais tempo às fichas RP.
+install_promotion_coverage_guard(tracker)
 install_gpu_guard(scraper, tracker)
 install_hardware_guard(scraper, tracker)
 # Display Guard corrige resolução explícita antes de mercado/matching para que
