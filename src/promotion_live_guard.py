@@ -46,11 +46,7 @@ def _same_economic_rule(configured: dict, live: dict) -> bool:
 
 
 def _verified_promotions(configured: list[dict], live: list[dict]) -> list[dict]:
-    """Mantém condições oficiais configuradas quando a landing confirma a regra.
-
-    Isto é importante para campos como o teto máximo, que podem estar nas
-    condições da campanha mas não no cabeçalho visível da landing.
-    """
+    """Mantém condições oficiais configuradas quando a landing confirma a regra."""
     verified: list[dict] = []
     campaign_configured = [promo for promo in configured if _campaign_promotion(promo)]
     non_campaign = [promo for promo in configured if not _campaign_promotion(promo)]
@@ -61,8 +57,6 @@ def _verified_promotions(configured: list[dict], live: list[dict]) -> list[dict]
         if match is None:
             continue
         merged = dict(promo)
-        # Datas observadas ao vivo têm precedência; parâmetros económicos
-        # ausentes na landing (ex.: cap) permanecem os oficiais configurados.
         for field in ("valid_from", "valid_until"):
             if match.get(field):
                 merged[field] = match[field]
@@ -113,8 +107,6 @@ def install(tracker_module) -> None:
                     promo for promo in verified if _campaign_promotion(promo)
                 ]
         else:
-            # Fragmentos AJAX da mesma landing não repetem título/datas. Só
-            # reutilizamos a regra se a página inicial a confirmou nesta run.
             cached = verified_by_route.get(route_key, [])
             live = cached
 
@@ -133,8 +125,22 @@ def install(tracker_module) -> None:
             else:
                 row.pop("promotions", None)
 
+            verified_listing = any(
+                _campaign_promotion(promo) and promo.get("live_verified")
+                for promo in row.get("promotions", [])
+            )
+            if verified_listing and row.get("preco") is not None:
+                # O cartão desta mesma landing é uma observação live oficial do
+                # preço corrente e da elegibilidade da promoção. Isto evita
+                # reabrir fichas apenas para reconfirmar o mesmo preço.
+                row["promotion_listing_live_confirmed"] = True
+                row["promotion_price_live_confirmed"] = True
+            else:
+                row.pop("promotion_listing_live_confirmed", None)
+                row.pop("promotion_price_live_confirmed", None)
+
         confirmed = any(
-            any(_campaign_promotion(promo) and promo.get("live_verified") for promo in row.get("promotions", []))
+            row.get("promotion_listing_live_confirmed") is True
             for row in newly_promoted
         )
         stat["promotion_live_confirmed"] = int(bool(confirmed))
