@@ -152,13 +152,17 @@ def _catalog_opportunity_estimate(item: dict, config: dict, settings: dict, trac
 
 
 def _has_fresh_reusable_confirmation(previous: dict, item: dict, settings: dict, tracker_module) -> bool:
-    evidence = tracker_module.reusable_price_evidence(previous, item, settings)
+    # Não chamar reusable_price_evidence: essa função volta a needs_price_refresh.
+    # A confirmação é validada diretamente, sem recursão nem pedidos de rede.
+    spec = previous.get("specs") or {}
+    if str(spec.get("price_page_confidence") or "").upper() != "HIGH":
+        return False
+    hint = item.get("_catalog_price_hint", spec.get("catalog_price_hint"))
+    cached = _reusable_live_catalog_price(
+        previous, hint, ttl_hours=float(settings.get("price_confirmation_ttl_hours", 24)))
     try:
-        return (
-            str(evidence.get("price_page_confidence") or "").upper() == "HIGH"
-            and float(evidence.get("price_confirmed")) > 0
-        )
-    except (TypeError, ValueError):
+        return cached is not None and abs(float(item.get("preco")) - cached) < 0.01
+    except (TypeError, ValueError, OverflowError):
         return False
 
 

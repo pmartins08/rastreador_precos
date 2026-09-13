@@ -365,6 +365,23 @@ class CatalogGuardTests(unittest.TestCase):
         self.assertGreater(module.candidate_priority(row, {}, {}), 20.0)
         self.assertTrue(module.needs_price_refresh({}, row, {}))
 
+    def test_fresh_catalog_confirmation_does_not_reenter_refresh(self):
+        module = self._module({})
+        module.reusable_price_evidence = Mock(side_effect=AssertionError("recursive callback"))
+        catalog_guard.install(module)
+        previous = {"price": 1199.99, "specs": {
+            "catalog_price_hint": 1299.99, "price_confirmed": 1199.99,
+            "price_page_confidence": "HIGH", "price_checked_at": datetime.now(timezone.utc).isoformat(),
+        }}
+        item = {"preco": 1199.99, "_catalog_price_hint": 1299.99,
+                "_catalog_force_opportunity_confirmation": True}
+        self.assertFalse(module.needs_price_refresh(previous, item, {}))
+        module.reusable_price_evidence.assert_not_called()
+        self.assertTrue(module.needs_price_refresh(previous, {**item, "_catalog_price_hint": 1399.99}, {}))
+        self.assertTrue(module.needs_price_refresh(previous, {**item, "preco": 1189.99}, {}))
+        previous["specs"]["price_checked_at"] = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
+        self.assertTrue(module.needs_price_refresh(previous, item, {}))
+
 
 if __name__ == "__main__":
     unittest.main()

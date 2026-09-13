@@ -997,7 +997,7 @@ def scan_store(cat: dict, config: dict, settings: dict) -> tuple[list[dict], dic
         pagination_queue.append((page_url, cat["url"]))
 
     # Fallbacks/segmentos públicos são tentados mesmo quando a categoria principal falha.
-    for route in discovery_routes(cat, store)[:int(settings.get("max_segment_routes", 4))]:
+    for route in discovery_routes(cat, store)[:int(cat.get("max_segment_routes", settings.get("max_segment_routes", 4)))]:
         if len(candidates) >= target or not budget_available(store):
             break
         before_requests = REQUESTS_BY_STORE.get(store, 0)
@@ -1978,7 +1978,9 @@ def main() -> dict:
         if not budget_available():
             break
         store = cat["loja"]
+        scan_started = time.monotonic()
         items, stat = scan_store(cat, config, settings)
+        stat["discovery_seconds"] = round(time.monotonic() - scan_started, 3)
         clean = []
         seen = set()
         for item in items:
