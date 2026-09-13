@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import json
 import re
-from urllib.parse import quote, urljoin, urlparse
-
-from bs4 import BeautifulSoup
+from urllib.parse import urlencode
 
 SOURCE_NAME = "HP Support"
 SOURCE_HOST = "support.hp.com"
+_TYPEAHEAD_FILTERS = (
+    "class:(pm_series_value^1.1 OR pm_name_value OR pm_number_value) "
+    "AND (hiddenproduct:no OR (!_exists_:hiddenproduct))"
+)
+_TYPEAHEAD_FIELDS = (
+    "tmspmseriesvalue,tmspmnamevalue,tmspmnumbervalue,class,productid,"
+    "seofriendlyname,activewebsupportflag,navigationpath,childnodes"
+)
 
 
 def normalize_product_number(value: object) -> str | None:
@@ -40,36 +47,130 @@ def product_number(item: dict) -> str | None:
 
 
 def search_url(item: dict) -> str | None:
+    """Endpoint oficial usado pela SPA HP para resolver SKU -> modelo/OID."""
     code = product_number(item)
     if not code:
         return None
-    return f"https://{SOURCE_HOST}/pt-pt/search?q={quote(code)}"
+    params = {
+        "q": code,
+        "resultLimit": 10,
+        "store": "tmsstore",
+        "languageCode": "en",
+        "filters": _TYPEAHEAD_FILTERS,
+        "printFields": _TYPEAHEAD_FIELDS,
+    }
+    return f"https://{SOURCE_HOST}/typeahead?{urlencode(params)}"
 
 
-def spec_links(html: str, base_url: str, item: dict) -> list[str]:
+def _pick(row: dict, *names: str):
+    lowered = {str(key).lower(): value for key, value in row.items()}
+    for name in names:
+        if name in row:
+            return row[name]
+        if name.lower() in lowered:
+            return lowered[name.lower()]
+    return None
+
+
+def _normalized_contains(value: object, code: str) -> bool:
+    return code in re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+
+
+def typeahead_matches(payload: object, item: dict) -> list[dict]:
     code = product_number(item)
     if not code:
         return []
-    soup = BeautifulSoup(html or "", "html.parser")
-    links: list[tuple[int, str]] = []
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return []
+    if not isinstance(payload, dict):
+        return []
+    rows = payload.get("matches") or payload.get("Matches") or []
+    if not isinstance(rows, list):
+        return []
+
+    ranked: list[tuple[int, dict]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        pm_class = str(_pick(row, "pmClass", "class") or "").lower()
+        product_id = _pick(row, "productId", "productid")
+        series_oid = _pick(row, "pmSeriesOid", "pmseriesoid", "tmspmseriesvalue")
+        seo_name = _pick(row, "seoFriendlyName", "seofriendlyname")
+        name = _pick(row, "name", "tmspmnamevalue")
+        number = _pick(row, "pmNumber", "pmnumber", "tmspmnumbervalue")
+        navigation = _pick(row, "navigationPath", "navigationpath")
+
+        haystacks = (name, number, navigation, row)
+        exact_evidence = any(_normalized_contains(value, code) for value in haystacks)
+        if not exact_evidence:
+            continue
+        if not product_id and not series_oid:
+            continue
+
+        # pm_name_value é a melhor resposta para um SKU: representa a variante
+        # exata e normalmente traz o OID de modelo + OID da série. pm_number é
+        # só fallback; pm_series por si só não prova a configuração pedida.
+        score = 0
+        if pm_class == "pm_name_value":
+            score += 100
+        elif pm_class == "pm_number_value":
+            score += 40
+        elif pm_class == "pm_series_value":
+            score += 10
+        if product_id:
+            score += 20
+        if series_oid:
+            score += 10
+        if seo_name:
+            score += 5
+        ranked.append(
+            (
+                score,
+                {
+                    "pm_class": pm_class,
+                    "product_id": str(product_id) if product_id is not None else None,
+                    "series_oid": str(series_oid) if series_oid is not None else None,
+                    "seo_name": str(seo_name or "").strip() or None,
+                    "name": str(name or "").strip() or None,
+                    "number": str(number or "").strip() or None,
+                    "navigation_path": navigation,
+                },
+            )
+        )
+    return [row for _score, row in sorted(ranked, key=lambda value: -value[0])]
+
+
+def _slug(value: object) -> str | None:
+    text = str(value or "").strip().lower()
+    if not text:
+        return None
+    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    return text or None
+
+
+def spec_urls(payload: object, item: dict) -> list[str]:
+    """Constrói fichas oficiais de specs a partir do resultado typeahead."""
+    code = product_number(item)
+    if not code:
+        return []
+    out: list[str] = []
     seen = set()
-    for anchor in soup.select("a[href]"):
-        absolute = urljoin(base_url, str(anchor.get("href") or ""))
-        parsed = urlparse(absolute)
-        if parsed.netloc.lower() != SOURCE_HOST:
+    for row in typeahead_matches(payload, item):
+        model_oid = row.get("product_id")
+        seo_name = _slug(row.get("seo_name") or row.get("name"))
+        if not model_oid or not seo_name:
             continue
-        if "/product/product-specs/" not in parsed.path.lower():
-            continue
-        marker = absolute.rstrip("/")
-        if marker in seen:
-            continue
-        seen.add(marker)
-        # Dá prioridade a resultados que já trazem o SKU na URL/texto.
-        label = re.sub(r"[^A-Z0-9]", "", anchor.get_text(" ", strip=True).upper())
-        query = re.sub(r"[^A-Z0-9]", "", parsed.query.upper())
-        score = int(code in query) * 2 + int(code in label)
-        links.append((score, marker))
-    return [url for _score, url in sorted(links, key=lambda row: (-row[0], row[1]))]
+        url = (
+            f"https://{SOURCE_HOST}/us-en/product/product-specs/"
+            f"{seo_name}/model/{model_oid}?sku={code}"
+        )
+        if url not in seen:
+            seen.add(url)
+            out.append(url)
+    return out
 
 
 def response_matches(text: object, item: dict) -> bool:
