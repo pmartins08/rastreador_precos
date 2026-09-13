@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -26,30 +25,6 @@ def fetch(url: str) -> requests.Response:
     response = requests.get(url, timeout=10, headers={"User-Agent": UA})
     response.raise_for_status()
     return response
-
-
-def _hp_debug(response: requests.Response) -> dict:
-    soup = BeautifulSoup(response.text, "html.parser")
-    forms = []
-    for form in soup.select("form")[:12]:
-        forms.append({
-            "action": form.get("action"),
-            "method": form.get("method"),
-            "id": form.get("id"),
-            "class": form.get("class"),
-        })
-    scripts = [str(node.get("src")) for node in soup.select("script[src]") if node.get("src")]
-    urls = sorted(set(re.findall(r"https?://[^\"'<>\\ ]+", response.text)))
-    api_urls = [url for url in urls if any(key in url.lower() for key in ("api", "search", "product"))]
-    return {
-        "final_url": str(response.url),
-        "status": response.status_code,
-        "length": len(response.text),
-        "contains_sku": "7W6H7UA" in response.text.upper(),
-        "forms": forms,
-        "scripts": scripts[:25],
-        "api_urls": api_urls[:25],
-    }
 
 
 def main() -> None:
@@ -82,22 +57,35 @@ def main() -> None:
     hp_item = {"titulo": "HP Laptop 15-fc0039wm", "mpn": "7W6H7UA"}
     hp_search_url = hp.search_url(hp_item)
     if not hp_search_url:
-        raise RuntimeError("HP: não foi possível construir URL de pesquisa")
+        raise RuntimeError("HP: não foi possível construir URL typeahead")
     hp_search_response = fetch(hp_search_url)
-    hp_links = hp.spec_links(hp_search_response.text, str(hp_search_response.url), hp_item)
+    hp_matches = hp.typeahead_matches(hp_search_response.text, hp_item)
+    hp_links = hp.spec_urls(hp_search_response.text, hp_item)
     if not hp_links:
-        debug = _hp_debug(hp_search_response)
-        print("HP_SEARCH_DEBUG " + json.dumps(debug, ensure_ascii=False), flush=True)
-        raise RuntimeError("HP: pesquisa oficial não devolveu ficha de especificações")
+        print(
+            "HP_TYPEAHEAD_DEBUG "
+            + json.dumps(
+                {
+                    "status": hp_search_response.status_code,
+                    "url": str(hp_search_response.url),
+                    "length": len(hp_search_response.text),
+                    "body": hp_search_response.text[:2500],
+                    "matches": hp_matches[:5],
+                },
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
+        raise RuntimeError("HP: typeahead oficial não resolveu ficha de especificações")
     hp_response = fetch(hp_links[0])
     hp_ok = hp.response_matches(hp_response.text, hp_item)
     hp_spec = scraper.extract(
         hp_item["titulo"], BeautifulSoup(hp_response.text, "html.parser")
     )
     report["hp"] = {
-        "search_url": str(hp_search_response.url),
-        "search_status": hp_search_response.status_code,
-        "candidate_links": len(hp_links),
+        "typeahead_url": str(hp_search_response.url),
+        "typeahead_status": hp_search_response.status_code,
+        "matches": len(hp_matches),
         "url": str(hp_response.url),
         "status": hp_response.status_code,
         "identity_ok": hp_ok,
