@@ -44,10 +44,17 @@ _SUPPLEMENTAL_FIELDS = (
     "ecra_hz",
     "ecra_brightness_nits",
 )
+_BOOLEAN_CONFIRM_FIELDS = {"ram_expansivel", "ssd_expansivel"}
 
 
 def _missing(value: object) -> bool:
-    return value is None or value in {"", "desconhecida", "desconhecido"} or value == []
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value in {"", "desconhecida", "desconhecido"}
+    if isinstance(value, (list, tuple, set, dict)):
+        return len(value) == 0
+    return False
 
 
 def _same(scraper, field: str, left: object, right: object) -> bool:
@@ -153,7 +160,8 @@ def _merge_official(scraper, spec: dict, official: dict, source_name: str, sourc
     for field in _MERGE_FIELDS:
         current = result.get(field)
         candidate = official.get(field)
-        if _missing(current) and not _missing(candidate):
+        confirmed_true = field in _BOOLEAN_CONFIRM_FIELDS and candidate is True and current is not True
+        if (_missing(current) and not _missing(candidate)) or confirmed_true:
             result[field] = candidate
             merged.append(field)
 
