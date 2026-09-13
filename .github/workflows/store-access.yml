@@ -3,7 +3,7 @@ name: Diagnosticar acesso às lojas
 on:
   push:
     branches: ['fix/store-access-reliability']
-    paths: ['src/**', 'scripts/store_access_probe.py', 'config/config.json', '.github/workflows/store-access.yml', 'runner.py', 'tests/**']
+    paths: ['src/**', 'scripts/store_access_probe.py', 'scripts/manufacturer_source_probe.py', 'config/config.json', '.github/workflows/store-access.yml', 'runner.py', 'tests/**']
   workflow_dispatch:
 
 permissions:
@@ -29,6 +29,8 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements.txt
       - run: python -m unittest discover -s tests -q
+      - name: Smoke live das fontes oficiais Lenovo e HP
+        run: python scripts/manufacturer_source_probe.py --output /tmp/manufacturer-sources.json
       - name: Diagnóstico limitado, sem notificações nem escrita de estado
         run: >-
           python scripts/store_access_probe.py
@@ -40,5 +42,7 @@ jobs:
         if: always()
         with:
           name: store-access-${{ github.run_id }}
-          path: /tmp/store-access*.json
+          path: |
+            /tmp/store-access*.json
+            /tmp/manufacturer-sources.json
           retention-days: 14
