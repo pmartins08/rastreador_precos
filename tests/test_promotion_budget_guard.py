@@ -73,6 +73,25 @@ class PromotionBudgetViewTests(unittest.TestCase):
         self.assertEqual(view["checkout_price"], 1400.0)
         self.assertTrue(view["rescued_by_promotion"])
 
+    def test_main_gate_temporarily_uses_checkout_then_restores_label_price(self):
+        rescued = item(1799.99)
+        outside = item(1999.99)
+        unconfirmed = item(1799.99, confirmed=False)
+        rows = [rescued, outside, unconfirmed]
+
+        count = promotion_budget_guard._apply_main_budget_gate(rows, SETTINGS)
+        self.assertEqual(count, 1)
+        self.assertEqual(rescued["preco"], 1449.99)
+        self.assertEqual(outside["preco"], 1999.99)
+        self.assertEqual(unconfirmed["preco"], 1799.99)
+        self.assertLessEqual(float(rescued["preco"]), SETTINGS["budget_hard"])
+
+        restored = promotion_budget_guard._restore_main_budget_gate(rows)
+        self.assertEqual(restored, 1)
+        self.assertEqual(rescued["preco"], 1799.99)
+        self.assertEqual(rescued["promotion_budget_gate_checkout_price"], 1449.99)
+        self.assertTrue(rescued["promotion_budget_gate_rescued"])
+
 
 class PromotionBudgetRuntimeTests(unittest.TestCase):
     def test_pre_ranking_price_component_uses_effective_checkout(self):
@@ -122,6 +141,50 @@ class PromotionBudgetRuntimeTests(unittest.TestCase):
         self.assertEqual(promo["rescued_above_hard_budget"], 2)
         self.assertEqual(promo["max_rescued_gross_price"], 1800.0)
         self.assertEqual(promo["max_rescued_checkout_price"], 1450.0)
+
+    def test_main_wrapper_proxies_only_during_base_main_and_restores_before_selection(self):
+        rows = [item(1799.99), item(1999.99)]
+        seen = {"during_filter": None, "during_selection": None}
+
+        class Scraper:
+            @staticmethod
+            def price_score(_price, _settings):
+                return 100.0
+
+        class Logger:
+            @staticmethod
+            def info(*_args, **_kwargs):
+                return None
+
+        tracker = types.SimpleNamespace()
+        tracker.scraper = Scraper()
+        tracker.LOGGER = Logger()
+        tracker._PROMOTION_BUDGET_GUARD_INSTALLED = False
+        tracker.candidate_priority = lambda _item, _weights, _settings: 50.0
+        tracker.scan_store = lambda _cat, _config, _settings: (rows, {})
+
+        def base_select(items, _cache, _max_items, _weights, _settings):
+            seen["during_selection"] = [row["preco"] for row in items]
+            return items
+
+        tracker.select_with_cache = base_select
+
+        def base_main():
+            scanned, _stat = tracker.scan_store({"loja": "Radio Popular"}, {}, SETTINGS)
+            seen["during_filter"] = [row["preco"] for row in scanned]
+            clean = [row for row in scanned if float(row["preco"]) <= SETTINGS["budget_hard"]]
+            return tracker.select_with_cache(clean, {}, 10, {}, SETTINGS)
+
+        tracker.main = base_main
+        promotion_budget_guard.install(tracker)
+        selected = tracker.main()
+
+        self.assertEqual(seen["during_filter"], [1449.99, 1999.99])
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(seen["during_selection"], [1799.99])
+        self.assertEqual(selected[0]["preco"], 1799.99)
+        self.assertTrue(selected[0]["promotion_budget_gate_rescued"])
+        self.assertFalse(getattr(tracker, "_PROMOTION_BUDGET_MAIN_ACTIVE", False))
 
 
 if __name__ == "__main__":
