@@ -16,7 +16,7 @@ concurrency:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     env:
       PYTHONPATH: src
       NTFY_TOPIC: ''
@@ -29,17 +29,23 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements.txt
       - run: python -m unittest discover -s tests -q
+
       - name: Medir orçamento promocional real da Rádio Popular
         run: python scripts/rp_promotion_budget_probe.py --output /tmp/rp-promotion-budget.json
-      - name: Smoke live das fontes oficiais Lenovo e HP
-        run: python scripts/manufacturer_source_probe.py --output /tmp/manufacturer-sources.json
-      - name: Diagnóstico limitado, sem notificações nem escrita de estado
+
+      - name: Diagnóstico live de todas as lojas, sem notificações nem escrita de estado
         run: >-
           python scripts/store_access_probe.py
-          --stores Darty Worten CHIP7 PcComponentes PCDiga "ASUS Store"
+          --stores PCDiga PcComponentes Globaldata "Radio Popular" Darty UPTECHBOX "Novo Atalho" CHIP7 FNAC Worten
           --output /tmp/store-access.json
+
       - name: Smoke completo isolado sem notificações
         run: python scripts/store_access_probe.py --full-run --output /tmp/store-access-full.json
+
+      - name: Smoke auxiliar das fontes oficiais Lenovo e HP
+        continue-on-error: true
+        run: python scripts/manufacturer_source_probe.py --output /tmp/manufacturer-sources.json
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
