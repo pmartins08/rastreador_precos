@@ -23,17 +23,20 @@ def normalize_product_number(value: object) -> str | None:
 
 
 def product_number(item: dict) -> str | None:
+    # A referência HP só é aceite a partir de um identificador explícito.
+    # Não inferimos a partir de códigos soltos do título, que podem ser apenas
+    # o nome da série (ex.: 15-fc0039wm) e apontar para outra configuração.
     for field in ("mpn", "sku"):
         code = normalize_product_number(item.get(field))
         if code:
             return code
     title = str(item.get("titulo") or "").upper()
-    # HP usa habitualmente referências do tipo 7W6H7UA / B39WHEA.
-    for token in re.findall(r"\b[A-Z0-9]{7,10}(?:#[A-Z0-9]{2,5})?\b", title):
-        code = normalize_product_number(token)
-        if code:
-            return code
-    return None
+    labelled = re.search(
+        r"(?:SKU|P\s*/?\s*N|PRODUCT\s*(?:NO\.?|NUMBER)|N[UÚ]MERO\s+DO\s+PRODUTO)\s*[:#-]?\s*([A-Z0-9]{6,12}(?:#[A-Z0-9]{2,5})?)",
+        title,
+        re.I,
+    )
+    return normalize_product_number(labelled.group(1)) if labelled else None
 
 
 def search_url(item: dict) -> str | None:
@@ -48,7 +51,7 @@ def spec_links(html: str, base_url: str, item: dict) -> list[str]:
     if not code:
         return []
     soup = BeautifulSoup(html or "", "html.parser")
-    links: list[str] = []
+    links: list[tuple[int, str]] = []
     seen = set()
     for anchor in soup.select("a[href]"):
         absolute = urljoin(base_url, str(anchor.get("href") or ""))
