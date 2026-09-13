@@ -5,12 +5,12 @@ _INSTALLED = False
 
 
 def install(tracker_module) -> None:
-    """Enforce tier thresholds from the raw Value, never an adjusted tier score.
+    """Guarantee that raw Value above the diamond threshold is DIAMANTE.
 
-    Other guards may attach metadata (for example GPU-aware ``tier_score``) to a
-    float-like Value. That metadata can remain useful for diagnostics/ranking,
-    but the commercial tier policy is intentionally simple and global:
-    ``Value > 120`` is DIAMANTE according to the configured tier thresholds.
+    Below that threshold, preserve the existing GPU-aware tier logic unchanged.
+    This keeps the continuous GPU influence for OURO/PRATA/BRONZE while making
+    the requested policy absolute at the top end: raw ``Value > 120`` cannot be
+    downgraded from DIAMANTE by an auxiliary tier score.
     """
     global _INSTALLED
     if _INSTALLED:
@@ -18,10 +18,12 @@ def install(tracker_module) -> None:
 
     previous_tier_from_value = tracker_module.scraper.tier_from_value
 
-    def tier_from_raw_value(value, settings):
-        # float(...) deliberately strips TierAwareValue/other float subclasses
-        # and therefore prevents auxiliary scores from changing the tier.
-        return previous_tier_from_value(float(value), settings)
+    def tier_with_diamond_floor(value, settings):
+        raw_value = float(value)
+        diamond_min = float(settings.get("diamante_value_min", 120.0))
+        if raw_value > diamond_min:
+            return "DIAMANTE"
+        return previous_tier_from_value(value, settings)
 
-    tracker_module.scraper.tier_from_value = tier_from_raw_value
+    tracker_module.scraper.tier_from_value = tier_with_diamond_floor
     _INSTALLED = True
