@@ -37,6 +37,7 @@ from rejection_guard import install as install_rejection_guard
 from sitemap_route_guard import install as install_sitemap_route_guard
 from sitemap_strategy_epoch_guard import install as install_sitemap_strategy_epoch_guard
 from state_refresh_guard import install as install_state_refresh_guard
+from tier_policy_guard import install as install_tier_policy_guard
 from version import VERSION
 from version_guard import install as install_version_guard
 
@@ -231,6 +232,9 @@ install_manufacturer_source_guard(tracker)
 # foram confirmados pela listagem promocional live e dá mais tempo às fichas RP.
 install_promotion_coverage_guard(tracker)
 install_gpu_guard(scraper, tracker)
+# Política final de tier: GPU e outros guardas podem ajustar métricas auxiliares,
+# mas OURO/DIAMANTE são sempre decididos pelo Value bruto configurado.
+install_tier_policy_guard(tracker)
 install_hardware_guard(scraper, tracker)
 # Display Guard corrige resolução explícita antes de mercado/matching para que
 # cache antigo e fichas live usem a mesma identidade de painel.
