@@ -30,6 +30,19 @@ class _Scraper:
         except (TypeError, ValueError):
             return None
 
+    @staticmethod
+    def specs(_title):
+        return {}
+
+    @staticmethod
+    def tier_from_value(value, settings):
+        value = float(value)
+        if value >= float(settings.get("tier_value_diamante", 125)):
+            return "DIAMANTE"
+        if value >= float(settings.get("tier_value_ouro", 110)):
+            return "OURO"
+        return "PRATA"
+
 
 class CatalogGuardTests(unittest.TestCase):
     def _module(self, payload):
@@ -55,6 +68,10 @@ class CatalogGuardTests(unittest.TestCase):
         module.profile_order = lambda store, method: ["chrome131"]
         module.headers = lambda profile: {"User-Agent": profile}
         module.budget_available = lambda store=None: True
+        module.candidate_priority = lambda item, weights, settings: float(item.get("preco") or 0.0) / 100.0
+        module.needs_price_refresh = lambda previous, item, settings, **kwargs: bool(item.get("_coverage_force_live_price"))
+        module.score_allow_unknown = lambda spec, price, weights, settings: {"status": "REJEITADO"}
+        module.reusable_price_evidence = lambda previous, item, settings: dict((previous.get("specs") or {}))
 
         def consume(store):
             module.REQUESTS_BY_STORE[store] = module.REQUESTS_BY_STORE.get(store, 0) + 1
@@ -330,6 +347,23 @@ class CatalogGuardTests(unittest.TestCase):
                     rows, _ = module.scan_store(self._cat(catalog_json_below=1), {}, {})
                 self.assertEqual(rows[0]["preco"], expected_price)
                 self.assertEqual(bool(rows[0].get("_coverage_force_live_price")), refresh)
+
+    def test_strong_catalog_opportunity_gets_priority_and_forces_live_refresh(self):
+        module = self._module({"products": [{
+            "title": "Portátil Gaming ASUS TUF A16 Ryzen 7 260 RTX 5060 8GB | 32GB DDR5 | 1TB SSD",
+            "handle": "asus-tuf-a16-fa608um-r72b56cs1",
+            "variants": [{"price": "1299.99", "available": True}],
+        }]})
+        module.scraper.specs = lambda title: {"gpu_tipo": "dedicada", "gpu_modelo": "rtx 5060", "ram_gb": 32}
+        module.score_allow_unknown = lambda spec, price, weights, settings: {"status": "ACEITE", "value_score": 116.0}
+        module.scraper.tier_from_value = lambda value, settings: "OURO" if float(value) >= 110 else "PRATA"
+        catalog_guard.install(module)
+        rows, stat = module.scan_store(self._cat(catalog_json_below=1), {"weights": {}}, {})
+        row = rows[0]
+        self.assertTrue(row["_catalog_force_opportunity_confirmation"])
+        self.assertEqual(stat["catalog_opportunity_candidates"], 1)
+        self.assertGreater(module.candidate_priority(row, {}, {}), 20.0)
+        self.assertTrue(module.needs_price_refresh({}, row, {}))
 
 
 if __name__ == "__main__":
