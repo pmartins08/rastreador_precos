@@ -23,7 +23,7 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       PYTHONPATH: src
     steps:
@@ -48,7 +48,7 @@ jobs:
 
       - name: Validar código, configuração e testes
         run: |
-          python -m compileall -q runner.py tracker.py scraper.py version.py src tests
+          python -m compileall -q runner.py tracker.py scraper.py version.py src tests scripts
           python -m json.tool config/config.json > /dev/null
           python -m unittest discover -s tests -p 'test_*.py' -v
 
@@ -64,10 +64,10 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           AWIN_DATAFEED_API_KEY: ${{ secrets.AWIN_DATAFEED_API_KEY }}
-          RUN_MAX_MINUTES: '8'
-          RUN_MAX_REQUESTS: '300'
+          RUN_MAX_MINUTES: '10'
+          RUN_MAX_REQUESTS: '360'
           RUN_MAX_REQUESTS_PER_STORE: '60'
-          RUN_MAX_DETAIL_FETCHES: '90'
+          RUN_MAX_DETAIL_FETCHES: '100'
           LOG_LEVEL: INFO
           PYTHONUNBUFFERED: '1'
         run: python runner.py
@@ -91,10 +91,6 @@ jobs:
 
           forbidden = []
           for key, value in changed.items():
-              # Um alerta promocional pode partir de PRATA e tornar-se OURO no
-              # checkout. A regra é sobre o tier EFETIVO que causou o envio.
-              # promotion_tier existe apenas quando esse Value foi recalculado
-              # com preço promocional live confirmado.
               base_tier = str(value.get('tier') or '').upper()
               promo_tier = str(value.get('promotion_tier') or '').upper()
               effective_tier = promo_tier or base_tier
@@ -115,6 +111,57 @@ jobs:
               f'NTFY nesta run | oportunidades={opportunities} | '
               f'heartbeat={heartbeat} | total={total}'
           )
+          PY
+
+      - name: Confirmar publicação NTFY após deploy/manual
+        if: success() && github.event_name != 'schedule'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GITHUB_SHA_SHORT: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from curl_cffi import requests
+          from version import VERSION
+
+          topic = os.environ.get('NTFY_TOPIC', '').strip()
+          if not topic:
+              raise SystemExit('NTFY_TOPIC vazio')
+
+          data = json.loads(Path('data/history.json').read_text(encoding='utf-8'))
+          run = (data.get('learning', {}).get('runs', []) or [{}])[-1]
+          tiers = run.get('tiers', {}) or {}
+          stores = run.get('stores', {}) or {}
+          healthy = sum(
+              1 for value in stores.values()
+              if isinstance(value, dict) and value.get('access_status') in {'discovery_available', 'live_available'}
+          )
+          message = (
+              f"Deploy V{run.get('runner_version', VERSION)} confirmado no GitHub Actions.\n"
+              f"Lojas: {len(stores)} | acesso útil: {healthy} | "
+              f"descobertos: {run.get('total_candidates', '?')} | avaliados: {run.get('total_evaluated', '?')}\n"
+              f"D/O/P/B: {tiers.get('DIAMANTE', 0)}/{tiers.get('OURO', 0)}/"
+              f"{tiers.get('PRATA', 0)}/{tiers.get('BRONZE', 0)}"
+          )
+          payload = {
+              'topic': topic,
+              'title': f'✅ Rastreador operacional V{VERSION}',
+              'message': message,
+              'priority': 4,
+              'tags': ['white_check_mark', 'computer'],
+          }
+          response = requests.post('https://ntfy.sh', json=payload, timeout=12)
+          response.raise_for_status()
+          try:
+              body = response.json()
+          except Exception as exc:
+              raise SystemExit(f'NTFY respondeu sem JSON válido: {exc}')
+          message_id = str(body.get('id') or '').strip()
+          if not message_id:
+              raise SystemExit('NTFY aceitou HTTP mas não devolveu id de mensagem')
+          print(f'NTFY servidor confirmou publicação | id={message_id} | status={response.status_code}')
           PY
 
       - name: Garantir heartbeat NTFY

@@ -302,6 +302,71 @@ def _watch_urls(cat: dict) -> list[str]:
     return out
 
 
+def merge_campaign_routes(configured: list, dynamic: list, *, today: date | None = None) -> tuple[list, int]:
+    """Reativa URLs expirados sem mexer em rotas configuradas que ainda estão ativas.
+
+    Enquanto uma rota configurada está ativa, ela continua a ser a autoridade para
+    a URL/filtros de descoberta; a Promotion Live Guard valida e pode substituir a
+    matemática através da própria landing. Só quando o config expirou e o mesmo URL
+    reaparece numa observação live é que o Engine V3 o reativa.
+    """
+    dynamic_by_marker = {
+        _canonical_url(route.get("url")): route
+        for route in dynamic
+        if isinstance(route, dict) and route.get("url")
+    }
+    used: set[str] = set()
+    out: list = []
+    reobserved = 0
+
+    for raw in configured:
+        if not isinstance(raw, dict) or not raw.get("url"):
+            out.append(raw)
+            continue
+        marker = _canonical_url(raw.get("url"))
+        observed = dynamic_by_marker.get(marker)
+        if observed is None:
+            out.append(raw)
+            continue
+
+        used.add(marker)
+        configured_active = promotion_guard.route_is_active(raw, today=today)
+        if configured_active:
+            # Não tocar numa rota live que já funciona. A landing será validada
+            # mais abaixo por Promotion Live Guard, incluindo alterações da regra.
+            out.append(raw)
+            continue
+
+        reobserved += 1
+        merged = dict(raw)
+        merged.pop("active_from", None)
+        merged.pop("expires_at", None)
+        merged.pop("promotion", None)
+
+        if isinstance(observed.get("promotion"), dict):
+            merged["promotion"] = dict(observed["promotion"])
+        for field in ("active_from", "expires_at"):
+            if observed.get(field):
+                merged[field] = observed[field]
+
+        merged["priority"] = max(
+            int(raw.get("priority", 0) or 0), int(observed.get("priority", 0) or 0)
+        )
+        merged["auto_detected"] = True
+        merged["config_route_reobserved"] = True
+        if observed.get("watch_context"):
+            merged["watch_context"] = observed["watch_context"]
+        out.append(merged)
+
+    for route in dynamic:
+        marker = _canonical_url(route.get("url") if isinstance(route, dict) else route)
+        if marker and marker in used:
+            continue
+        out.append(route)
+
+    return out, reobserved
+
+
 def install(tracker_module) -> None:
     """Motor V3: descoberta transversal + elegibilidade exata em collections Shopify."""
     if getattr(tracker_module, "_PROMOTION_ENGINE_V3_INSTALLED", False):
@@ -340,25 +405,18 @@ def install(tracker_module) -> None:
 
         # O V2 deixa de fazer os mesmos watch requests. Recebe as rotas já
         # detetadas como campaign_urls e mantém toda a sua lógica de prioridade,
-        # live validation, Value e alertas.
+        # live validation, Value e alertas. Config live continua intacto; apenas
+        # URLs configurados expirados podem ser reativados pela observação atual.
         effective_cat = dict(cat)
         effective_cat["promotion_watch_urls"] = []
         configured = list(cat.get("campaign_urls", []))
-        configured_markers = {
-            _canonical_url(raw.get("url") if isinstance(raw, dict) else raw)
-            for raw in configured
-        }
-        effective_cat["campaign_urls"] = [
-            *configured,
-            *[
-                route for route in dynamic
-                if _canonical_url(route.get("url")) not in configured_markers
-            ],
-        ]
+        merged_routes, reobserved = merge_campaign_routes(configured, dynamic)
+        effective_cat["campaign_urls"] = merged_routes
 
         items, stat = base_scan_store(effective_cat, config, settings)
         stat["promotion_engine_watch_pages"] = seen_watch
         stat["promotion_engine_routes"] = len(dynamic)
+        stat["promotion_engine_reobserved_routes"] = reobserved
         stat.setdefault("promotion_engine_collection_rows", 0)
         stat.setdefault("promotion_engine_collection_added", 0)
         stat.setdefault("promotion_engine_verified_rules", 0)

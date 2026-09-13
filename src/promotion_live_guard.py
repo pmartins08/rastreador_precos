@@ -13,7 +13,7 @@ def _campaign_promotion(promo: dict) -> bool:
     eligibility = str(promo.get("eligibility") or "").lower()
     return eligibility == "campaign_listing" or source.startswith("campaign:") or source in {
         "official_campaign", "promotion_watch", "campaign_page_live",
-        "campaign_page_live_verified",
+        "campaign_page_live_verified", "campaign_page_live_replaced_config",
     }
 
 
@@ -47,17 +47,82 @@ def _same_economic_rule(configured: dict, live: dict) -> bool:
     return True
 
 
+def _economic_signature(promo: dict) -> tuple:
+    kind = str(promo.get("kind") or "").upper()
+    if kind == "TIERED_DISCOUNT":
+        return (
+            kind,
+            float(promo.get("threshold_step_eur") or 0),
+            float(promo.get("step_discount_eur") or 0),
+            float(promo.get("cap_eur")) if promo.get("cap_eur") is not None else None,
+        )
+    if kind in {"DIRECT_DISCOUNT", "COUPON", "STORE_CREDIT", "CASHBACK"}:
+        return (
+            kind,
+            float(promo.get("value_eur")) if promo.get("value_eur") is not None else None,
+            float(promo.get("percent")) if promo.get("percent") is not None else None,
+            str(promo.get("code") or "").upper(),
+            float(promo.get("cap_eur")) if promo.get("cap_eur") is not None else None,
+        )
+    return (kind, str(promo.get("title") or "").strip().lower())
+
+
+def _safe_live_rule_override(configured: list[dict], live: list[dict]) -> dict | None:
+    """Aceita uma regra nova da landing apenas quando a evidência é inequívoca.
+
+    Isto permite que uma loja reutilize o mesmo URL de campanha e altere a
+    matemática sem esperar por uma edição manual do config. Mantemos uma trava
+    conservadora: se a regra configurada tinha teto monetário e a landing não
+    permite observar o novo teto, não inferimos que o teto antigo continua.
+    """
+    candidates = [
+        dict(promo)
+        for promo in promotion_value.dedupe(live)
+        if _campaign_promotion(promo)
+        and promotion_value.is_active(promo)
+        and promo.get("applicable") is not False
+    ]
+    signatures = {_economic_signature(promo) for promo in candidates}
+    if len(signatures) != 1 or not candidates:
+        return None
+
+    candidate = candidates[0]
+    kind = str(candidate.get("kind") or "").upper()
+    if kind == "TIERED_DISCOUNT":
+        if not candidate.get("threshold_step_eur") or not candidate.get("step_discount_eur"):
+            return None
+        configured_with_cap = any(
+            str(promo.get("kind") or "").upper() == "TIERED_DISCOUNT"
+            and promo.get("cap_eur") is not None
+            for promo in configured
+        )
+        if configured_with_cap and candidate.get("cap_eur") is None:
+            return None
+    elif kind in {"DIRECT_DISCOUNT", "COUPON", "STORE_CREDIT", "CASHBACK"}:
+        if candidate.get("value_eur") is None and candidate.get("percent") is None:
+            return None
+    else:
+        return None
+
+    candidate["source"] = "campaign_page_live_replaced_config"
+    candidate["live_verified"] = True
+    candidate["live_rule_replaced_config"] = True
+    return candidate
+
+
 def _verified_promotions(configured: list[dict], live: list[dict]) -> list[dict]:
-    """Mantém condições oficiais configuradas quando a landing confirma a regra."""
+    """Valida config pela landing e adapta config obsoleto quando a regra live é clara."""
     verified: list[dict] = []
     campaign_configured = [promo for promo in configured if _campaign_promotion(promo)]
     non_campaign = [promo for promo in configured if not _campaign_promotion(promo)]
     verified.extend(non_campaign)
 
+    matched_campaign = False
     for promo in campaign_configured:
         match = next((candidate for candidate in live if _same_economic_rule(promo, candidate)), None)
         if match is None:
             continue
+        matched_campaign = True
         merged = dict(promo)
         for field in ("valid_from", "valid_until"):
             if match.get(field):
@@ -68,6 +133,10 @@ def _verified_promotions(configured: list[dict], live: list[dict]) -> list[dict]
 
     if not campaign_configured:
         verified.extend(dict(promo, live_verified=True) for promo in live)
+    elif not matched_campaign:
+        replacement = _safe_live_rule_override(campaign_configured, live)
+        if replacement is not None:
+            verified.append(replacement)
     return promotion_value.dedupe(verified)
 
 
@@ -201,7 +270,12 @@ def install(tracker_module) -> None:
             )
             for row in newly_promoted
         )
+        replaced = any(
+            any(promo.get("live_rule_replaced_config") for promo in row.get("promotions", []))
+            for row in newly_promoted
+        )
         stat["promotion_live_confirmed"] = int(bool(confirmed))
+        stat["promotion_live_rule_replaced"] = int(bool(replaced))
         if not confirmed:
             stat["promotion_live_unconfirmed"] = stat.get("promotion_live_unconfirmed", 0) + 1
         return gained
