@@ -20,8 +20,10 @@ from display_guard import install as install_display_guard
 from gpu_guard import install as install_gpu_guard
 from hardware_guard import install as install_hardware_guard
 from historical_guard import install as install_historical_guard
+from manufacturer_source_guard import install as install_manufacturer_source_guard
 from market_guard import install as install_market_guard
 from matching_guard import install as install_matching_guard
+from official_store_guard import install as install_official_store_guard
 from price_change_priority_guard import install as install_price_change_priority_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_coverage_guard import install as install_promotion_coverage_guard
@@ -207,6 +209,9 @@ def _enhanced_page_identifiers(soup) -> dict:
 tracker.page_identifiers = _enhanced_page_identifiers
 
 # As camadas de acesso apenas alteram descoberta/cache; não mexem no cérebro.
+# ASUS eShop entra como loja oficial; Lenovo/HP entram apenas como fontes de
+# especificações e nunca fornecem preço ao motor.
+install_official_store_guard(tracker)
 # Awin fica antes da Coverage Guard para que candidatos autorizados recebam as
 # mesmas regras de cache/fallback/live confirmation das restantes fontes.
 install_version_guard(tracker)
@@ -217,6 +222,10 @@ install_promotion_live_guard(tracker)
 # Runtime promocional recalcula checkout/Value e trata nova elegibilidade
 # OURO/DIAMANTE como evento.
 install_promotion_runtime_guard(tracker)
+# Enriquecimento oficial é posterior ao runtime promocional para preservar o
+# fetch live promocional e anterior à cache/score para que specs confirmadas
+# possam ser reutilizadas sem alterar preço, Value ou tier por si próprias.
+install_manufacturer_source_guard(tracker)
 # Depois do runtime, preserva cache de hardware quando preço+elegibilidade já
 # foram confirmados pela listagem promocional live e dá mais tempo às fichas RP.
 install_promotion_coverage_guard(tracker)
