@@ -18,8 +18,6 @@ _TYPEAHEAD_FIELDS = (
 
 def normalize_product_number(value: object) -> str | None:
     raw = str(value or "").upper().strip()
-    # O sufixo após # identifica frequentemente localização/teclado e não é
-    # necessário para a pesquisa do produto base no suporte HP.
     raw = raw.split("#", 1)[0]
     raw = re.sub(r"[^A-Z0-9]", "", raw)
     if not 6 <= len(raw) <= 12:
@@ -30,9 +28,6 @@ def normalize_product_number(value: object) -> str | None:
 
 
 def product_number(item: dict) -> str | None:
-    # A referência HP só é aceite a partir de um identificador explícito.
-    # Não inferimos a partir de códigos soltos do título, que podem ser apenas
-    # o nome da série (ex.: 15-fc0039wm) e apontar para outra configuração.
     for field in ("mpn", "sku"):
         code = normalize_product_number(item.get(field))
         if code:
@@ -76,6 +71,55 @@ def _normalized_contains(value: object, code: str) -> bool:
     return code in re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
 
 
+def _navigation_paths(value: object) -> list[list[str]]:
+    raw_paths = value if isinstance(value, list) else [value]
+    out: list[list[str]] = []
+    for raw in raw_paths:
+        parts = [part.strip() for part in str(raw or "").split("|") if part.strip()]
+        if parts:
+            out.append(parts)
+    return out
+
+
+def _model_oid(pm_class: str, product_id: object, series_oid: object, navigation: object) -> str | None:
+    product = str(product_id or "").strip()
+    series = str(series_oid or "").strip()
+    paths = _navigation_paths(navigation)
+
+    # Para pm_number_value, productId é o OID do número de produto/SKU. O OID
+    # do modelo é o nó imediatamente anterior no navigationPath da HP.
+    if product and pm_class == "pm_number_value":
+        for parts in paths:
+            try:
+                index = parts.index(product)
+            except ValueError:
+                continue
+            if index > 0:
+                candidate = parts[index - 1]
+                if candidate and candidate != series:
+                    return candidate
+
+    # Em pm_name_value, productId normalmente já identifica o modelo exato.
+    if product and pm_class == "pm_name_value":
+        return product
+
+    # Fallback conservador: se a path tiver série -> modelo -> produto, usa o
+    # primeiro nó após a série, nunca o terminal de SKU sem contexto.
+    if series:
+        for parts in paths:
+            try:
+                index = parts.index(series)
+            except ValueError:
+                continue
+            if index + 1 < len(parts):
+                candidate = parts[index + 1]
+                if candidate != product or pm_class != "pm_number_value":
+                    return candidate
+                if index + 2 < len(parts):
+                    return candidate
+    return None
+
+
 def typeahead_matches(payload: object, item: dict) -> list[dict]:
     code = product_number(item)
     if not code:
@@ -107,12 +151,10 @@ def typeahead_matches(payload: object, item: dict) -> list[dict]:
         exact_evidence = any(_normalized_contains(value, code) for value in haystacks)
         if not exact_evidence:
             continue
-        if not product_id and not series_oid:
+        model_oid = _model_oid(pm_class, product_id, series_oid, navigation)
+        if not model_oid:
             continue
 
-        # pm_name_value é a melhor resposta para um SKU: representa a variante
-        # exata e normalmente traz o OID de modelo + OID da série. pm_number é
-        # só fallback; pm_series por si só não prova a configuração pedida.
         score = 0
         if pm_class == "pm_name_value":
             score += 100
@@ -120,8 +162,8 @@ def typeahead_matches(payload: object, item: dict) -> list[dict]:
             score += 40
         elif pm_class == "pm_series_value":
             score += 10
-        if product_id:
-            score += 20
+        if model_oid:
+            score += 30
         if series_oid:
             score += 10
         if seo_name:
@@ -132,6 +174,7 @@ def typeahead_matches(payload: object, item: dict) -> list[dict]:
                 {
                     "pm_class": pm_class,
                     "product_id": str(product_id) if product_id is not None else None,
+                    "model_oid": str(model_oid),
                     "series_oid": str(series_oid) if series_oid is not None else None,
                     "seo_name": str(seo_name or "").strip() or None,
                     "name": str(name or "").strip() or None,
@@ -159,7 +202,7 @@ def spec_urls(payload: object, item: dict) -> list[str]:
     out: list[str] = []
     seen = set()
     for row in typeahead_matches(payload, item):
-        model_oid = row.get("product_id")
+        model_oid = row.get("model_oid")
         seo_name = _slug(row.get("seo_name") or row.get("name"))
         if not model_oid or not seo_name:
             continue
