@@ -92,6 +92,46 @@ class PromotionBudgetViewTests(unittest.TestCase):
         self.assertEqual(rescued["promotion_budget_gate_checkout_price"], 1449.99)
         self.assertTrue(rescued["promotion_budget_gate_rescued"])
 
+    def test_live_enrich_recalculates_proxy_from_confirmed_raw_price(self):
+        rescued = item(1799.99)
+        promotion_budget_guard._apply_main_budget_gate([rescued], SETTINGS)
+        # Simula o enrich: a ficha volta a expor o PVP bruto confirmado.
+        rescued["preco"] = 1799.99
+        rescued["specs"] = {
+            "page_url": rescued["url"],
+            "price_confirmed": 1799.99,
+        }
+        rescued["promotion_price_live_confirmed"] = True
+
+        outcome, view = promotion_budget_guard._reapply_budget_gate_after_enrich(
+            rescued, SETTINGS
+        )
+        self.assertEqual(outcome, "reapplied")
+        self.assertEqual(view["raw_price"], 1799.99)
+        self.assertEqual(view["checkout_price"], 1449.99)
+        self.assertEqual(rescued["preco"], 1449.99)
+        self.assertEqual(rescued["_promotion_budget_gate_raw_price"], 1799.99)
+
+    def test_live_price_change_can_remove_stale_budget_rescue(self):
+        rescued = item(1799.99)
+        promotion_budget_guard._apply_main_budget_gate([rescued], SETTINGS)
+        # A listagem dizia 1799,99€, mas a ficha live já subiu para 1900€.
+        # 1900 - 350 = 1550€, portanto já não cabe no hard budget.
+        rescued["preco"] = 1900.0
+        rescued["specs"] = {
+            "page_url": rescued["url"],
+            "price_confirmed": 1900.0,
+        }
+        rescued["promotion_price_live_confirmed"] = True
+
+        outcome, view = promotion_budget_guard._reapply_budget_gate_after_enrich(
+            rescued, SETTINGS
+        )
+        self.assertEqual(outcome, "released")
+        self.assertFalse(view["fits_hard_budget"])
+        self.assertEqual(rescued["preco"], 1900.0)
+        self.assertNotIn("_promotion_budget_gate_raw_price", rescued)
+
 
 class PromotionBudgetRuntimeTests(unittest.TestCase):
     def test_pre_ranking_price_component_uses_effective_checkout(self):
@@ -158,6 +198,59 @@ class PromotionBudgetRuntimeTests(unittest.TestCase):
         self.assertEqual(promo["rescued_above_hard_budget"], 2)
         self.assertEqual(promo["max_rescued_gross_price"], 1800.0)
         self.assertEqual(promo["max_rescued_checkout_price"], 1450.0)
+
+    def test_installed_enrich_keeps_checkout_for_second_gate_but_scores_raw(self):
+        rows = [item(1799.99)]
+        seen_score_prices = []
+
+        class Scraper:
+            @staticmethod
+            def price_score(_price, _settings):
+                return 100.0
+
+        class Logger:
+            @staticmethod
+            def info(*_args, **_kwargs):
+                return None
+
+        def base_enrich(row, _config):
+            result = dict(row)
+            result["preco"] = float(result["_promotion_budget_gate_raw_price"])
+            result["promotion_price_live_confirmed"] = True
+            result["specs"] = {
+                "page_url": result["url"],
+                "price_confirmed": result["preco"],
+            }
+            return result, {"error": None}
+
+        tracker = types.SimpleNamespace(
+            scraper=Scraper(),
+            LOGGER=Logger(),
+            candidate_priority=lambda _item, _weights, _settings: 50.0,
+            scan_store=lambda _cat, _config, _settings: (rows, {}),
+            enrich=base_enrich,
+            score_allow_unknown=lambda _spec, price, _weights, _settings: (
+                seen_score_prices.append(price)
+                or {"status": "ACEITE", "score_ranking": 80.0, "value_score": 100.0}
+            ),
+            _PROMOTION_BUDGET_GUARD_INSTALLED=False,
+            _PROMOTION_BUDGET_MAIN_ACTIVE=True,
+        )
+        promotion_budget_guard.install(tracker)
+
+        scanned, _stat = tracker.scan_store(
+            {"loja": "Radio Popular"}, {"settings": SETTINGS}, SETTINGS
+        )
+        self.assertEqual(scanned[0]["preco"], 1449.99)
+
+        enriched, status = tracker.enrich(scanned[0], {"settings": SETTINGS})
+        self.assertIsNone(status["error"])
+        self.assertEqual(enriched["preco"], 1449.99)
+        self.assertEqual(enriched["_promotion_budget_gate_raw_price"], 1799.99)
+        self.assertEqual(enriched["specs"]["price_confirmed"], 1799.99)
+
+        tracker.score_allow_unknown(enriched["specs"], enriched["preco"], {}, SETTINGS)
+        self.assertEqual(seen_score_prices, [1799.99])
 
     def test_main_wrapper_survives_second_gate_scores_raw_and_restores_before_history(self):
         rows = [item(1799.99), item(1999.99)]
@@ -243,8 +336,6 @@ class PromotionBudgetRuntimeTests(unittest.TestCase):
         self.assertEqual(len(selected), 1)
         self.assertEqual(seen["during_selection"], [1449.99])
         self.assertEqual(seen["second_gate"], [1449.99])
-        # O segundo gate vê checkout, mas o score normal continua ancorado no
-        # preço bruto confirmado para não criar PRICE_CONFLICT falso.
         self.assertEqual(seen["score_prices"], [1799.99])
         self.assertEqual(seen["record_prices"], [1799.99])
         self.assertEqual(seen["alert_prices"], [1799.99])
