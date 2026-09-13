@@ -32,6 +32,7 @@ def main() -> None:
 
     config = tracker.load_json(tracker.CONFIG_PATH)
     settings = config.get("settings", {})
+    weights = config.get("weights", {})
     category = next(
         row for row in config.get("category_urls", []) if row.get("loja") == "Radio Popular"
     )
@@ -59,6 +60,11 @@ def main() -> None:
     over_hard = [row for row in rows if float(row["raw_price"]) > float(settings.get("budget_hard", 1500))]
     fits = [row for row in rows if row["fits_hard_budget"]]
 
+    max_eval = int(settings.get("max_evaluated_per_run", 240))
+    selected = tracker.select_with_cache(items, {}, max_eval, weights, settings)
+    selected_urls = {str(item.get("url") or "") for item in selected}
+    rescued_selected = [row for row in rescued if str(row.get("url") or "") in selected_urls]
+
     report = {
         "hard_budget": float(settings.get("budget_hard", 1500.0)),
         "campaign_listing_total": stat.get("campaign_pagination", {}).get("listing_total"),
@@ -68,9 +74,14 @@ def main() -> None:
         "gross_above_hard": len(over_hard),
         "fits_hard_after_promotion": len(fits),
         "rescued_above_hard": len(rescued),
+        "selected_for_evaluation": len(selected),
+        "rescued_selected_for_evaluation": len(rescued_selected),
         "max_confirmed_gross": max((row["raw_price"] for row in rows), default=None),
         "max_rescued_gross": max((row["raw_price"] for row in rescued), default=None),
         "max_rescued_checkout": max((row["checkout_price"] for row in rescued), default=None),
+        "max_selected_rescued_gross": max(
+            (row["raw_price"] for row in rescued_selected), default=None
+        ),
         "promotion_budget_stats": stat.get("promotion_budget", {}),
         "highest_confirmed": rows[:15],
         "highest_rescued": rescued[:15],
@@ -87,6 +98,10 @@ def main() -> None:
         raise RuntimeError("RP: nenhuma promoção live confirmada no universo descoberto")
     if not stat.get("promotion_live_confirmed"):
         raise RuntimeError("RP: regra promocional não foi confirmada ao vivo")
+    if len(items) <= max_eval and len(rescued_selected) != len(rescued):
+        raise RuntimeError(
+            "RP: candidatos acima do hard budget resgatados pela promoção foram cortados antes da avaliação"
+        )
 
 
 if __name__ == "__main__":
