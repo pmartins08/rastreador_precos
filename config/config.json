@@ -35,7 +35,9 @@
     "promotion_economic_priority_bonus_max": 18.0,
     "promotion_alert_min_eur": 25.0,
     "max_promotion_alerts_per_run": 5,
-    "coverage_force_refresh_priority_bonus": 250.0
+    "coverage_force_refresh_priority_bonus": 250.0,
+    "manufacturer_enrichment_enabled": false,
+    "manufacturer_enrichment_max_per_run": 0
   },
   "weights": {
     "gpu_base": {
@@ -222,13 +224,13 @@
       "url": "https://www.uptechbox.com/collections/computadores-portateis",
       "timeout_ms": 10000,
       "parent_climb": 7,
-      "target_candidates": 100,
-      "promotion_watch_urls": ["https://www.uptechbox.com/", "https://www.uptechbox.com/collections/computadores-portateis"],
+      "target_candidates": 60,
+      "promotion_watch_urls": ["https://www.uptechbox.com/"],
       "promotion_collection_json": true,
       "promotion_collection_json_limit": 250,
       "promotion_collection_max_routes": 4,
       "public_catalog_json_url": "https://www.uptechbox.com/collections/computadores-portateis/products.json?limit=250",
-      "catalog_json_below": 90,
+      "catalog_json_below": 40,
       "catalog_json_candidate_limit": 250,
       "catalog_json_first": true,
       "catalog_laptop_only": true,
@@ -236,26 +238,7 @@
       "catalog_json_timeout_s": 6,
       "sitemap_enabled": false,
       "product_path_hints": ["/products/portatil-", "/products/computador-portatil", "/products/"],
-      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"],
-      "extra_discovery_urls": [
-        {"label": "gaming", "url": "https://www.uptechbox.com/collections/computadores-portateis-gaming"},
-        {"label": "notebooks", "url": "https://www.uptechbox.com/collections/computadores-portateis-notebooks"}
-      ]
-    },
-    {
-      "loja": "Novo Atalho",
-      "url": "https://www.novoatalho.pt/port%C3%A1teis",
-      "timeout_ms": 10000,
-      "parent_climb": 7,
-      "target_candidates": 80,
-      "promotion_watch_urls": ["https://www.novoatalho.pt/home"],
-      "max_category_pages": 4,
-      "pagination_start": 1,
-      "pagination_template": "https://www.novoatalho.pt/port%C3%A1teis?pagenumber={page}&pagesize=30&viewmode=grid",
-      "sitemap_probe_limit": 8,
-      "max_sitemaps": 4,
-      "product_path_hints": ["/port%C3%A1til-", "/portatil-"],
-      "card_selectors": ["article", "div[class*='product']", "div[class*='item-box']", "li[class*='product']"]
+      "card_selectors": ["article", "div[class*='product']", "li[class*='product']"]
     },
     {
       "loja": "CHIP7",
