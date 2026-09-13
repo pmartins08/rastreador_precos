@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -25,6 +26,30 @@ def fetch(url: str) -> requests.Response:
     response = requests.get(url, timeout=10, headers={"User-Agent": UA})
     response.raise_for_status()
     return response
+
+
+def _hp_debug(response: requests.Response) -> dict:
+    soup = BeautifulSoup(response.text, "html.parser")
+    forms = []
+    for form in soup.select("form")[:12]:
+        forms.append({
+            "action": form.get("action"),
+            "method": form.get("method"),
+            "id": form.get("id"),
+            "class": form.get("class"),
+        })
+    scripts = [str(node.get("src")) for node in soup.select("script[src]") if node.get("src")]
+    urls = sorted(set(re.findall(r"https?://[^\"'<>\\ ]+", response.text)))
+    api_urls = [url for url in urls if any(key in url.lower() for key in ("api", "search", "product"))]
+    return {
+        "final_url": str(response.url),
+        "status": response.status_code,
+        "length": len(response.text),
+        "contains_sku": "7W6H7UA" in response.text.upper(),
+        "forms": forms,
+        "scripts": scripts[:25],
+        "api_urls": api_urls[:25],
+    }
 
 
 def main() -> None:
@@ -61,6 +86,8 @@ def main() -> None:
     hp_search_response = fetch(hp_search_url)
     hp_links = hp.spec_links(hp_search_response.text, str(hp_search_response.url), hp_item)
     if not hp_links:
+        debug = _hp_debug(hp_search_response)
+        print("HP_SEARCH_DEBUG " + json.dumps(debug, ensure_ascii=False), flush=True)
         raise RuntimeError("HP: pesquisa oficial não devolveu ficha de especificações")
     hp_response = fetch(hp_links[0])
     hp_ok = hp.response_matches(hp_response.text, hp_item)
