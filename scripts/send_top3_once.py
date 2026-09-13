@@ -100,3 +100,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # Pedido pontual: após esta run completa, reenvia todos os DIAMANTE atuais
+    # como primeira ocorrência, sem limpar nem alterar o alert_state normal.
+    from send_all_diamonds_once import main as send_all_diamonds_once
+    send_all_diamonds_once()
