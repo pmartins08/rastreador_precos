@@ -41,27 +41,30 @@ class HPSourceTests(unittest.TestCase):
         self.assertIn("q=7W6H7UA", url)
         self.assertIn("pm_name_value", url)
 
-    def test_typeahead_builds_exact_specs_url(self):
+    def test_typeahead_builds_exact_specs_url_from_product_number_path(self):
         item = {"mpn": "7W6H7UA#AB9", "titulo": "HP Laptop 15"}
         payload = {
             "matches": [
                 {
-                    "name": "HP Laptop 15-fc0039wm (7W6H7UA)",
-                    "pmClass": "pm_name_value",
-                    "productId": 2101497693,
-                    "pmSeriesOid": 2101497400,
+                    "pmClass": "pm_number_value",
+                    "productId": 2102348830,
+                    "pmSeriesOid": 2101497656,
                     "seoFriendlyName": "hp-15.6-inch-laptop-pc-15-fc0000",
-                    "pmNumber": "7W6H7UA",
+                    "navigationPath": [
+                        "root|2101497656|2101497693|2102348830|"
+                    ],
                 },
                 {
-                    "name": "HP Laptop 15-fc9999 (7W6H8UA)",
-                    "pmClass": "pm_name_value",
+                    "pmClass": "pm_number_value",
                     "productId": 999,
+                    "pmSeriesOid": 2101497656,
                     "seoFriendlyName": "wrong-model",
-                    "pmNumber": "7W6H8UA",
+                    "navigationPath": ["root|2101497656|998|999|7W6H8UA|"],
                 },
             ]
         }
+        matches = hp.typeahead_matches(payload, item)
+        self.assertEqual(matches[0]["model_oid"], "2101497693")
         urls = hp.spec_urls(payload, item)
         self.assertEqual(
             urls,
