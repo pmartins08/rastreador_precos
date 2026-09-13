@@ -230,9 +230,6 @@ install_manufacturer_source_guard(tracker)
 # Depois do runtime, preserva cache de hardware quando preço+elegibilidade já
 # foram confirmados pela listagem promocional live e dá mais tempo às fichas RP.
 install_promotion_coverage_guard(tracker)
-# A decisão de pré-ranking passa a olhar para o checkout efetivo de promoções
-# confirmadas ao vivo. O preço de etiqueta/histórico continua intacto.
-install_promotion_budget_guard(tracker)
 install_gpu_guard(scraper, tracker)
 install_hardware_guard(scraper, tracker)
 # Display Guard corrige resolução explícita antes de mercado/matching para que
@@ -253,10 +250,14 @@ install_promotion_engine_v3(tracker)
 install_awin_feed_guard(tracker)
 install_coverage_guard(tracker)
 install_sitemap_strategy_epoch_guard(tracker)
-# Última camada de pré-ranking: vê a prioridade final e acrescenta apenas um
-# bónus de seleção quando o preço atual difere materialmente do histórico.
+# Vê a prioridade final e acrescenta apenas um bónus quando o preço atual difere
+# materialmente do histórico.
 install_price_change_priority_guard(tracker)
 install_rejection_guard(scraper, tracker)
+# Última camada por desenho: entre o scan final e o filtro bruto do `main`, deixa
+# passar apenas candidatos acima do hard cujo checkout promocional foi confirmado
+# live como <= hard. Restaura o preço bruto antes do pré-ranking e do histórico.
+install_promotion_budget_guard(tracker)
 
 
 def _safe_page_price(soup, structured_price: float | None = None) -> float | None:
