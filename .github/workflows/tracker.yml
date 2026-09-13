@@ -323,3 +323,9 @@ jobs:
 
           echo "Falha ao persistir estado após 3 tentativas."
           exit 1
+
+      - name: Enviar Top 3 único solicitado
+        if: success()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python scripts/send_top3_once.py
