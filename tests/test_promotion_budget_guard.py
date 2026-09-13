@@ -113,6 +113,23 @@ class PromotionBudgetRuntimeTests(unittest.TestCase):
             50.0,
         )
 
+    def test_proxy_does_not_double_count_price_priority_delta(self):
+        class Scraper:
+            @staticmethod
+            def price_score(price, settings):
+                hard = settings["budget_hard"]
+                return 100.0 if price <= hard else 70.0
+
+        tracker = types.SimpleNamespace(
+            scraper=Scraper(),
+            candidate_priority=lambda row, _weights, settings: 0.35 * Scraper.price_score(row["preco"], settings),
+            _PROMOTION_BUDGET_GUARD_INSTALLED=False,
+        )
+        promotion_budget_guard.install(tracker)
+        rescued = item(1800.0)
+        promotion_budget_guard._apply_main_budget_gate([rescued], SETTINGS)
+        self.assertEqual(tracker.candidate_priority(rescued, {}, SETTINGS), 35.0)
+
     def test_scan_stats_expose_candidates_rescued_above_hard_budget(self):
         rows = [item(1299.0), item(1750.0), item(1800.0), item(2000.0)]
 
@@ -142,14 +159,25 @@ class PromotionBudgetRuntimeTests(unittest.TestCase):
         self.assertEqual(promo["max_rescued_gross_price"], 1800.0)
         self.assertEqual(promo["max_rescued_checkout_price"], 1450.0)
 
-    def test_main_wrapper_proxies_only_during_base_main_and_restores_before_selection(self):
+    def test_main_wrapper_survives_second_gate_scores_raw_and_restores_before_history(self):
         rows = [item(1799.99), item(1999.99)]
-        seen = {"during_filter": None, "during_selection": None}
+        seen = {
+            "during_filter": None,
+            "during_selection": None,
+            "second_gate": [],
+            "score_prices": [],
+            "record_prices": [],
+            "alert_prices": [],
+        }
 
         class Scraper:
             @staticmethod
             def price_score(_price, _settings):
                 return 100.0
+
+            @staticmethod
+            def tier_from_value(_value, _settings):
+                return "OURO"
 
         class Logger:
             @staticmethod
@@ -169,11 +197,43 @@ class PromotionBudgetRuntimeTests(unittest.TestCase):
 
         tracker.select_with_cache = base_select
 
+        def base_score(spec, price, _weights, _settings):
+            seen["score_prices"].append(price)
+            return {
+                "status": "ACEITE",
+                "score_ranking": 80.0,
+                "value_score": 110.0,
+            }
+
+        tracker.score_allow_unknown = base_score
+
+        def base_record(_history, row, _spec, _assessment, _tier):
+            seen["record_prices"].append(row["preco"])
+            return None, row["url"]
+
+        tracker.record_offer = base_record
+        tracker.maybe_alert = lambda _history, row, *_args: (
+            seen["alert_prices"].append(row["preco"]) or False,
+            False,
+        )
+
         def base_main():
             scanned, _stat = tracker.scan_store({"loja": "Radio Popular"}, {}, SETTINGS)
             seen["during_filter"] = [row["preco"] for row in scanned]
             clean = [row for row in scanned if float(row["preco"]) <= SETTINGS["budget_hard"]]
-            return tracker.select_with_cache(clean, {}, 10, {}, SETTINGS)
+            selected = tracker.select_with_cache(clean, {}, 10, {}, SETTINGS)
+
+            for row in selected:
+                price = row["preco"]
+                seen["second_gate"].append(float(price))
+                if not (250.0 <= float(price) <= SETTINGS["budget_hard"]):
+                    continue
+                spec = {"page_url": row["url"]}
+                assessment = tracker.score_allow_unknown(spec, float(price), {}, SETTINGS)
+                tier = tracker.scraper.tier_from_value(assessment["value_score"], SETTINGS)
+                previous, key = tracker.record_offer({}, row, spec, assessment, tier)
+                tracker.maybe_alert({}, row, spec, assessment, tier, previous, key, SETTINGS)
+            return selected
 
         tracker.main = base_main
         promotion_budget_guard.install(tracker)
@@ -181,8 +241,15 @@ class PromotionBudgetRuntimeTests(unittest.TestCase):
 
         self.assertEqual(seen["during_filter"], [1449.99, 1999.99])
         self.assertEqual(len(selected), 1)
-        self.assertEqual(seen["during_selection"], [1799.99])
+        self.assertEqual(seen["during_selection"], [1449.99])
+        self.assertEqual(seen["second_gate"], [1449.99])
+        # O segundo gate vê checkout, mas o score normal continua ancorado no
+        # preço bruto confirmado para não criar PRICE_CONFLICT falso.
+        self.assertEqual(seen["score_prices"], [1799.99])
+        self.assertEqual(seen["record_prices"], [1799.99])
+        self.assertEqual(seen["alert_prices"], [1799.99])
         self.assertEqual(selected[0]["preco"], 1799.99)
+        self.assertEqual(selected[0]["promotion_budget_gate_checkout_price"], 1449.99)
         self.assertTrue(selected[0]["promotion_budget_gate_rescued"])
         self.assertFalse(getattr(tracker, "_PROMOTION_BUDGET_MAIN_ACTIVE", False))
 
