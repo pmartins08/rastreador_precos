@@ -34,13 +34,24 @@ def _normal_id(value: object) -> str:
     return "".join(ch.lower() for ch in str(value or "") if ch.isalnum())
 
 
-def _resolution_dimensions(value: object) -> tuple[int, int] | None:
-    """Normaliza apenas resoluções numéricas, ignorando a ordem dos eixos.
+def _canonical_cpu_identity(value: object) -> str:
+    """Normaliza apenas aliases inequívocos, sem aproximar famílias distintas."""
+    text = str(value or "").lower().replace("™", " ").replace("®", " ")
+    text = re.sub(r"\b(?:intel|processor|processador)\b", " ", text)
+    text = re.sub(r"[_–—]+", "-", text)
+    text = re.sub(r"\s+", " ", text).strip()
 
-    Algumas fontes publicam 2560x1600 e outras 1600x2560 para o mesmo painel.
-    Não tentamos converter rótulos como FHD/WQXGA em números: sem dois eixos
-    explícitos, a comparação continua entregue ao comportamento base.
-    """
+    # `Core i7-13620H`, `Intel i7 13620H` e `i7-13620h` são o mesmo CPU.
+    legacy = re.search(r"\b(?:core\s+)?(i[3579])\s*[- ]?\s*(\d{4,5}[a-z]{0,3})\b", text)
+    if legacy:
+        return f"{legacy.group(1)}-{legacy.group(2)}"
+
+    # Para Core 7 350 / Core Ultra / Ryzen preservamos a família: isto impede
+    # que, por exemplo, `Core 7 350` seja confundido com `Ryzen AI 7 350`.
+    return re.sub(r"[\s-]+", " ", text).strip()
+
+
+def _resolution_dimensions(value: object) -> tuple[int, int] | None:
     values = [int(raw) for raw in re.findall(r"\d{3,4}", str(value or ""))]
     if len(values) < 2:
         return None
@@ -48,6 +59,9 @@ def _resolution_dimensions(value: object) -> tuple[int, int] | None:
 
 
 def _critical_equal(tracker_module, field: str, left: object, right: object) -> bool:
+    if field == "cpu_modelo":
+        return _canonical_cpu_identity(left) == _canonical_cpu_identity(right)
+
     if field == "ecra_res":
         left_dims = _resolution_dimensions(left)
         right_dims = _resolution_dimensions(right)
@@ -75,7 +89,6 @@ def _same_strong_identifier(left_item: dict, right_item: dict) -> tuple[str | No
     right_ean = _normal_id(right_item.get("ean"))
     if left_ean and left_ean == right_ean:
         return "ean", left_ean
-
     left_mpn = _normal_id(left_item.get("mpn"))
     right_mpn = _normal_id(right_item.get("mpn"))
     if left_mpn and left_mpn == right_mpn:
@@ -84,7 +97,6 @@ def _same_strong_identifier(left_item: dict, right_item: dict) -> tuple[str | No
 
 
 def configuration_conflicts(tracker_module, left_spec: dict, right_spec: dict) -> list[str]:
-    """Campos técnicos conhecidos nos dois lados que se contradizem."""
     conflicts: list[str] = []
     for field in CRITICAL_FIELDS:
         left = left_spec.get(field)
@@ -97,7 +109,6 @@ def configuration_conflicts(tracker_module, left_spec: dict, right_spec: dict) -
 
 
 def ambiguous_market_identifiers(tracker_module, records: list[dict]) -> dict[str, list[str]]:
-    """Identificadores que não podem sustentar evidência cross-store nesta run."""
     grouped: dict[str, list[dict]] = {}
     for record in records:
         key = _market_key(record.get("item") or {})
@@ -154,41 +165,23 @@ def _identity_summary(tracker_module, records: list[dict]) -> list[dict]:
         for member in members:
             item = member.get("item") or {}
             spec = member.get("spec") or {}
-            offers.append(
-                {
-                    "store": item.get("loja"),
-                    "url": item.get("url"),
-                    "title": item.get("titulo"),
-                    "price": item.get("preco"),
-                    "ean": item.get("ean"),
-                    "mpn": item.get("mpn"),
-                    "cpu": spec.get("cpu_modelo"),
-                    "gpu": spec.get("gpu_modelo") or spec.get("gpu_tipo"),
-                    "ram_gb": spec.get("ram_gb"),
-                    "storage_tb": spec.get("armazenamento_tb"),
-                    "resolution": spec.get("ecra_res"),
-                    "refresh_hz": spec.get("ecra_hz"),
-                }
-            )
-        rows.append(
-            {
-                "identity": key,
-                "stores": sorted(
-                    {str(row.get("store")) for row in offers if row.get("store")}
-                ),
-                "offers": offers,
-            }
-        )
+            offers.append({
+                "store": item.get("loja"), "url": item.get("url"), "title": item.get("titulo"),
+                "price": item.get("preco"), "ean": item.get("ean"), "mpn": item.get("mpn"),
+                "cpu": spec.get("cpu_modelo"), "gpu": spec.get("gpu_modelo") or spec.get("gpu_tipo"),
+                "ram_gb": spec.get("ram_gb"), "storage_tb": spec.get("armazenamento_tb"),
+                "resolution": spec.get("ecra_res"), "refresh_hz": spec.get("ecra_hz"),
+            })
+        rows.append({
+            "identity": key,
+            "stores": sorted({str(row.get("store")) for row in offers if row.get("store")}),
+            "offers": offers,
+        })
     rows.sort(key=lambda row: (-len(row["stores"]), row["identity"]))
     return rows
 
 
-def build_matching_state(
-    tracker_module,
-    records: list[dict],
-    matching: dict,
-    conflicts: list[dict],
-) -> dict:
+def build_matching_state(tracker_module, records: list[dict], matching: dict, conflicts: list[dict]) -> dict:
     identities = _identity_summary(tracker_module, records)
     return {
         "schema_version": SCHEMA_VERSION,
@@ -211,20 +204,11 @@ def build_matching_state(
 def _save(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
+    tmp.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     tmp.replace(path)
 
 
 def install(tracker_module) -> None:
-    """Torna identificadores fortes subordinados à coerência técnica.
-
-    EAN/MPN continuam a ser a melhor evidência de identidade, mas nunca podem
-    fundir duas ofertas nem confirmar preços cross-store quando campos técnicos
-    conhecidos se contradizem. O estado persistido é puramente derivado da run.
-    """
     if getattr(tracker_module, "_MATCHING_GUARD_INSTALLED", False):
         return
 
@@ -233,12 +217,7 @@ def install(tracker_module) -> None:
     base_market_evidence = tracker_module.apply_exact_market_price_evidence
     base_main = tracker_module.main
 
-    def match_configurations(
-        left_item: dict,
-        left_spec: dict,
-        right_item: dict,
-        right_spec: dict,
-    ) -> dict:
+    def match_configurations(left_item: dict, left_spec: dict, right_item: dict, right_spec: dict) -> dict:
         identifier_type, identifier = _same_strong_identifier(left_item, right_item)
         if identifier_type:
             conflicts = configuration_conflicts(tracker_module, left_spec, right_spec)
@@ -251,11 +230,8 @@ def install(tracker_module) -> None:
                     "conflicting_fields": conflicts,
                 }
                 if _CAPTURE_ACTIVE:
-                    _CAPTURED_CONFLICTS.append(
-                        _conflict_row(left_item, right_item, result)
-                    )
+                    _CAPTURED_CONFLICTS.append(_conflict_row(left_item, right_item, result))
                 return result
-
         result = base_match(left_item, left_spec, right_item, right_spec)
         if _CAPTURE_ACTIVE and result.get("level") == "NAO_FUNDIR":
             _CAPTURED_CONFLICTS.append(_conflict_row(left_item, right_item, result))
@@ -306,8 +282,7 @@ def install(tracker_module) -> None:
         summary["identity_conflict_offers"] = affected
         tracker_module.LOGGER.warning(
             "Identidade cross-store contraditória | ids=%d | ofertas=%d | evidência de mercado bloqueada",
-            len(ambiguous),
-            affected,
+            len(ambiguous), affected,
         )
         return summary
 
@@ -330,12 +305,7 @@ def install(tracker_module) -> None:
         _CAPTURED_CONFLICTS = []
         run = base_main()
         if _CAPTURED_MATCHING:
-            state = build_matching_state(
-                tracker_module,
-                _CAPTURED_RECORDS,
-                _CAPTURED_MATCHING,
-                list(_CAPTURED_CONFLICTS),
-            )
+            state = build_matching_state(tracker_module, _CAPTURED_RECORDS, _CAPTURED_MATCHING, list(_CAPTURED_CONFLICTS))
             _save(MATCHING_STATE_PATH, state)
             if isinstance(run, dict):
                 run["matching_state_records"] = state["records_considered"]
@@ -343,10 +313,7 @@ def install(tracker_module) -> None:
                 run["matching_state_conflicts"] = len(state["conflicts"])
             tracker_module.LOGGER.info(
                 "Matching state | registos=%d | identidades=%d | conflitos=%d | ficheiro=%s",
-                state["records_considered"],
-                state["identity_count"],
-                len(state["conflicts"]),
-                MATCHING_STATE_PATH.name,
+                state["records_considered"], state["identity_count"], len(state["conflicts"]), MATCHING_STATE_PATH.name,
             )
         return run
 
