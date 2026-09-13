@@ -36,6 +36,8 @@ _CATALOG_IGPUS = tuple(
     )
 )
 
+_RAM_VALUES = r"4|8|12|16|24|32|48|64|96|128"
+
 # Algumas fichas oficiais, em particular a Radio Popular, publicam as
 # características como sequência label/valor em vez de table/dl. São campos
 # explícitos da própria ficha; não há inferência de hardware aqui.
@@ -60,6 +62,26 @@ _EXTRA_LINEAR_LABELS = {
 def _normalized(text: object, scraper_module) -> str:
     raw = re.sub(r"[™®©℠]", " ", str(text or ""))
     return re.sub(r"\s+", " ", scraper_module.norm(raw)).strip()
+
+
+def identify_system_ram(text: object, scraper_module) -> int | None:
+    """Extrai RAM explícita sem confundir VRAM/GDDR com memória do sistema.
+
+    Muitos retalhistas usam títulos do género ``RTX 5060 8GB | 32GB DDR5``.
+    O parser base, ao escolher o primeiro ``x GB``, podia interpretar os 8GB de
+    VRAM como RAM do portátil e provocar uma rejeição automática. Aqui só damos
+    preferência a valores ligados de forma explícita a RAM/DDR/SODIMM.
+    """
+    value = _normalized(text, scraper_module)
+    patterns = (
+        rf"\b(?:ram|memoria(?:\s+ram)?|system\s+memory|memory)\s*[:=-]?\s*({_RAM_VALUES})\s*gb\b",
+        rf"\b({_RAM_VALUES})\s*gb\s*(?:ram\b|(?:lp)?ddr[345x-]*\b|so-?dimm\b)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, value)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 def _canonical_cpu(model: str) -> str:
@@ -149,6 +171,12 @@ def upgrade_spec(spec: dict, scraper_module, title: object = None) -> dict:
     if not isinstance(spec, dict):
         return spec
 
+    # Corrige cache/fallback antigo em que VRAM foi interpretada como RAM.
+    explicit_ram = identify_system_ram(title, scraper_module)
+    if explicit_ram is not None and spec.get("ram_gb") != explicit_ram:
+        spec["ram_gb"] = explicit_ram
+        spec.setdefault("fontes", {})["ram"] = "hardware_guard_explicit_ram"
+
     evidence = spec.get("evidencias") if isinstance(spec.get("evidencias"), dict) else {}
     text = " ".join(
         str(value or "")
@@ -205,6 +233,7 @@ def install(scraper_module, tracker_module) -> None:
 
     base_cpu = scraper_module.cpu
     base_gpus = scraper_module.gpus
+    base_nram = scraper_module.nram
     base_pairs = scraper_module.pairs
     base_score_allow_unknown = tracker_module.score_allow_unknown
     base_select_with_cache = tracker_module.select_with_cache
@@ -222,11 +251,16 @@ def install(scraper_module, tracker_module) -> None:
             return [mapped], "integrada", mapped
         return models, gpu_type, model
 
+    def nram(text: str):
+        explicit = identify_system_ram(text, scraper_module)
+        return explicit if explicit is not None else base_nram(text)
+
     def pairs(soup):
         return [*base_pairs(soup), *_extra_linear_pairs(soup, scraper_module)]
 
     scraper_module.cpu = cpu
     scraper_module.gpus = gpus
+    scraper_module.nram = nram
     scraper_module.pairs = pairs
 
     def score_allow_unknown(spec, price, weights, settings):
