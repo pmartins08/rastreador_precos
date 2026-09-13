@@ -15,6 +15,7 @@ for path in (ROOT, SRC):
 # Importa o composition root sem executar main(). Assim o probe usa exatamente
 # as mesmas camadas de promoção/descoberta que a produção.
 import runner  # noqa: F401
+import scraper
 import tracker
 from promotion_budget_guard import budget_view
 
@@ -36,7 +37,15 @@ def main() -> None:
     category = next(
         row for row in config.get("category_urls", []) if row.get("loja") == "Radio Popular"
     )
-    items, stat = tracker.scan_store(category, config, settings)
+
+    # Reproduz a janela exata entre scan_store() e o filtro bruto de tracker.main.
+    # A Budget Guard só cria o preço-proxy nesta janela; select_with_cache()
+    # restaura o preço de etiqueta antes de qualquer ranking/avaliação.
+    tracker._PROMOTION_BUDGET_MAIN_ACTIVE = True
+    try:
+        items, stat = tracker.scan_store(category, config, settings)
+    finally:
+        tracker._PROMOTION_BUDGET_MAIN_ACTIVE = False
 
     rows = []
     for item in items:
@@ -60,13 +69,39 @@ def main() -> None:
     over_hard = [row for row in rows if float(row["raw_price"]) > float(settings.get("budget_hard", 1500))]
     fits = [row for row in rows if row["fits_hard_budget"]]
 
+    hard = float(settings.get("budget_hard", 1500.0))
+    min_price = float(settings.get("preco_minimo_global", 250.0))
+    # Esta é literalmente a mesma condição económica do main atual. Os itens
+    # resgatados têm `preco` temporariamente igual ao checkout apenas aqui.
+    main_clean = []
+    for item in items:
+        price = item.get("preco")
+        if (
+            item.get("url")
+            and price is not None
+            and min_price <= float(price) <= hard
+            and scraper.eligible(item.get("titulo", ""))
+        ):
+            main_clean.append(item)
+
     max_eval = int(settings.get("max_evaluated_per_run", 240))
-    selected = tracker.select_with_cache(items, {}, max_eval, weights, settings)
+    selected = tracker.select_with_cache(main_clean, {}, max_eval, weights, settings)
     selected_urls = {str(item.get("url") or "") for item in selected}
     rescued_selected = [row for row in rescued if str(row.get("url") or "") in selected_urls]
 
+    # Depois da seleção o preço bruto tem obrigatoriamente de estar restaurado.
+    selected_raw_prices = {
+        str(item.get("url") or ""): float(item.get("preco"))
+        for item in selected
+        if item.get("preco") is not None
+    }
+    raw_preserved = all(
+        abs(selected_raw_prices.get(str(row.get("url") or ""), -1.0) - float(row["raw_price"])) < 0.01
+        for row in rescued_selected
+    )
+
     report = {
-        "hard_budget": float(settings.get("budget_hard", 1500.0)),
+        "hard_budget": hard,
         "campaign_listing_total": stat.get("campaign_pagination", {}).get("listing_total"),
         "campaign_complete": stat.get("campaign_pagination", {}).get("complete"),
         "candidates": len(items),
@@ -74,6 +109,8 @@ def main() -> None:
         "gross_above_hard": len(over_hard),
         "fits_hard_after_promotion": len(fits),
         "rescued_above_hard": len(rescued),
+        "main_gate_candidates": len(main_clean),
+        "main_gate_rescued": stat.get("promotion_budget", {}).get("main_gate_rescued", 0),
         "selected_for_evaluation": len(selected),
         "rescued_selected_for_evaluation": len(rescued_selected),
         "max_confirmed_gross": max((row["raw_price"] for row in rows), default=None),
@@ -82,6 +119,7 @@ def main() -> None:
         "max_selected_rescued_gross": max(
             (row["raw_price"] for row in rescued_selected), default=None
         ),
+        "selected_raw_price_preserved": raw_preserved,
         "promotion_budget_stats": stat.get("promotion_budget", {}),
         "highest_confirmed": rows[:15],
         "highest_rescued": rescued[:15],
@@ -98,10 +136,12 @@ def main() -> None:
         raise RuntimeError("RP: nenhuma promoção live confirmada no universo descoberto")
     if not stat.get("promotion_live_confirmed"):
         raise RuntimeError("RP: regra promocional não foi confirmada ao vivo")
-    if len(items) <= max_eval and len(rescued_selected) != len(rescued):
+    if len(main_clean) <= max_eval and len(rescued_selected) != len(rescued):
         raise RuntimeError(
             "RP: candidatos acima do hard budget resgatados pela promoção foram cortados antes da avaliação"
         )
+    if rescued and not raw_preserved:
+        raise RuntimeError("RP: preço de etiqueta não foi restaurado antes da avaliação")
 
 
 if __name__ == "__main__":
