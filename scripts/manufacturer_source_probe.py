@@ -55,16 +55,22 @@ def main() -> None:
     }
 
     hp_item = {"titulo": "HP Laptop 15-fc0039wm", "mpn": "7W6H7UA"}
-    hp_url = (
-        "https://support.hp.com/us-en/product/product-specs/"
-        "hp-15.6-inch-laptop-pc-15-fc0000/model/2101497693?sku=7W6H7UA"
-    )
-    hp_response = fetch(hp_url)
+    hp_search_url = hp.search_url(hp_item)
+    if not hp_search_url:
+        raise RuntimeError("HP: não foi possível construir URL de pesquisa")
+    hp_search_response = fetch(hp_search_url)
+    hp_links = hp.spec_links(hp_search_response.text, str(hp_search_response.url), hp_item)
+    if not hp_links:
+        raise RuntimeError("HP: pesquisa oficial não devolveu ficha de especificações")
+    hp_response = fetch(hp_links[0])
     hp_ok = hp.response_matches(hp_response.text, hp_item)
     hp_spec = scraper.extract(
         hp_item["titulo"], BeautifulSoup(hp_response.text, "html.parser")
     )
     report["hp"] = {
+        "search_url": str(hp_search_response.url),
+        "search_status": hp_search_response.status_code,
+        "candidate_links": len(hp_links),
         "url": str(hp_response.url),
         "status": hp_response.status_code,
         "identity_ok": hp_ok,
