@@ -1,67 +1,100 @@
-# Rastreador de Preços — V8.8.9
+# LapIntel PT — Laptop Market Intelligence Engine
 
-Sistema de monitorização e avaliação de **portáteis novos no mercado português**, orientado para uso académico/engenharia e gaming. O projeto descobre ofertas, extrai especificações, valida preços, compara configurações entre lojas, mantém histórico e envia oportunidades relevantes por **ntfy**.
+> De um ASUS TUF escolhido à mão a um sistema que descobriu sozinho o portátil certo.
 
-## O que faz
+**LapIntel PT** é um motor de inteligência de mercado para portáteis novos em Portugal, desenvolvido para descobrir ofertas, interpretar hardware, validar preços, comparar configurações entre lojas e transformar tudo isso numa decisão explicável.
+
+A linha atual é a **V8.8.9**. O objetivo original do projeto foi cumprido em 13 de setembro de 2026: depois de evoluir de um simples comparador de preços para um sistema de decisão, o LapIntel PT encontrou três oportunidades Diamante e ajudou a fechar a compra do **Lenovo Legion 5 15AHP-682**.
+
+## O resultado que fechou o ciclo
+
+Na última run operacional validada da V8.8.9:
+
+| Métrica | Resultado |
+|---|---:|
+| Testes | **325 OK** |
+| Lojas configuradas | **9** |
+| Candidatos descobertos | **356** |
+| Candidatos avaliados | **300** |
+| Ofertas aceites | **230** |
+| Pedidos de acesso | **128** |
+| Detalhes abertos | **40** |
+| Reutilizações de cache | **266** |
+| Tempo de execução | **341,6 s** |
+| Lojas com acesso útil | **6 / 9** |
+
+A campanha da Radio Popular foi percorrida em 13 páginas, encontrou 154 itens de listagem e confirmou 142 candidatos. Dez portáteis que estavam acima do limite normal de 1.500 € passaram a entrar no orçamento depois da promoção.
+
+### Os três Diamantes finais
+
+| Posição | Portátil | Loja | Value efetivo |
+|---|---|---|---:|
+| 🥇 | **Lenovo Legion 5 15AHP-682** | Radio Popular | **123,6** |
+| 🥈 | ASUS TUF A16 FA608UH-R72A55CB2 | Radio Popular | **123,3** |
+| 🥉 | ASUS TUF A16 FA608UM-R72A56CB1 | Radio Popular | **121,9** |
+
+**Escolha final:** Lenovo Legion 5 15AHP-682 — Ryzen 7 250, RTX 5060 8 GB, 32 GB RAM, 1 TB SSD e ecrã OLED 2560×1600 a 165 Hz. O preço de campanha considerado pelo sistema foi aproximadamente **1.299,99 €**, dentro do orçamento definido.
+
+Há uma simetria de que nos orgulhamos: na V1, o utilizador escolheu primeiro um ASUS TUF e pediu ao software para encontrar o preço. Na V8.8.9, o software percorreu o mercado, avaliou centenas de candidatos, encontrou os Diamantes e ajudou a escolher o Lenovo.
+
+## Como funciona
 
 O pipeline combina quatro áreas principais:
 
 - **Descoberta** — categorias, paginação, campanhas, sitemaps, catálogos públicos e feeds autorizados opcionais.
-- **Avaliação** — CPU, GPU, RAM, armazenamento, ecrã, bateria, peso; o layout do teclado é guardado apenas como informação.
+- **Avaliação** — CPU, GPU, RAM, armazenamento, ecrã, bateria, peso e outras especificações relevantes.
 - **Mercado** — histórico de preços, confirmação de preço, matching por EAN/MPN e comparação cross-store.
 - **Operação** — cache, aprendizagem de acesso, budgets, cooldowns, heartbeat e persistência automática no GitHub Actions.
 
-O cérebro técnico separa **FEUP**, **Gaming**, **Longevidade** e **Portabilidade**. O resultado técnico gera um `score_ranking`; o preço é combinado depois num `value_score`.
+O cérebro técnico separa quatro dimensões:
 
-| Tier | Value mínimo base |
+- 🎓 **FEUP** — produtividade, engenharia e utilização académica;
+- 🎮 **Gaming** — capacidade gráfica e desempenho em jogos;
+- ⏳ **Longevidade** — margem para continuar relevante ao longo dos anos;
+- 🎒 **Portabilidade** — adequação ao uso diário, peso e autonomia.
+
+O resultado técnico gera um `score_ranking`; o preço é combinado depois num `value_score`.
+
+## Value e tiers
+
+| Tier | Regra base |
 |---|---:|
-| Bronze | 70 |
-| Prata | 90 |
-| Ouro | 110 |
-| Diamante | 125 |
+| Bronze | Value ≥ 70 |
+| Prata | Value ≥ 90 |
+| Ouro | Value ≥ 110 |
+| 💎 Diamante | **Value > 120** |
 
-A decisão final de tier também considera de forma contínua a dimensão Gaming. O `value_score` continua separado dessa influência, para preservar a leitura de valor/preço.
+A regra superior é deliberadamente absoluta: **qualquer Value bruto/efetivo acima de 120 é Diamante**. Abaixo desse limiar, a lógica GPU-aware continua a influenciar o tier sem adulterar o `value_score` bruto.
+
+Os alertas normais de oportunidade são enviados apenas para **OURO** e **DIAMANTE**. Alterações materiais de preço obrigam a recalcular Value/tier antes de decidir se existe novo alerta.
 
 ## Universo monitorizado
 
-- **Marcas:** ASUS, Lenovo e HP, incluindo as respetivas famílias configuradas.
-- **Lojas:** PCDiga, PcComponentes, Globaldata, Radio Popular, Darty, CHIP7, FNAC e Worten.
+A V8.8.9 está configurada para nove lojas:
+
+**PCDiga · PcComponentes · Globaldata · Radio Popular · Darty · UPTECHBOX · CHIP7 · FNAC · Worten**
+
+Na run final, PCDiga, Globaldata, Radio Popular, Darty, UPTECHBOX e FNAC deram acesso útil; PcComponentes, CHIP7 e Worten continuaram bloqueadas por HTTP 403 nas rotas testadas. O sistema trata esses bloqueios como limitações operacionais e não tenta contornar CAPTCHA ou mecanismos anti-bot.
+
 - **Estado:** apenas equipamento novo; usados, recondicionados e outlet são excluídos.
-- **Orçamento:** `budget_soft` de 1300 € e limite normal de 1500 €.
-- **Execução:** GitHub Actions a cada 6 horas, além de push relevante e execução manual.
+- **Orçamento:** `budget_soft` de 1.300 € e limite normal de 1.500 €.
+- **Execução:** GitHub Actions a cada 6 horas, além de execução manual.
+- **Teclado:** o layout português é valorizado como informação, mas não é um gate obrigatório.
 
-## Alertas de preço
+## Guards: inteligência com travões
 
-Uma oferta histórica reencontrada é novamente avaliada com o **preço atual**. Alterações materiais de preço recebem prioridade no pré-ranking para não ficarem fora dos slots de avaliação.
+Um dos maiores aprendizados do projeto foi perceber que um bom algoritmo de decisão continua a falhar se receber dados errados. A arquitetura passou a proteger o cérebro com camadas especializadas:
 
-Por defeito:
-
-- queda de pelo menos **5 €** é considerada material;
-- o Value e o tier são recalculados com o preço atual;
-- alertas de oportunidade são enviados apenas a partir de **OURO**;
-- o último preço que gerou alerta funciona como referência para evitar spam por pequenas oscilações;
-- uma subida de tier também pode originar novo alerta.
-
-Nas promoções confirmadas, o checkout é derivado do preço live e o Value/tier é recalculado antes da decisão. Mesmo com desconto, Prata e Bronze nunca geram alertas. O teclado PT não é obrigatório. Uma nova queda material do checkout só volta a notificar se a oferta continuar Ouro/Diamante; o estado só é atualizado após envio confirmado.
-
-A campanha Radio Popular usa também as páginas do carregador público, com os mesmos filtros de portáteis e disponibilidade da página oficial. A paginação respeita o orçamento de pedidos e regista quando a cobertura fica incompleta.
-
-## Confiança de preço
-
-Preços extraordinariamente baixos não são aceites só porque parecem bons. O Price Guard procura confirmação na ficha e, quando existe identidade forte, evidência cross-store.
-
-Estados principais:
-
-- `OK` — preço suficientemente suportado;
-- `PRICE_UNCONFIRMED` — preço suspeito sem confirmação forte;
-- `PRICE_CONFLICT` — fontes incompatíveis;
-- quarentena — a oferta não entra em tiers nem gera alerta até existir evidência suficiente.
-
-## Matching e identidade
-
-EAN/GTIN e MPN são os identificadores mais fortes, mas não têm autoridade para apagar contradições técnicas. Se duas ofertas com o mesmo identificador tiverem CPU, GPU, RAM, armazenamento, resolução ou refresh conhecidos incompatíveis, o sistema marca `NAO_FUNDIR` e bloqueia também a confirmação de preço cross-store desse identificador nessa run.
-
-Só matches `EXATO` e `FORTE` podem ser fundidos automaticamente. Casos `PROVAVEL` ficam disponíveis para revisão; conflitos permanecem separados e auditáveis em `data/matching_state.json`.
+- `brain_guard.py` — correções técnicas pequenas e comprovadas ao scoring;
+- `gpu_guard.py` — reconhecimento/calibração GPU e influência no tier;
+- `price_guard.py` — confirmação de preço, suspeição e quarentena;
+- `market_guard.py` — consenso/desacordo cross-store;
+- `matching_guard.py` — coerência de identidade e veto a merges contraditórios;
+- `history_integrity_guard.py` — impede que conflitos conhecidos contaminem o estado persistente;
+- `coverage_guard.py` — cache, fallback, cooldown e eficiência de descoberta;
+- `promotion_guard.py` / `promotion_coverage_guard.py` — campanhas como fonte económica real, não apenas banners;
+- `hardware_guard.py` / `hardware_catalog.py` — reconhecimento factual de hardware moderno;
+- `tier_policy_guard.py` — garante a política final de Diamante acima de Value 120.
 
 ## Estrutura do repositório
 
@@ -72,52 +105,15 @@ Só matches `EXATO` e `FORTE` podem ser fundidos automaticamente. Casos `PROVAVE
 ├── scraper.py                # parsing + cérebro técnico base
 ├── version.py                # versão pública e compatibilidade de estado
 ├── src/                      # camadas auxiliares de produção
-│   ├── *_guard.py
-│   ├── hardware_catalog.py
-│   └── README.md
-├── config/
-│   └── config.json           # lojas, budgets, pesos e thresholds
+├── config/config.json        # lojas, budgets, pesos e thresholds
 ├── data/                     # estado persistente gerado pelo runtime
 ├── tests/                    # regressões e integração
-├── docs/                     # arquitetura, operação e calibrações
-├── .github/workflows/
-│   ├── ci.yml
-│   └── tracker.yml
+├── scripts/                  # auditoria e probes operacionais
+├── docs/                     # arquitetura, operação, história e roadmap
+├── .github/workflows/        # CI e execução de produção
 ├── CHANGELOG.md
 └── requirements.txt
 ```
-
-A raiz fica reservada aos quatro módulos que explicam o sistema de ponta a ponta. As camadas especializadas vivem em `src/`, e os testes permanecem isolados em `tests/`.
-
-## Principais camadas de `src/`
-
-- `brain_guard.py` — correções técnicas pequenas e comprovadas ao scoring;
-- `gpu_guard.py` — reconhecimento/calibração GPU e influência contínua no tier;
-- `price_guard.py` — confirmação de preço, suspeição e quarentena;
-- `market_guard.py` — consenso/desacordo cross-store;
-- `matching_guard.py` — coerência de identidade forte, veto a merges/preços contraditórios e estado derivado de matching;
-- `historical_guard.py` — histórico diário compacto a 90 dias;
-- `price_change_priority_guard.py` — prioridade a alterações materiais de preço;
-- `coverage_guard.py` — cache, fallback, cooldown e eficiência de descoberta;
-- `promotion_guard.py` — campanhas como geração de leads;
-- `catalog_guard.py` — catálogos JSON públicos opcionais;
-- `awin_feed_guard.py` — feeds Awin autorizados opcionais;
-- `hardware_guard.py` / `hardware_catalog.py` — reconhecimento factual de hardware moderno;
-- `state_refresh_guard.py` — fronteira entre gerações de estado;
-- `top5_guard.py` — snapshot agregado das melhores configurações atuais.
-
-## Estado persistente
-
-`data/` contém informação operacional, não fixtures de teste:
-
-- `history.json` — ofertas, specs, tiers, alertas e métricas recentes;
-- `access_learning.json` — aprendizagem por loja/método/perfil;
-- `price_history.json` — histórico diário compacto de preços;
-- `matching_state.json` — identidades, grupos e conflitos derivados da run atual;
-- `top5_current.json` — Top 5 agregado do mercado conhecido;
-- `state_epoch.json` — geração atual do estado persistente.
-
-`matching_state.json` é reconstruível e não substitui o histórico bruto. Estes ficheiros são atualizados pelo workflow e não devem ser editados manualmente.
 
 ## Desenvolvimento local
 
@@ -125,49 +121,31 @@ Requer Python 3.11.
 
 ```bash
 python -m pip install -r requirements.txt
-```
-
-No Linux/macOS:
-
-```bash
-PYTHONPATH=src python -m compileall -q runner.py tracker.py scraper.py version.py src tests
+PYTHONPATH=src python -m compileall -q runner.py tracker.py scraper.py version.py src tests scripts
 PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py' -v
 python runner.py
 ```
 
-No PowerShell:
-
-```powershell
-$env:PYTHONPATH = "src"
-python -m compileall -q runner.py tracker.py scraper.py version.py src tests
-python -m unittest discover -s tests -p 'test_*.py' -v
-python runner.py
-```
-
-Para uma execução completa é necessário configurar `NTFY_TOPIC`. `AWIN_DATAFEED_API_KEY` é opcional e só ativa os feeds autorizados quando disponível.
-
-## Automação
-
-- `.github/workflows/ci.yml` valida sintaxe, configuração JSON e toda a suite de testes.
-- `.github/workflows/tracker.yml` executa o rastreador, garante heartbeat e persiste o estado com proteção contra pushes concorrentes.
-
-O workflow de produção usa budgets de tempo, requests globais, requests por loja e detail fetches como fusíveis de segurança.
+Para uma execução completa é necessário configurar `NTFY_TOPIC`. `AWIN_DATAFEED_API_KEY` é opcional e só ativa feeds autorizados quando disponíveis.
 
 ## Documentação
 
+- [`docs/PROJECT_STORY.md`](docs/PROJECT_STORY.md) — a história completa, do primeiro ASUS TUF ao Lenovo Legion escolhido;
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — fluxo e responsabilidades dos módulos;
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — execução, budgets, estado e diagnóstico;
 - [`docs/GPU_CALIBRATION.md`](docs/GPU_CALIBRATION.md) — calibração e influência das GPUs/iGPUs;
-- [`docs/AWIN_FEEDS.md`](docs/AWIN_FEEDS.md) — integração opcional de feeds autorizados;
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — próximas melhorias;
+- [`docs/STORE_ACCESS.md`](docs/STORE_ACCESS.md) — estado e estratégias de acesso por loja;
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — o que falta para uma eventual V9;
 - [`CHANGELOG.md`](CHANGELOG.md) — histórico funcional consolidado.
 
-## Princípios
+## Estado do projeto
 
-- o cérebro não é alterado silenciosamente;
-- preço e qualidade técnica são dimensões separadas;
-- identidade cross-store exige evidência forte e coerência técnica;
-- preço excecional exige confirmação proporcional ao risco;
-- cache deve aumentar cobertura sem esconder alterações de preço;
-- bloqueios de lojas não justificam bypass de CAPTCHA ou mecanismos anti-bot;
-- cada alteração relevante deve ser protegida por testes e observabilidade.
+**Missão principal: cumprida.** A V8.8.9 é suficientemente madura para ter produzido uma decisão real e útil. A V9 permanece como próximo capítulo opcional: não é necessária para provar o projeto, mas pode transformá-lo num motor ainda mais completo de cobertura, matching e inteligência histórica.
+
+## Créditos
+
+**Pedro Martins** — ideia, requisitos, decisões de produto, validação do mercado e desenvolvimento do projeto.
+
+**ChatGPT (OpenAI)** — co-desenvolvimento técnico assistido: arquitetura, implementação, debugging, testes, análise das runs, documentação e apoio à decisão final.
+
+> Construído em conjunto, iterado com dados reais e concluído com uma compra real.
