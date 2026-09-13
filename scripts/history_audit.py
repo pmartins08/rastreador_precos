@@ -14,9 +14,6 @@ TITLE_KEYS = ("titulo", "title", "name")
 STORE_KEYS = ("loja", "store")
 PRICE_KEYS = ("promotion_checkout_price", "checkout_price", "price", "preco")
 
-# Configurações de VRAM que a NVIDIA publica de forma inequívoca para as GPUs
-# Laptop RTX 50 abaixo. Usadas apenas para detetar incoerências; o auditor não
-# altera dados.
 KNOWN_LAPTOP_VRAM_GB = {
     "rtx 5090": 24.0,
     "rtx 5080": 16.0,
@@ -82,7 +79,7 @@ def _value_record(record: dict, path: str) -> dict | None:
     }
 
 
-def _walk(value: Any, path: str = "$" ):
+def _walk(value: Any, path: str = "$"):
     if isinstance(value, dict):
         yield path, value
         for key, child in value.items():
@@ -108,14 +105,23 @@ def _explicit_ram_from_title(title: Any) -> float | None:
     return max(candidates) if candidates else None
 
 
+def _spec_context(record: dict) -> tuple[dict, dict]:
+    if isinstance(record.get("specs"), dict):
+        return record["specs"], record
+    if isinstance(record.get("spec"), dict):
+        item = record.get("item") if isinstance(record.get("item"), dict) else record
+        return record["spec"], item
+    return record, record
+
+
 def _spec_suspicions(record: dict, path: str) -> list[dict]:
-    specs = record.get("specs") if isinstance(record.get("specs"), dict) else record
+    specs, context = _spec_context(record)
     if not isinstance(specs, dict):
         return []
 
-    title = record.get("titulo") or record.get("title") or ""
-    store = record.get("loja") or record.get("store")
-    url = record.get("url")
+    title = context.get("titulo") or context.get("title") or ""
+    store = context.get("loja") or context.get("store")
+    url = context.get("url")
     gpu_type = str(specs.get("gpu_tipo") or "").lower()
     gpu_model = _norm_gpu(specs.get("gpu_modelo"))
     ram = _float(specs.get("ram_gb"))
@@ -178,6 +184,26 @@ def _percentile(values: list[float], p: float) -> float | None:
     return ordered[low] * (1 - fraction) + ordered[high] * fraction
 
 
+def _matching_conflict_summary(matching: dict | None) -> dict:
+    if not isinstance(matching, dict):
+        return {"count": 0, "reasons": {}, "identifier_conflicts": 0}
+    conflicts = matching.get("conflicts") if isinstance(matching.get("conflicts"), list) else []
+    reasons = Counter()
+    identifiers = set()
+    for conflict in conflicts:
+        if not isinstance(conflict, dict):
+            continue
+        reasons[str(conflict.get("reason") or "unknown")] += 1
+        identifier = conflict.get("identifier")
+        if identifier:
+            identifiers.add(str(identifier))
+    return {
+        "count": len(conflicts),
+        "reasons": dict(reasons.most_common()),
+        "identifier_conflicts": len(identifiers),
+    }
+
+
 def audit(history: dict, matching: dict | None = None, price_history: dict | None = None) -> dict:
     observations: list[dict] = []
     suspects: list[dict] = []
@@ -196,13 +222,21 @@ def audit(history: dict, matching: dict | None = None, price_history: dict | Non
                     observations.append(value_record)
                 suspects.extend(_spec_suspicions(record, path))
 
-    # matching_state contém o snapshot mais recente e pode revelar corrupção que
-    # nunca chegou a gerar um alerta. Auditamo-lo separadamente, sem o misturar
-    # na distribuição histórica de Value.
     if isinstance(matching, dict):
         for path, record in _walk(matching, "$.matching"):
             if isinstance(record, dict):
                 suspects.extend(_spec_suspicions(record, path))
+
+    # Deduplica suspeitas que foram observadas tanto no record pai como no spec.
+    unique_suspects = {}
+    for item in suspects:
+        key = (
+            item.get("kind"), item.get("store"), item.get("url"),
+            item.get("gpu_model"), item.get("ram_gb"), item.get("vram_gb"),
+            item.get("explicit_title_ram_gb"),
+        )
+        unique_suspects.setdefault(key, item)
+    suspects = list(unique_suspects.values())
 
     best_by_identity: dict[str, dict] = {}
     for row in observations:
@@ -215,14 +249,13 @@ def audit(history: dict, matching: dict | None = None, price_history: dict | Non
     all_values = [float(row["value"]) for row in observations]
     threshold_counts = {
         str(threshold): sum(value >= threshold for value in unique_values)
-        for threshold in (110, 115, 120, 122, 125)
+        for threshold in (110, 115, 118, 120, 122, 125)
     }
     tier_counts = Counter(str(row.get("tier") or "SEM_TIER").upper() for row in unique)
     suspect_counts = Counter(item["kind"] for item in suspects)
 
     price_series_count = 0
     if isinstance(price_history, dict):
-        # Não assumimos schema interno; contamos séries com pelo menos um ponto.
         for _path, node in _walk(price_history, "$.price_history"):
             if isinstance(node, dict) and isinstance(node.get("points"), list) and node["points"]:
                 price_series_count += 1
@@ -245,6 +278,7 @@ def audit(history: dict, matching: dict | None = None, price_history: dict | Non
             "max": round(max(all_values), 3) if all_values else None,
         },
         "top10_unique_by_value": unique[:10],
+        "matching_conflicts": _matching_conflict_summary(matching),
         "suspect_counts": dict(sorted(suspect_counts.items())),
         "suspects": suspects[:200],
         "suspects_truncated": max(0, len(suspects) - 200),
