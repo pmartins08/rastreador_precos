@@ -35,11 +35,7 @@ def _explicit_system_ram(title: str) -> int | None:
     for pattern in patterns:
         hits.extend(int(match) for match in re.findall(pattern, text, flags=re.I))
     hits = [value for value in hits if 4 <= value <= 256]
-    if not hits:
-        return None
-    # Em títulos de lojas pode haver VRAM antes da RAM; padrões acima exigem
-    # DDR/LPDDR/RAM/SODIMM e, por isso, não consideram "RTX 5060 8GB".
-    return max(hits)
+    return max(hits) if hits else None
 
 
 def _explicit_gpu(title: str) -> str | None:
@@ -108,17 +104,24 @@ def _percentile(values: list[float], q: float) -> float | None:
     return ordered[lo] * (1 - weight) + ordered[hi] * weight
 
 
-def latest_records(data: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+def all_records(data: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     out: list[tuple[str, dict[str, Any]]] = []
     offers = data.get("offers") if isinstance(data.get("offers"), dict) else {}
     for url, entries in offers.items():
-        if not isinstance(entries, list) or not entries:
+        if not isinstance(entries, list):
             continue
-        records = [entry for entry in entries if isinstance(entry, dict)]
-        if not records:
-            continue
+        out.extend((str(url), entry) for entry in entries if isinstance(entry, dict))
+    return out
+
+
+def latest_records(data: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for url, record in all_records(data):
+        grouped.setdefault(url, []).append(record)
+    out: list[tuple[str, dict[str, Any]]] = []
+    for url, records in grouped.items():
         latest = max(records, key=lambda entry: str(entry.get("timestamp") or ""))
-        out.append((str(url), latest))
+        out.append((url, latest))
     return out
 
 
@@ -126,15 +129,15 @@ def detect_record_problems(url: str, record: dict[str, Any]) -> list[dict[str, A
     problems: list[dict[str, Any]] = []
     title = str(record.get("titulo") or "")
     specs = record.get("specs") if isinstance(record.get("specs"), dict) else {}
+    common = {"url": url, "title": title, "timestamp": record.get("timestamp")}
 
     title_ram = _explicit_system_ram(title)
     parsed_ram = specs.get("ram_gb")
     if title_ram is not None and isinstance(parsed_ram, (int, float)) and int(parsed_ram) != title_ram:
         problems.append({
+            **common,
             "severity": "CORRUPTION",
             "kind": "RAM_TITLE_MISMATCH",
-            "url": url,
-            "title": title,
             "title_ram_gb": title_ram,
             "parsed_ram_gb": parsed_ram,
         })
@@ -143,36 +146,31 @@ def detect_record_problems(url: str, record: dict[str, Any]) -> list[dict[str, A
     parsed_gpu = _canonical_gpu(specs.get("gpu_modelo"))
     if title_gpu and parsed_gpu and title_gpu != parsed_gpu:
         problems.append({
+            **common,
             "severity": "CORRUPTION",
             "kind": "GPU_TITLE_MISMATCH",
-            "url": url,
-            "title": title,
             "title_gpu": title_gpu,
             "parsed_gpu": parsed_gpu,
         })
 
     title_storage = _explicit_storage_tb(title)
     parsed_storage = _f(specs.get("armazenamento_tb"))
-    if title_storage is not None and parsed_storage is not None:
-        # 512 GB pode aparecer normalizado como 0.5 TB. Tolerância cobre 500/512.
-        if abs(title_storage - parsed_storage) > 0.12:
-            problems.append({
-                "severity": "CORRUPTION",
-                "kind": "STORAGE_TITLE_MISMATCH",
-                "url": url,
-                "title": title,
-                "title_storage_tb": round(title_storage, 3),
-                "parsed_storage_tb": parsed_storage,
-            })
+    if title_storage is not None and parsed_storage is not None and abs(title_storage - parsed_storage) > 0.12:
+        problems.append({
+            **common,
+            "severity": "CORRUPTION",
+            "kind": "STORAGE_TITLE_MISMATCH",
+            "title_storage_tb": round(title_storage, 3),
+            "parsed_storage_tb": parsed_storage,
+        })
 
     price = _f(record.get("price"))
     confirmed = _f(specs.get("price_confirmed"))
     if price is not None and confirmed is not None and abs(price - confirmed) > max(5.0, price * 0.015):
         problems.append({
+            **common,
             "severity": "CORRUPTION",
             "kind": "PRICE_CONFIRMATION_MISMATCH",
-            "url": url,
-            "title": title,
             "history_price": price,
             "confirmed_price": confirmed,
         })
@@ -180,20 +178,18 @@ def detect_record_problems(url: str, record: dict[str, Any]) -> list[dict[str, A
     value, effective_price, tier = _effective(record)
     if value is not None and value > 150:
         problems.append({
+            **common,
             "severity": "REVIEW",
             "kind": "EXTREME_VALUE",
-            "url": url,
-            "title": title,
             "value": value,
             "effective_price": effective_price,
             "tier": tier,
         })
     if effective_price is not None and effective_price < 250:
         problems.append({
+            **common,
             "severity": "REVIEW",
             "kind": "PRICE_BELOW_GLOBAL_FLOOR",
-            "url": url,
-            "title": title,
             "effective_price": effective_price,
             "value": value,
             "tier": tier,
@@ -201,74 +197,101 @@ def detect_record_problems(url: str, record: dict[str, Any]) -> list[dict[str, A
     return problems
 
 
-def audit(data: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
-    records = latest_records(data)
-    problems: list[dict[str, Any]] = []
-    for url, record in records:
-        problems.extend(detect_record_problems(url, record))
-
-    corrupt_urls = {
-        item["url"] for item in problems if item.get("severity") == "CORRUPTION"
+def _distribution(values: list[float]) -> dict[str, Any]:
+    thresholds = [110, 115, 120, 122, 125, 130, 135]
+    return {
+        "min": round(min(values), 2) if values else None,
+        "median": round(_percentile(values, 0.50), 2) if values else None,
+        "p90": round(_percentile(values, 0.90), 2) if values else None,
+        "p95": round(_percentile(values, 0.95), 2) if values else None,
+        "p97": round(_percentile(values, 0.97), 2) if values else None,
+        "p99": round(_percentile(values, 0.99), 2) if values else None,
+        "max": round(max(values), 2) if values else None,
+        "thresholds": {
+            str(threshold): {
+                "count": sum(value >= threshold for value in values),
+                "pct": round(100.0 * sum(value >= threshold for value in values) / len(values), 2) if values else 0.0,
+            }
+            for threshold in thresholds
+        },
     }
+
+
+def _candidate(url: str, record: dict[str, Any]) -> dict[str, Any] | None:
+    value, effective_price, tier = _effective(record)
+    if value is None or effective_price is None:
+        return None
+    return {
+        "identity": _identity(record, url),
+        "url": url,
+        "store": record.get("loja"),
+        "title": record.get("titulo"),
+        "raw_price": _f(record.get("price")),
+        "effective_price": effective_price,
+        "value": value,
+        "tier": tier,
+        "timestamp": record.get("timestamp"),
+        "promotion": bool(record.get("promotion_price_live_confirmed")),
+    }
+
+
+def audit(data: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    every = all_records(data)
+    latest = latest_records(data)
+    all_problems: list[dict[str, Any]] = []
+    for url, record in every:
+        all_problems.extend(detect_record_problems(url, record))
+
+    corrupt_records = {
+        (item["url"], str(item.get("timestamp") or ""))
+        for item in all_problems
+        if item.get("severity") == "CORRUPTION"
+    }
+    corrupt_urls = sorted({url for url, _ in corrupt_records})
     settings = config.get("settings") if isinstance(config.get("settings"), dict) else {}
     hard = float(settings.get("budget_hard", 1500.0))
 
-    by_identity: dict[str, dict[str, Any]] = {}
-    for url, record in records:
-        if url in corrupt_urls or not bool(record.get("stock", True)):
+    current_by_identity: dict[str, dict[str, Any]] = {}
+    for url, record in latest:
+        if (url, str(record.get("timestamp") or "")) in corrupt_records or not bool(record.get("stock", True)):
             continue
-        value, effective_price, tier = _effective(record)
-        if value is None or effective_price is None or effective_price > hard:
+        candidate = _candidate(url, record)
+        if candidate is None or candidate["effective_price"] > hard:
             continue
-        identity = _identity(record, url)
-        candidate = {
-            "identity": identity,
-            "url": url,
-            "store": record.get("loja"),
-            "title": record.get("titulo"),
-            "raw_price": _f(record.get("price")),
-            "effective_price": effective_price,
-            "value": value,
-            "tier": tier,
-            "timestamp": record.get("timestamp"),
-            "promotion": bool(record.get("promotion_price_live_confirmed")),
-        }
-        old = by_identity.get(identity)
+        old = current_by_identity.get(candidate["identity"])
         if old is None or (candidate["value"], -candidate["effective_price"]) > (old["value"], -old["effective_price"]):
-            by_identity[identity] = candidate
+            current_by_identity[candidate["identity"]] = candidate
 
-    current = sorted(
-        by_identity.values(),
-        key=lambda item: (item["value"], -item["effective_price"]),
-        reverse=True,
-    )
-    values = [float(item["value"]) for item in current]
-    thresholds = [110, 115, 120, 125, 130, 135]
-    threshold_counts = {
-        str(threshold): {
-            "count": sum(value >= threshold for value in values),
-            "pct": round(100.0 * sum(value >= threshold for value in values) / len(values), 2) if values else 0.0,
-        }
-        for threshold in thresholds
-    }
+    current = sorted(current_by_identity.values(), key=lambda item: (item["value"], -item["effective_price"]), reverse=True)
+
+    peak_by_identity: dict[str, dict[str, Any]] = {}
+    for url, record in every:
+        if (url, str(record.get("timestamp") or "")) in corrupt_records or not bool(record.get("stock", True)):
+            continue
+        candidate = _candidate(url, record)
+        if candidate is None or candidate["effective_price"] > hard:
+            continue
+        old = peak_by_identity.get(candidate["identity"])
+        if old is None or (candidate["value"], -candidate["effective_price"]) > (old["value"], -old["effective_price"]):
+            peak_by_identity[candidate["identity"]] = candidate
+
+    peaks = sorted(peak_by_identity.values(), key=lambda item: (item["value"], -item["effective_price"]), reverse=True)
+    current_values = [float(item["value"]) for item in current]
+    peak_values = [float(item["value"]) for item in peaks]
 
     return {
-        "latest_urls": len(records),
+        "historical_records": len(every),
+        "latest_urls": len(latest),
         "clean_current_identities": len(current),
-        "problems": problems,
-        "problem_counts": dict(Counter(item["kind"] for item in problems)),
-        "corrupt_urls": sorted(corrupt_urls),
-        "distribution": {
-            "min": round(min(values), 2) if values else None,
-            "median": round(_percentile(values, 0.50), 2) if values else None,
-            "p90": round(_percentile(values, 0.90), 2) if values else None,
-            "p95": round(_percentile(values, 0.95), 2) if values else None,
-            "p97": round(_percentile(values, 0.97), 2) if values else None,
-            "p99": round(_percentile(values, 0.99), 2) if values else None,
-            "max": round(max(values), 2) if values else None,
-            "thresholds": threshold_counts,
-        },
-        "top10": current[:10],
+        "clean_historical_identities": len(peaks),
+        "problems": all_problems,
+        "problem_counts": dict(Counter(item["kind"] for item in all_problems)),
+        "corrupt_record_count": len(corrupt_records),
+        "corrupt_urls": corrupt_urls,
+        "current_distribution": _distribution(current_values),
+        "historical_peak_distribution": _distribution(peak_values),
+        "top10_current": current[:10],
+        "top10_historical_peaks": peaks[:10],
     }
 
 
