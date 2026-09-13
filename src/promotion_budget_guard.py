@@ -79,14 +79,7 @@ def _effective_price_priority_delta(tracker_module, item: dict, settings: dict) 
 
 
 def _apply_main_budget_gate(items: list[dict], settings: dict) -> int:
-    """Torna visível aos gates do main o checkout promocional confirmado.
-
-    O tracker base tem dois filtros `preco <= budget_hard`: um antes do
-    pré-ranking e outro já dentro da avaliação. O proxy precisa sobreviver aos
-    dois. O preço bruto fica guardado num campo interno e é restaurado antes de
-    `record_offer`, portanto histórico, matching persistido e alertas continuam
-    a conhecer o preço de etiqueta real.
-    """
+    """Torna visível aos dois hard gates o checkout promocional confirmado."""
     rescued = 0
     for item in items:
         if _GATE_RAW_PRICE in item:
@@ -109,7 +102,6 @@ def _restore_item_budget_gate(item: dict) -> bool:
     raw = float(item.pop(_GATE_RAW_PRICE))
     checkout = float(item.pop(_GATE_CHECKOUT_PRICE, raw))
     item["preco"] = raw
-    # Campos públicos de diagnóstico; não participam no preço histórico.
     item["promotion_budget_gate_checkout_price"] = round(checkout, 2)
     item["promotion_budget_gate_rescued"] = True
     return True
@@ -119,20 +111,65 @@ def _restore_main_budget_gate(items: list[dict]) -> int:
     return sum(1 for item in items if _restore_item_budget_gate(item))
 
 
-def _score_price_for_proxy(spec: dict, observed_price: float, active_by_url: dict[str, tuple[float, float]]) -> float:
-    """O score normal continua a usar preço bruto; só o gate usa checkout.
+def _live_raw_price(result: dict) -> float | None:
+    """Preço bruto confirmado pela ficha, nunca o checkout derivado."""
+    specs = result.get("specs") if isinstance(result.get("specs"), dict) else {}
+    for candidate in (specs.get("price_confirmed"), result.get("preco")):
+        try:
+            value = float(candidate)
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            return value
+    return None
 
-    Isto é importante porque `price_guard` confirma o preço bruto na ficha e no
-    mercado. Fazer score do checkout contra essa evidência criaria um falso
-    PRICE_CONFLICT. A camada promocional posterior recalcula o Value/tier com o
-    checkout oficial derivado.
+
+def _reapply_budget_gate_after_enrich(result: dict, settings: dict) -> tuple[str, dict | None]:
+    """Reaplica checkout depois de a ficha live voltar a expor o PVP bruto.
+
+    O runtime promocional limpa temporariamente `preco` antes do fetch para
+    obrigar a confirmar o valor atual na ficha. O `enrich` base devolve então o
+    PVP bruto. Para candidatos que só cabem no budget graças à campanha, esse
+    PVP não pode voltar a chegar ao segundo hard gate. Recalculamos a promoção
+    sobre o preço live e só mantemos o proxy se continuar realmente <= hard.
     """
+    if _GATE_RAW_PRICE not in result:
+        return "not_proxied", None
+
+    live_raw = _live_raw_price(result)
+    if live_raw is None:
+        return "missing_live_price", None
+
+    probe = dict(result)
+    probe.pop(_GATE_RAW_PRICE, None)
+    probe.pop(_GATE_CHECKOUT_PRICE, None)
+    probe["preco"] = live_raw
+    view = budget_view(probe, settings)
+
+    if view.get("rescued_by_promotion"):
+        result[_GATE_RAW_PRICE] = float(view["raw_price"])
+        result[_GATE_CHECKOUT_PRICE] = float(view["checkout_price"])
+        result["preco"] = float(view["checkout_price"])
+        result["promotion_budget_gate_live_raw_price"] = round(live_raw, 2)
+        return "reapplied", view
+
+    # Se o PVP live já cabe sem promoção, o proxy deixou de ser necessário. Se
+    # nem o checkout live cabe, removê-lo faz o segundo gate rejeitar corretamente.
+    result.pop(_GATE_RAW_PRICE, None)
+    result.pop(_GATE_CHECKOUT_PRICE, None)
+    result["preco"] = live_raw
+    result["promotion_budget_gate_live_raw_price"] = round(live_raw, 2)
+    return "released", view
+
+
+def _score_price_for_proxy(spec: dict, observed_price: float, active_by_url: dict[str, tuple[float, float]]) -> float:
+    """O score normal usa PVP bruto; apenas os hard gates usam checkout."""
     page_url = str(spec.get("page_url") or spec.get("url") or "")
     if page_url in active_by_url:
         return float(active_by_url[page_url][0])
 
-    # Fallback conservador para specs muito antigas sem page_url: só usamos a
-    # associação por checkout quando existe exatamente um bruto possível.
+    # Fallback conservador: um checkout só é convertido para bruto se todas as
+    # associações compatíveis apontarem para o mesmo PVP.
     matches = {
         float(raw)
         for raw, checkout in active_by_url.values()
@@ -144,26 +181,42 @@ def _score_price_for_proxy(spec: dict, observed_price: float, active_by_url: dic
 
 
 def install(tracker_module) -> None:
-    """Faz orçamento, seleção e ambos os hard gates respeitarem a promoção live.
-
-    O checkout confirmado é usado apenas para permitir a avaliação económica do
-    produto. O score normal continua ancorado no preço bruto confirmado; depois,
-    `promotion_runtime_guard` deriva Value/tier promocionais a partir do mesmo
-    ranking técnico e do checkout oficial. O bruto é restaurado antes de gravar
-    histórico ou decidir alertas.
-    """
+    """Faz orçamento, seleção, fetch live e ambos hard gates respeitarem promoções."""
     if getattr(tracker_module, "_PROMOTION_BUDGET_GUARD_INSTALLED", False):
         return
 
     base_candidate_priority = tracker_module.candidate_priority
     base_scan_store = getattr(tracker_module, "scan_store", None)
     base_select_with_cache = getattr(tracker_module, "select_with_cache", None)
+    base_enrich = getattr(tracker_module, "enrich", None)
     base_score_allow_unknown = getattr(tracker_module, "score_allow_unknown", None)
     base_record_offer = getattr(tracker_module, "record_offer", None)
     base_main = getattr(tracker_module, "main", None)
 
     active_items: list[dict] = []
     active_by_url: dict[str, tuple[float, float]] = {}
+
+    def register_active(item: dict) -> None:
+        if _GATE_RAW_PRICE not in item:
+            return
+        raw = float(item[_GATE_RAW_PRICE])
+        checkout = float(item[_GATE_CHECKOUT_PRICE])
+        keys = {
+            str(item.get("url") or ""),
+            str((item.get("specs") or {}).get("page_url") or "") if isinstance(item.get("specs"), dict) else "",
+        }
+        for key in keys:
+            if key:
+                active_by_url[key] = (raw, checkout)
+
+    def unregister_active(item: dict) -> None:
+        keys = {
+            str(item.get("url") or ""),
+            str((item.get("specs") or {}).get("page_url") or "") if isinstance(item.get("specs"), dict) else "",
+        }
+        for key in keys:
+            if key:
+                active_by_url.pop(key, None)
 
     def candidate_priority(item: dict, weights: dict, settings: dict) -> float:
         base = float(base_candidate_priority(item, weights, settings))
@@ -216,12 +269,7 @@ def install(tracker_module) -> None:
                         if _GATE_RAW_PRICE not in item:
                             continue
                         active_items.append(item)
-                        url = str(item.get("url") or "")
-                        if url:
-                            active_by_url[url] = (
-                                float(item[_GATE_RAW_PRICE]),
-                                float(item[_GATE_CHECKOUT_PRICE]),
-                            )
+                        register_active(item)
                     stat.setdefault("promotion_budget", {})["main_gate_rescued"] = proxied
             return items, stat
 
@@ -229,11 +277,38 @@ def install(tracker_module) -> None:
 
     if base_select_with_cache is not None:
         def select_with_cache(items, spec_cache, max_items, weights, settings):
-            # Não restaurar aqui: o tracker base tem um segundo hard gate depois
-            # da seleção. Restauramos apenas imediatamente antes de persistir.
             return base_select_with_cache(items, spec_cache, max_items, weights, settings)
 
         tracker_module.select_with_cache = select_with_cache
+
+    if base_enrich is not None:
+        def enrich(item: dict, config: dict):
+            result, status = base_enrich(item, config)
+            if status.get("error") or _GATE_RAW_PRICE not in result:
+                return result, status
+
+            outcome, view = _reapply_budget_gate_after_enrich(
+                result, (config or {}).get("settings", {})
+            )
+            unregister_active(item)
+            if outcome == "reapplied":
+                register_active(result)
+                tracker_module.LOGGER.info(
+                    "Gate promocional reaplicado após ficha live | %s | bruto=%.2f€ | checkout=%.2f€",
+                    str(result.get("titulo") or result.get("url") or "produto"),
+                    float(view["raw_price"]),
+                    float(view["checkout_price"]),
+                )
+            elif outcome == "released":
+                tracker_module.LOGGER.info(
+                    "Gate promocional revisto após ficha live | %s | bruto=%.2f€ | dentro_hard=%s",
+                    str(result.get("titulo") or result.get("url") or "produto"),
+                    float(view["raw_price"]),
+                    bool(view["fits_hard_budget"]),
+                )
+            return result, status
+
+        tracker_module.enrich = enrich
 
     if base_score_allow_unknown is not None:
         def score_allow_unknown(spec: dict, price: float, weights: dict, settings: dict):
@@ -245,6 +320,7 @@ def install(tracker_module) -> None:
     if base_record_offer is not None:
         def record_offer(history, item, spec, assessment, tier):
             if _restore_item_budget_gate(item):
+                unregister_active(item)
                 tracker_module.LOGGER.info(
                     "Gate promocional restaurado antes do histórico | %s | bruto=%.2f€ | checkout=%.2f€",
                     str(item.get("titulo") or item.get("url") or "produto"),
