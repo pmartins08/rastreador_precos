@@ -44,8 +44,7 @@ class PromotionEngineV3Tests(unittest.TestCase):
         html = """
         <section>
           <h2>Lenovo Week</h2><p>de 7 a 13 de setembro</p>
-          <a href="/collections/campanha-lenovo">ver tudo</a>
-        </section>
+          <a href="/collections/campanha-lenovo">ver tudo</a></section>
         """
         routes = engine.detect_campaign_routes(
             html,
@@ -80,6 +79,96 @@ class PromotionEngineV3Tests(unittest.TestCase):
             "https://darty.pt/collections/campanha-lenovo/products.json?limit=250",
         )
         self.assertIsNone(engine.shopify_collection_json_url("https://darty.pt/pages/oportunidades"))
+
+    def test_expired_config_cannot_hide_reused_live_campaign_url(self):
+        configured = [{
+            "label": "old_campaign",
+            "url": "https://loja.pt/destaque/x?filters%5Bcategory%5D=portateis",
+            "active_from": "2026-08-01",
+            "expires_at": "2026-08-03",
+            "priority": 160,
+            "promotion": {
+                "kind": "TIERED_DISCOUNT",
+                "threshold_step_eur": 250,
+                "step_discount_eur": 50,
+                "cap_eur": 500,
+                "eligibility": "campaign_listing",
+                "applicable": True,
+            },
+        }]
+        dynamic = [{
+            "label": "auto_new",
+            "url": "https://loja.pt/destaque/x",
+            "active_from": "2026-09-12",
+            "expires_at": "2026-09-15",
+            "priority": 135,
+            "auto_detected": True,
+            "watch_context": "Nova campanha de 12 a 15 de setembro",
+        }]
+
+        routes, reobserved = engine.merge_campaign_routes(
+            configured, dynamic, today=date(2026, 9, 13)
+        )
+        self.assertEqual(reobserved, 1)
+        self.assertEqual(len(routes), 1)
+        route = routes[0]
+        # Mantém a variante filtrada útil para portáteis, mas elimina economia
+        # expirada e usa as datas observadas hoje.
+        self.assertIn("filters", route["url"])
+        self.assertEqual(route["active_from"], "2026-09-12")
+        self.assertEqual(route["expires_at"], "2026-09-15")
+        self.assertNotIn("promotion", route)
+        self.assertTrue(route["config_route_reobserved"])
+
+    def test_live_observation_replaces_stale_math_on_same_campaign_url(self):
+        configured = [{
+            "label": "campaign",
+            "url": "https://loja.pt/destaque/x?filters=portateis",
+            "active_from": "2026-09-12",
+            "expires_at": "2026-09-15",
+            "priority": 160,
+            "promotion": {
+                "kind": "TIERED_DISCOUNT",
+                "threshold_step_eur": 250,
+                "step_discount_eur": 50,
+                "cap_eur": 500,
+                "eligibility": "campaign_listing",
+                "applicable": True,
+            },
+        }]
+        dynamic = [{
+            "label": "auto_changed",
+            "url": "https://loja.pt/destaque/x",
+            "active_from": "2026-09-12",
+            "expires_at": "2026-09-15",
+            "priority": 135,
+            "promotion": {
+                "kind": "TIERED_DISCOUNT",
+                "threshold_step_eur": 300,
+                "step_discount_eur": 75,
+                "cap_eur": 600,
+                "eligibility": "campaign_listing",
+                "applicable": True,
+                "source": "promotion_watch",
+            },
+        }]
+
+        routes, reobserved = engine.merge_campaign_routes(
+            configured, dynamic, today=date(2026, 9, 13)
+        )
+        self.assertEqual(reobserved, 1)
+        promo = routes[0]["promotion"]
+        self.assertEqual(promo["threshold_step_eur"], 300)
+        self.assertEqual(promo["step_discount_eur"], 75)
+        self.assertEqual(promo["cap_eur"], 600)
+        self.assertIn("filters", routes[0]["url"])
+
+    def test_unrelated_dynamic_route_is_still_appended(self):
+        configured = [{"label": "one", "url": "https://loja.pt/destaque/one"}]
+        dynamic = [{"label": "two", "url": "https://loja.pt/destaque/two", "priority": 118}]
+        routes, reobserved = engine.merge_campaign_routes(configured, dynamic)
+        self.assertEqual(reobserved, 0)
+        self.assertEqual([row["label"] for row in routes], ["one", "two"])
 
     def test_collection_membership_merges_without_weakening_price_confirmation(self):
         existing = [{
