@@ -69,8 +69,9 @@ class PromotionLiveGuardTests(unittest.TestCase):
         self.assertEqual(promo["source"], "campaign_page_live_verified")
         self.assertTrue(promo["live_verified"])
         self.assertEqual(stat["promotion_live_confirmed"], 1)
+        self.assertEqual(stat["promotion_live_rule_replaced"], 0)
 
-    def test_mismatched_live_rule_does_not_validate_configured_discount(self):
+    def test_mismatched_live_rule_without_observable_cap_stays_conservative(self):
         tracker = DummyTracker()
         promotion_live_guard.install(tracker)
         candidates = {}
@@ -81,6 +82,29 @@ class PromotionLiveGuardTests(unittest.TestCase):
         )
         self.assertNotIn("promotions", candidates["https://example.com/p1"])
         self.assertEqual(stat["promotion_live_confirmed"], 0)
+        self.assertEqual(stat["promotion_live_rule_replaced"], 0)
+
+    def test_changed_live_rule_replaces_stale_config_when_complete(self):
+        tracker = DummyTracker()
+        promotion_live_guard.install(tracker)
+        candidates = {}
+        stat = {}
+        tracker._discover_html(
+            Response(
+                "Válido de 12 a 15 de setembro de 2026. "
+                "Ganha 75€ por cada 300€ em compras, até 600€."
+            ),
+            {"url": "https://example.com/promo"}, 10, candidates, "promocao", stat,
+        )
+        promo = candidates["https://example.com/p1"]["promotions"][0]
+        self.assertEqual(promo["step_discount_eur"], 75)
+        self.assertEqual(promo["threshold_step_eur"], 300)
+        self.assertEqual(promo["cap_eur"], 600)
+        self.assertEqual(promo["source"], "campaign_page_live_replaced_config")
+        self.assertTrue(promo["live_verified"])
+        self.assertTrue(promo["live_rule_replaced_config"])
+        self.assertEqual(stat["promotion_live_confirmed"], 1)
+        self.assertEqual(stat["promotion_live_rule_replaced"], 1)
 
     def test_ajax_fragment_reuses_campaign_verified_on_first_page(self):
         tracker = DummyTracker()
