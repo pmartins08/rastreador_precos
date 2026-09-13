@@ -25,6 +25,7 @@ from matching_guard import install as install_matching_guard
 from price_change_priority_guard import install as install_price_change_priority_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
 from promotion_coverage_guard import install as install_promotion_coverage_guard
+from promotion_engine_v3 import install as install_promotion_engine_v3
 from promotion_guard import install as install_promotion_guard
 from promotion_live_guard import install as install_promotion_live_guard
 from promotion_runtime_guard import install as install_promotion_runtime_guard
@@ -232,6 +233,10 @@ install_historical_guard(tracker)
 install_state_refresh_guard(tracker)
 install_sitemap_route_guard(tracker)
 install_catalog_guard(tracker)
+# V3 corre por fora do catálogo público: mesmo quando uma loja (ex. Darty)
+# consegue cobertura suficiente via JSON, as campanhas continuam a ser vigiadas
+# e a sua elegibilidade pode ser cruzada com collections oficiais.
+install_promotion_engine_v3(tracker)
 install_awin_feed_guard(tracker)
 install_coverage_guard(tracker)
 install_sitemap_strategy_epoch_guard(tracker)
