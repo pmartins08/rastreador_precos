@@ -26,6 +26,7 @@ from matching_guard import install as install_matching_guard
 from official_store_guard import install as install_official_store_guard
 from price_change_priority_guard import install as install_price_change_priority_guard
 from price_guard import BAD_PRICE_CONTEXT, install as install_price_guard, page_price_evidence
+from promotion_budget_guard import install as install_promotion_budget_guard
 from promotion_coverage_guard import install as install_promotion_coverage_guard
 from promotion_engine_v3 import install as install_promotion_engine_v3
 from promotion_guard import install as install_promotion_guard
@@ -229,6 +230,9 @@ install_manufacturer_source_guard(tracker)
 # Depois do runtime, preserva cache de hardware quando preço+elegibilidade já
 # foram confirmados pela listagem promocional live e dá mais tempo às fichas RP.
 install_promotion_coverage_guard(tracker)
+# A decisão de pré-ranking passa a olhar para o checkout efetivo de promoções
+# confirmadas ao vivo. O preço de etiqueta/histórico continua intacto.
+install_promotion_budget_guard(tracker)
 install_gpu_guard(scraper, tracker)
 install_hardware_guard(scraper, tracker)
 # Display Guard corrige resolução explícita antes de mercado/matching para que
