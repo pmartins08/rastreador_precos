@@ -34,16 +34,42 @@ class HPSourceTests(unittest.TestCase):
     def test_product_number_strips_locale_suffix(self):
         self.assertEqual(hp.normalize_product_number("7W6H7UA#AB9"), "7W6H7UA")
 
-    def test_search_result_keeps_only_hp_product_specs_links(self):
+    def test_search_uses_official_typeahead_api(self):
+        url = hp.search_url({"mpn": "7W6H7UA", "titulo": "HP Laptop 15"})
+        self.assertIsNotNone(url)
+        self.assertIn("support.hp.com/typeahead?", url)
+        self.assertIn("q=7W6H7UA", url)
+        self.assertIn("pm_name_value", url)
+
+    def test_typeahead_builds_exact_specs_url(self):
         item = {"mpn": "7W6H7UA#AB9", "titulo": "HP Laptop 15"}
-        html = """
-        <a href="/us-en/product/product-specs/hp-15/model/2101497693?sku=7W6H7UA">Exact</a>
-        <a href="https://example.com/product/product-specs/nope">Wrong host</a>
-        <a href="/pt-pt/drivers">Drivers</a>
-        """
-        links = hp.spec_links(html, "https://support.hp.com/pt-pt/search?q=7W6H7UA", item)
-        self.assertEqual(len(links), 1)
-        self.assertIn("sku=7W6H7UA", links[0])
+        payload = {
+            "matches": [
+                {
+                    "name": "HP Laptop 15-fc0039wm (7W6H7UA)",
+                    "pmClass": "pm_name_value",
+                    "productId": 2101497693,
+                    "pmSeriesOid": 2101497400,
+                    "seoFriendlyName": "hp-15.6-inch-laptop-pc-15-fc0000",
+                    "pmNumber": "7W6H7UA",
+                },
+                {
+                    "name": "HP Laptop 15-fc9999 (7W6H8UA)",
+                    "pmClass": "pm_name_value",
+                    "productId": 999,
+                    "seoFriendlyName": "wrong-model",
+                    "pmNumber": "7W6H8UA",
+                },
+            ]
+        }
+        urls = hp.spec_urls(payload, item)
+        self.assertEqual(
+            urls,
+            [
+                "https://support.hp.com/us-en/product/product-specs/"
+                "hp-15-6-inch-laptop-pc-15-fc0000/model/2101497693?sku=7W6H7UA"
+            ],
+        )
 
     def test_hp_response_requires_exact_product_number_and_specs_heading(self):
         item = {"mpn": "7W6H7UA", "titulo": "HP Laptop 15"}
