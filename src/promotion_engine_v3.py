@@ -303,12 +303,12 @@ def _watch_urls(cat: dict) -> list[str]:
 
 
 def merge_campaign_routes(configured: list, dynamic: list, *, today: date | None = None) -> tuple[list, int]:
-    """Combina config + observação live sem deixar um URL antigo bloquear campanha nova.
+    """Reativa URLs expirados sem mexer em rotas configuradas que ainda estão ativas.
 
-    O URL configurado é preservado quando contém filtros úteis, mas promoção e
-    datas observadas hoje ganham precedência. Se o config daquele URL já expirou
-    e o mesmo URL reaparece num banner live, removemos datas/economia antigas em
-    vez de suprimir a rota auto-detetada.
+    Enquanto uma rota configurada está ativa, ela continua a ser a autoridade para
+    a URL/filtros de descoberta; a Promotion Live Guard valida e pode substituir a
+    matemática através da própria landing. Só quando o config expirou e o mesmo URL
+    reaparece numa observação live é que o Engine V3 o reativa.
     """
     dynamic_by_marker = {
         _canonical_url(route.get("url")): route
@@ -330,16 +330,18 @@ def merge_campaign_routes(configured: list, dynamic: list, *, today: date | None
             continue
 
         used.add(marker)
-        reobserved += 1
         configured_active = promotion_guard.route_is_active(raw, today=today)
-        merged = dict(raw)
+        if configured_active:
+            # Não tocar numa rota live que já funciona. A landing será validada
+            # mais abaixo por Promotion Live Guard, incluindo alterações da regra.
+            out.append(raw)
+            continue
 
-        # Quando o config expirou mas o URL voltou a aparecer hoje, os limites
-        # temporais/económicos antigos deixam de ser autoridade.
-        if not configured_active:
-            merged.pop("active_from", None)
-            merged.pop("expires_at", None)
-            merged.pop("promotion", None)
+        reobserved += 1
+        merged = dict(raw)
+        merged.pop("active_from", None)
+        merged.pop("expires_at", None)
+        merged.pop("promotion", None)
 
         if isinstance(observed.get("promotion"), dict):
             merged["promotion"] = dict(observed["promotion"])
@@ -403,8 +405,8 @@ def install(tracker_module) -> None:
 
         # O V2 deixa de fazer os mesmos watch requests. Recebe as rotas já
         # detetadas como campaign_urls e mantém toda a sua lógica de prioridade,
-        # live validation, Value e alertas. Uma rota configurada não pode esconder
-        # a versão atual do mesmo URL observada hoje.
+        # live validation, Value e alertas. Config live continua intacto; apenas
+        # URLs configurados expirados podem ser reativados pela observação atual.
         effective_cat = dict(cat)
         effective_cat["promotion_watch_urls"] = []
         configured = list(cat.get("campaign_urls", []))
