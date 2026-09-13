@@ -6,7 +6,7 @@ from price_tracker.sources import asus
 
 
 def install(tracker_module) -> None:
-    """Acrescenta a ASUS eShop ao universo de lojas sem tocar no cérebro."""
+    """Mantém fontes oficiais opt-in sem tocar no cérebro nem gastar quota por defeito."""
     if getattr(tracker_module, "_OFFICIAL_STORE_GUARD_INSTALLED", False):
         return
 
@@ -23,13 +23,20 @@ def install(tracker_module) -> None:
 
         config = dict(data)
         settings = dict(config.get("settings") or {})
-        settings.setdefault("manufacturer_enrichment_enabled", True)
-        settings.setdefault("manufacturer_enrichment_max_per_run", 6)
-        settings.setdefault("manufacturer_enrichment_max_per_brand", 3)
+        # As fontes oficiais experimentais só ficam ativas quando são
+        # explicitamente ligadas. Evita gastar pedidos em páginas que hoje
+        # devolvem 403/shells JS no runner de produção.
+        settings.setdefault("manufacturer_enrichment_enabled", False)
+        settings.setdefault("manufacturer_enrichment_max_per_run", 0)
+        settings.setdefault("manufacturer_enrichment_max_per_brand", 0)
+        settings.setdefault("asus_store_enabled", False)
         config["settings"] = settings
 
         categories = [dict(row) for row in (config.get("category_urls") or [])]
-        if not any(str(row.get("loja")) == asus.STORE_NAME for row in categories):
+        if (
+            settings.get("asus_store_enabled") is True
+            and not any(str(row.get("loja")) == asus.STORE_NAME for row in categories)
+        ):
             categories.append(asus.store_config())
         config["category_urls"] = categories
         return config
