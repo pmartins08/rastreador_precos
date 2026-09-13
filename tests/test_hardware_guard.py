@@ -4,7 +4,7 @@ import unittest
 
 import hardware_guard
 import scraper
-from hardware_catalog import gpu_capability
+from hardware_catalog import dedicated_gpu_vram_gb, gpu_capability
 
 
 class HardwareGuardTests(unittest.TestCase):
@@ -111,6 +111,55 @@ class HardwareGuardTests(unittest.TestCase):
         self.assertEqual(spec["cpu_modelo"], "ryzen 5 220")
         self.assertEqual(spec["gpu_modelo"], "radeon 740m")
         self.assertIsNone(spec["gpu_capability"]["performance_score"])
+
+    def test_rtx5060_stale_32gb_vram_is_repaired_to_published_8gb(self):
+        spec = {
+            "fontes": {},
+            "evidencias": {},
+            "gpu_tipo": "dedicada",
+            "gpu_modelo": "rtx 5060",
+            "ram_gb": 32,
+            "vram_gb": 32,
+        }
+        hardware_guard.upgrade_spec(
+            spec,
+            scraper,
+            "ASUS TUF A16 RTX 5060 8GB | 32GB DDR5",
+        )
+        self.assertEqual(spec["ram_gb"], 32)
+        self.assertEqual(spec["vram_gb"], 8)
+        self.assertEqual(spec["fontes"]["vram"], "hardware_catalog_vram")
+        self.assertEqual(dedicated_gpu_vram_gb("rtx 5060"), 8.0)
+
+    def test_explicit_gddr_vram_beats_stale_cache(self):
+        spec = {
+            "fontes": {},
+            "evidencias": {},
+            "gpu_tipo": "dedicada",
+            "gpu_modelo": "rtx 5070",
+            "ram_gb": 32,
+            "vram_gb": 32,
+        }
+        hardware_guard.upgrade_spec(
+            spec,
+            scraper,
+            "RTX 5070 8GB GDDR7 | 32GB DDR5",
+        )
+        self.assertEqual(spec["vram_gb"], 8)
+        self.assertEqual(spec["fontes"]["vram"], "hardware_guard_explicit_vram")
+
+    def test_unmapped_dedicated_gpu_without_graphics_memory_is_not_guessed(self):
+        spec = {
+            "fontes": {},
+            "evidencias": {},
+            "gpu_tipo": "dedicada",
+            "gpu_modelo": "rtx 4070",
+            "ram_gb": 32,
+            "vram_gb": 32,
+        }
+        hardware_guard.upgrade_spec(spec, scraper, "RTX 4070 | 32GB DDR5")
+        self.assertEqual(spec["vram_gb"], 32)
+        self.assertNotIn("vram", spec["fontes"])
 
 
 if __name__ == "__main__":

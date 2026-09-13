@@ -55,9 +55,6 @@ def _shopify_candidates(payload: object, cat: dict, tracker_module) -> list[dict
             "detail_source": "catalog_json_seed",
             "discovery_sources": ["catalog_json"],
         }
-        # Shopify SKU is merchant-internal metadata. Keep it for diagnostics,
-        # but never promote it to tracker `sku`, because that field participates
-        # in configuration identity and can produce a FORTE cross-store match.
         sku = variant.get("sku")
         if sku:
             row["_catalog_sku"] = str(sku).strip()
@@ -99,8 +96,6 @@ def _single_public_fetch(tracker_module, url: str, config: dict, store: str, met
 def _usable_candidates(rows: list[dict], settings: dict) -> list[dict]:
     minimum = float(settings.get("preco_minimo_global", 250))
     maximum = float(settings.get("budget_hard", 1500))
-    # Apply the same budget universe as tracker.main before deciding whether a
-    # source provides enough coverage to skip the more expensive fallback.
     return [
         row for row in rows
         if row.get("stock") is not False
@@ -130,13 +125,52 @@ def _reusable_live_catalog_price(previous: dict, hint: float, *, now=None, ttl_h
         return None
 
 
+def _catalog_opportunity_estimate(item: dict, config: dict, settings: dict, tracker_module) -> dict:
+    """Estimativa sem requests para decidir quem merece confirmação live.
+
+    Não envia alertas nem altera o Value final. Reserva apenas atenção para um
+    candidato de catálogo que, com os dados explícitos no título, pode chegar a
+    OURO/DIAMANTE e de outra forma ficaria eternamente em confiança MEDIUM.
+    """
+    try:
+        spec = tracker_module.scraper.specs(item.get("titulo", ""))
+        assessment = tracker_module.score_allow_unknown(
+            spec,
+            float(item.get("preco")),
+            config.get("weights", {}),
+            settings,
+        )
+        if assessment.get("status") != "ACEITE":
+            return {"eligible": False, "value": None, "tier": None}
+        value = float(assessment.get("value_score", 0.0) or 0.0)
+        tier = tracker_module.scraper.tier_from_value(assessment["value_score"], settings)
+        floor = float(settings.get("catalog_live_confirm_value_floor", 106.0))
+        eligible = tier in {"OURO", "DIAMANTE"} or value >= floor
+        return {"eligible": bool(eligible), "value": value, "tier": tier}
+    except (TypeError, ValueError, KeyError, AttributeError):
+        return {"eligible": False, "value": None, "tier": None}
+
+
+def _has_fresh_reusable_confirmation(previous: dict, item: dict, settings: dict, tracker_module) -> bool:
+    evidence = tracker_module.reusable_price_evidence(previous, item, settings)
+    try:
+        return (
+            str(evidence.get("price_page_confidence") or "").upper() == "HIGH"
+            and float(evidence.get("price_confirmed")) > 0
+        )
+    except (TypeError, ValueError):
+        return False
+
+
 def install(tracker_module) -> None:
-    """Prefere o catálogo público validado; mantém HTML/sitemap como fallback."""
+    """Prefere catálogo público validado e confirma live oportunidades fortes."""
     if getattr(tracker_module, "_CATALOG_GUARD_INSTALLED", False):
         return
 
     base_scan_store = tracker_module.scan_store
     base_enrich = getattr(tracker_module, "enrich", None)
+    base_candidate_priority = tracker_module.candidate_priority
+    base_needs_price_refresh = tracker_module.needs_price_refresh
     previous_cache = {}
     previous_loaded = False
 
@@ -208,7 +242,6 @@ def install(tracker_module) -> None:
         if primary:
             found, outcome, spent, count, pages, exhausted = read_catalog(cat, config, settings)
             if len(found) >= threshold:
-                # A complete stats shape is needed by the outer coverage guard.
                 items, stat = [], tracker_module._empty_store_stats()
             else:
                 items, stat = base_scan_store(cat, config, settings)
@@ -218,10 +251,16 @@ def install(tracker_module) -> None:
                 return items, stat
             found, outcome, spent, count, pages, exhausted = read_catalog(cat, config, settings)
 
-        # The public catalogue price is a hint; promotions can live only on the
-        # product page. Reuse a recent page price only while the hint is unchanged.
+        opportunity_count = 0
         for item in found:
             item["_catalog_price_hint"] = item["preco"]
+            estimate = _catalog_opportunity_estimate(item, config, settings, tracker_module)
+            if estimate["eligible"]:
+                item["_catalog_force_opportunity_confirmation"] = True
+                item["_catalog_estimated_value"] = round(float(estimate["value"]), 3)
+                item["_catalog_estimated_tier"] = estimate["tier"]
+                opportunity_count += 1
+
             previous = previous_offers().get(item["url"], {})
             cached_price = _reusable_live_catalog_price(
                 previous, item["preco"], ttl_hours=float(settings.get("price_confirmation_ttl_hours", 24)))
@@ -229,8 +268,6 @@ def install(tracker_module) -> None:
                 item["preco"] = cached_price
                 item["_catalog_live_price_cached"] = True
             elif previous.get("loja") == cat["loja"]:
-                # Existing Coverage Guard reserves refresh and quarantines cached
-                # specs if current page confirmation cannot be obtained.
                 item["_coverage_force_live_price"] = True
 
         known = {str(item.get("url")) for item in items if item.get("url")}
@@ -255,18 +292,33 @@ def install(tracker_module) -> None:
             "catalog_json_usable": len(found),
             "catalog_json_primary": primary,
             "catalog_json_fallback": primary and len(found) < threshold,
+            "catalog_opportunity_candidates": opportunity_count,
             "candidatos": len(items),
         })
         if items:
             stat["bloqueada"] = False
         return items, stat
 
+    def candidate_priority(item, weights, settings):
+        value = float(base_candidate_priority(item, weights, settings))
+        if item.get("_catalog_force_opportunity_confirmation"):
+            # Reserva candidatos fortes dentro do universo de avaliação; não é
+            # score final nem altera Value/tier.
+            value += float(settings.get("catalog_opportunity_priority_bonus", 24.0))
+        return round(value, 3)
+
+    def needs_price_refresh(previous_meta, item, settings, **kwargs):
+        if not item.get("_catalog_force_opportunity_confirmation"):
+            return base_needs_price_refresh(previous_meta, item, settings, **kwargs)
+        if _has_fresh_reusable_confirmation(previous_meta or {}, item, settings, tracker_module):
+            return False
+        return True
+
     def enrich(item, config):
         if "_catalog_price_hint" not in item:
             return base_enrich(item, config)
         seed = dict(item)
         hint = seed["_catalog_price_hint"]
-        # Do not let the seed's list price override a current promotional price.
         seed["preco"] = None
         result, status = base_enrich(seed, config)
         if status.get("error"):
@@ -285,6 +337,8 @@ def install(tracker_module) -> None:
         return result, status
 
     tracker_module.scan_store = scan_store
+    tracker_module.candidate_priority = candidate_priority
+    tracker_module.needs_price_refresh = needs_price_refresh
     if base_enrich is not None:
         tracker_module.enrich = enrich
     tracker_module._CATALOG_GUARD_INSTALLED = True

@@ -163,6 +163,19 @@ GPU_CAPABILITIES = {
 }
 
 
+# VRAM publicada pela NVIDIA para modelos Laptop RTX 50 com configuração única.
+# A RTX 5070 fica intencionalmente fora desta tabela porque não queremos usar um
+# valor factual como corretor quando existem listagens/variantes ambíguas.
+DEDICATED_LAPTOP_GPU_VRAM_GB = {
+    "rtx 5090": 24.0,
+    "rtx 5080": 16.0,
+    "rtx 5070 ti": 12.0,
+    "rtx 5060": 8.0,
+    "rtx 5050": 8.0,
+}
+DEDICATED_LAPTOP_GPU_VRAM_SOURCE = "https://www.nvidia.com/en-us/geforce/laptops/50-series/"
+
+
 # Relações CPU -> iGPU publicadas pelo fabricante. Só inferimos quando a CPU foi
 # identificada exatamente e não existe já uma GPU dedicada/mais específica.
 CPU_IGPU_MAP = {
@@ -234,6 +247,10 @@ def gpu_capability(model: object) -> dict | None:
     key = str(model or "").strip().lower()
     value = GPU_CAPABILITIES.get(key)
     return dict(value) if value is not None else None
+
+
+def dedicated_gpu_vram_gb(model: object) -> float | None:
+    return DEDICATED_LAPTOP_GPU_VRAM_GB.get(str(model or "").strip().lower())
 
 
 def cpu_integrated_gpu(cpu_model: object) -> str | None:

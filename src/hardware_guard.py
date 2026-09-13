@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from hardware_catalog import cpu_integrated_gpu, gpu_capability
+from hardware_catalog import cpu_integrated_gpu, dedicated_gpu_vram_gb, gpu_capability
 
 
 _CPU_PATTERNS = (
@@ -65,17 +65,25 @@ def _normalized(text: object, scraper_module) -> str:
 
 
 def identify_system_ram(text: object, scraper_module) -> int | None:
-    """Extrai RAM explícita sem confundir VRAM/GDDR com memória do sistema.
-
-    Muitos retalhistas usam títulos do género ``RTX 5060 8GB | 32GB DDR5``.
-    O parser base, ao escolher o primeiro ``x GB``, podia interpretar os 8GB de
-    VRAM como RAM do portátil e provocar uma rejeição automática. Aqui só damos
-    preferência a valores ligados de forma explícita a RAM/DDR/SODIMM.
-    """
+    """Extrai RAM explícita sem confundir VRAM/GDDR com memória do sistema."""
     value = _normalized(text, scraper_module)
     patterns = (
         rf"\b(?:ram|memoria(?:\s+ram)?|system\s+memory|memory)\s*[:=-]?\s*({_RAM_VALUES})\s*gb\b",
         rf"\b({_RAM_VALUES})\s*gb\s*(?:ram\b|(?:lp)?ddr[345x-]*\b|so-?dimm\b)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, value)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def identify_explicit_vram(text: object, scraper_module) -> int | None:
+    """Aceita VRAM só quando o contexto é gráfico (GDDR/VRAM/video memory)."""
+    value = _normalized(text, scraper_module)
+    patterns = (
+        r"\b(\d{1,2})\s*gb\s*gddr[567x]*\b",
+        r"\b(?:vram|video\s+memory|memoria\s+grafica)\s*[:=-]?\s*(\d{1,2})\s*gb\b",
     )
     for pattern in patterns:
         match = re.search(pattern, value)
@@ -97,8 +105,6 @@ def _cpu_tier(model: str) -> str | None:
         return "tier_2"
     if re.search(r"(?:ultra\s+[35]|ryzen\s+ai\s+[35]|ryzen\s+[35])", value):
         return "tier_3"
-    # Ryzen AI Max/Max+ não carrega um tier 3/5/7/9 no nome. Reconhecemos a
-    # identidade, mas não inventamos uma classe de CPU para o cérebro.
     return None
 
 
@@ -150,15 +156,11 @@ def _extra_linear_pairs(soup, scraper_module) -> list[tuple]:
                 value = f"{inch.group(1)} pol"
         out.append((key, strings[index], value, "label_value", 0.96))
 
-    # A RP separa família e modelo do CPU em linhas diferentes. Só juntamos
-    # quando ambos são explícitos na mesma ficha.
     family = values_by_label.get("familia de processador")
     model = values_by_label.get("modelo de processador") or values_by_label.get("modelo do processador")
     if family and model:
         out.append(("cpu", "Família + modelo de processador", f"{family} {model}", "label_value", 0.97))
 
-    # VRAM e tipo também podem vir separados; juntar evita confundir RAM do
-    # sistema com memória gráfica e mantém a evidência explícita.
     vram = values_by_label.get("memoria de placa grafica discreta")
     vram_type = values_by_label.get("tipo de memoria grafica discreta")
     if vram and vram_type:
@@ -167,11 +169,10 @@ def _extra_linear_pairs(soup, scraper_module) -> list[tuple]:
 
 
 def upgrade_spec(spec: dict, scraper_module, title: object = None) -> dict:
-    """Melhora identidade CPU/iGPU sem criar qualquer score novo."""
+    """Melhora identidade de hardware e corrige cache antigo só com evidência forte."""
     if not isinstance(spec, dict):
         return spec
 
-    # Corrige cache/fallback antigo em que VRAM foi interpretada como RAM.
     explicit_ram = identify_system_ram(title, scraper_module)
     if explicit_ram is not None and spec.get("ram_gb") != explicit_ram:
         spec["ram_gb"] = explicit_ram
@@ -198,8 +199,6 @@ def upgrade_spec(spec: dict, scraper_module, title: object = None) -> dict:
         if cpu_class is not None:
             spec["cpu_classe"] = cpu_class
 
-    # Primeiro preservamos qualquer GPU dedicada/exata já extraída. Depois
-    # procuramos uma iGPU explícita; por fim inferimos pela CPU exata.
     if str(spec.get("gpu_tipo") or "").lower() != "dedicada":
         explicit = identify_catalog_igpu(text, scraper_module)
         inferred = cpu_integrated_gpu(spec.get("cpu_modelo"))
@@ -214,6 +213,23 @@ def upgrade_spec(spec: dict, scraper_module, title: object = None) -> dict:
             source = "hardware_catalog_explicit" if explicit else "hardware_catalog_cpu_map"
             spec.setdefault("fontes", {}).setdefault("gpu_modelo", source)
 
+    # Corrige a direção inversa do bug RAM/VRAM em caches antigos. Primeiro
+    # preferimos uma quantidade gráfica explícita; só usamos o catálogo factual
+    # quando o modelo Laptop tem uma única configuração publicada pelo fabricante.
+    if str(spec.get("gpu_tipo") or "").lower() == "dedicada":
+        explicit_vram = identify_explicit_vram(text, scraper_module)
+        factual_vram = dedicated_gpu_vram_gb(spec.get("gpu_modelo"))
+        target_vram = float(explicit_vram) if explicit_vram is not None else factual_vram
+        if target_vram is not None:
+            try:
+                current_vram = float(spec.get("vram_gb")) if spec.get("vram_gb") is not None else None
+            except (TypeError, ValueError):
+                current_vram = None
+            if current_vram is None or abs(current_vram - float(target_vram)) >= 0.01:
+                spec["vram_gb"] = int(target_vram) if float(target_vram).is_integer() else float(target_vram)
+                source = "hardware_guard_explicit_vram" if explicit_vram is not None else "hardware_catalog_vram"
+                spec.setdefault("fontes", {})["vram"] = source
+
     capability = gpu_capability(spec.get("gpu_modelo"))
     if capability:
         spec["gpu_capability"] = capability
@@ -221,13 +237,6 @@ def upgrade_spec(spec: dict, scraper_module, title: object = None) -> dict:
 
 
 def install(scraper_module, tracker_module) -> None:
-    """Instala reconhecimento atual de CPU/iGPU como camada sobre o cérebro V8.
-
-    Mantemos `scraper.specs` e `scraper.extract` semanticamente compatíveis com o
-    parser base. A inferência CPU→iGPU é aplicada na cache e imediatamente antes
-    do scoring, evitando efeitos globais dependentes da ordem de importação dos
-    testes sem perder a identidade enriquecida no runtime real.
-    """
     if getattr(tracker_module, "_HARDWARE_GUARD_INSTALLED", False):
         return
 

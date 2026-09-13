@@ -45,3 +45,17 @@ jobs:
 
       - name: Testes unitários
         run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Auditar histórico e distribuição de Value
+        run: >-
+          python scripts/history_audit.py
+          --history data/history.json
+          --matching data/matching_state.json
+          --price-history data/price_history.json
+          --json-out /tmp/history-audit.json
+
+      - name: Medir threshold DIAMANTE no histórico
+        run: >-
+          python scripts/tier_threshold_audit.py
+          --history data/history.json
+          --config config/config.json
