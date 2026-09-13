@@ -18,7 +18,7 @@
     "bronze_value_min": 70.0,
     "prata_value_min": 90.0,
     "ouro_value_min": 110.0,
-    "diamante_value_min": 125.0,
+    "diamante_value_min": 120.0,
     "preco_minimo_global": 250.0,
     "max_segment_routes": 4,
     "cross_store_alert_min_eur": 50.0,
@@ -87,7 +87,7 @@
   "category_urls": [
     {
       "loja": "PCDiga",
-      "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
+      "url": "https://www.pcdiga.com/computadores/portateis",
       "timeout_ms": 12000,
       "parent_climb": 7,
       "target_candidates": 80,
@@ -105,7 +105,7 @@
       "extra_discovery_urls": [
         {"label": "rtx_5060", "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis?filter_by=modelo_placa_grafica_discre%3A%3D%5B%60NVIDIA+GeForce+RTX+5060%60%5D"},
         {"label": "rtx_5070", "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis?filter_by=modelo_placa_grafica_discre%3A%3D%5B%60NVIDIA+GeForce+RTX+5070+Ti%60%2C%60NVIDIA+GeForce+RTX+5070%60%5D"},
-        {"label": "rtx_5050", "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis?filter_by=modelo_placa_grafica_discre%3A%3D%5B%60NVIDIA+GeForce+RTX+5050%60%5D"},
+        {"label": "rtx_50_family", "url": "https://www.pcdiga.com/portateis-geforce-rtx-50-series"},
         {"label": "lenovo_brand", "url": "https://www.pcdiga.com/portateis-lenovo"}
       ],
       "product_fetch_host_fallbacks": ["publojas.pcdiga.com"],
