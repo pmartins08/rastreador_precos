@@ -53,6 +53,7 @@ class HPSourceTests(unittest.TestCase):
                     "navigationPath": [
                         "root|2101497656|2101497693|2102348830|"
                     ],
+                    "childNodes": "7W6H7UA",
                 },
                 {
                     "pmClass": "pm_number_value",
