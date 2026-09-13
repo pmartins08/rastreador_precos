@@ -131,7 +131,7 @@ class AsusStoreTests(unittest.TestCase):
         self.assertEqual(config["url"], "https://estore.asus.com/pt/")
         self.assertTrue(config["strict_current_price_context"])
 
-    def test_runtime_config_adds_asus_and_manufacturer_limits(self):
+    def test_runtime_config_keeps_experimental_sources_disabled_by_default(self):
         with tempfile.TemporaryDirectory() as folder:
             config_path = Path(folder) / "config.json"
             module = types.SimpleNamespace()
@@ -144,9 +144,25 @@ class AsusStoreTests(unittest.TestCase):
             official_store_guard.install(module)
             loaded = module.load_json(config_path)
             stores = [row["loja"] for row in loaded["category_urls"]]
+            self.assertNotIn("ASUS Store", stores)
+            self.assertFalse(loaded["settings"]["manufacturer_enrichment_enabled"])
+            self.assertEqual(loaded["settings"]["manufacturer_enrichment_max_per_run"], 0)
+            self.assertFalse(loaded["settings"]["asus_store_enabled"])
+
+    def test_runtime_config_can_enable_asus_explicitly(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config_path = Path(folder) / "config.json"
+            module = types.SimpleNamespace()
+            module._OFFICIAL_STORE_GUARD_INSTALLED = False
+            module.CONFIG_PATH = config_path
+            module.load_json = lambda path: {
+                "settings": {"asus_store_enabled": True},
+                "category_urls": [{"loja": "Darty", "url": "https://darty.pt"}],
+            }
+            official_store_guard.install(module)
+            loaded = module.load_json(config_path)
+            stores = [row["loja"] for row in loaded["category_urls"]]
             self.assertIn("ASUS Store", stores)
-            self.assertTrue(loaded["settings"]["manufacturer_enrichment_enabled"])
-            self.assertEqual(loaded["settings"]["manufacturer_enrichment_max_per_run"], 6)
 
 
 if __name__ == "__main__":
