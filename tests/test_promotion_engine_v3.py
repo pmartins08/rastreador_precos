@@ -120,7 +120,7 @@ class PromotionEngineV3Tests(unittest.TestCase):
         self.assertNotIn("promotion", route)
         self.assertTrue(route["config_route_reobserved"])
 
-    def test_live_observation_replaces_stale_math_on_same_campaign_url(self):
+    def test_active_config_route_is_not_rewritten_by_watch_observation(self):
         configured = [{
             "label": "campaign",
             "url": "https://loja.pt/destaque/x?filters=portateis",
@@ -156,11 +156,14 @@ class PromotionEngineV3Tests(unittest.TestCase):
         routes, reobserved = engine.merge_campaign_routes(
             configured, dynamic, today=date(2026, 9, 13)
         )
-        self.assertEqual(reobserved, 1)
+        self.assertEqual(reobserved, 0)
+        self.assertEqual(len(routes), 1)
         promo = routes[0]["promotion"]
-        self.assertEqual(promo["threshold_step_eur"], 300)
-        self.assertEqual(promo["step_discount_eur"], 75)
-        self.assertEqual(promo["cap_eur"], 600)
+        # Engine V3 preserva a rota/filtro que já funciona. A landing dessa rota
+        # é que pode substituir 50/250 por 75/300 via Promotion Live Guard.
+        self.assertEqual(promo["threshold_step_eur"], 250)
+        self.assertEqual(promo["step_discount_eur"], 50)
+        self.assertEqual(promo["cap_eur"], 500)
         self.assertIn("filters", routes[0]["url"])
 
     def test_unrelated_dynamic_route_is_still_appended(self):
