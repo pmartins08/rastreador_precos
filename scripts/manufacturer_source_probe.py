@@ -22,7 +22,18 @@ UA = "rastreador-precos-source-probe/1.0 (+https://github.com/pmartins08/rastrea
 
 
 def fetch(url: str) -> requests.Response:
-    response = requests.get(url, timeout=10, headers={"User-Agent": UA})
+    response = requests.get(url, timeout=12, headers={"User-Agent": UA})
+    response.raise_for_status()
+    return response
+
+
+def post(url: str, payload: dict) -> requests.Response:
+    response = requests.post(
+        url,
+        json=payload,
+        timeout=12,
+        headers={"User-Agent": UA, "Accept": "application/json", "Content-Type": "application/json"},
+    )
     response.raise_for_status()
     return response
 
@@ -60,52 +71,73 @@ def main() -> None:
         raise RuntimeError("HP: não foi possível construir URL typeahead")
     hp_search_response = fetch(hp_search_url)
     hp_matches = hp.typeahead_matches(hp_search_response.text, hp_item)
-    hp_links = hp.spec_urls(hp_search_response.text, hp_item)
-    if not hp_links:
-        print(
-            "HP_TYPEAHEAD_DEBUG "
-            + json.dumps(
-                {
-                    "status": hp_search_response.status_code,
-                    "url": str(hp_search_response.url),
-                    "length": len(hp_search_response.text),
-                    "body": hp_search_response.text[:2500],
-                    "matches": hp_matches[:5],
-                },
-                ensure_ascii=False,
-            ),
-            flush=True,
-        )
-        raise RuntimeError("HP: typeahead oficial não resolveu ficha de especificações")
-    hp_response = fetch(hp_links[0])
-    hp_ok = hp.response_matches(hp_response.text, hp_item)
-    hp_spec = scraper.extract(
-        hp_item["titulo"], BeautifulSoup(hp_response.text, "html.parser")
+    print("HP_MATCHES " + json.dumps(hp_matches[:5], ensure_ascii=False), flush=True)
+    if not hp_matches:
+        raise RuntimeError("HP: typeahead oficial não resolveu o SKU")
+
+    match = hp_matches[0]
+    series_oid = match.get("series_oid") or match.get("product_id")
+    model_oid = match.get("product_id")
+    if not series_oid:
+        raise RuntimeError("HP: typeahead sem OID de série/modelo")
+
+    category_response = post(
+        "https://support.hp.com/wcc-services/pdp/category?type=all",
+        {
+            "seriesOid": str(series_oid),
+            "modelOid": str(model_oid) if model_oid else None,
+            "isMobile": False,
+            "cc": "us",
+            "lc": "en",
+            "productAttributes": [],
+        },
     )
+    category_json = category_response.json()
+    categories = ((category_json.get("data") or {}).get("categories") or [])
+    print("HP_CATEGORIES " + json.dumps(categories, ensure_ascii=False)[:5000], flush=True)
+    spec_category = next(
+        (
+            row
+            for row in categories
+            if str(row.get("seoName") or row.get("seoname") or "").lower() == "product-specs"
+        ),
+        None,
+    )
+    if not spec_category:
+        raise RuntimeError("HP: API não devolveu categoria product-specs")
+    tms_id = spec_category.get("tmsId") or spec_category.get("tmsID")
+    if not tms_id:
+        raise RuntimeError("HP: categoria product-specs sem tmsId")
+
+    details_response = post(
+        "https://support.hp.com/wcc-services/pdp/category-details",
+        {
+            "tmsId": str(tms_id),
+            "cc": "us",
+            "lc": "en",
+            "seriesOid": str(series_oid),
+            "modelOid": str(model_oid or ""),
+        },
+    )
+    details_json = details_response.json()
+    print("HP_SPEC_DETAILS " + json.dumps(details_json, ensure_ascii=False)[:12000], flush=True)
+
     report["hp"] = {
-        "typeahead_url": str(hp_search_response.url),
         "typeahead_status": hp_search_response.status_code,
         "matches": len(hp_matches),
-        "url": str(hp_response.url),
-        "status": hp_response.status_code,
-        "identity_ok": hp_ok,
-        "cpu": hp_spec.get("cpu_modelo"),
-        "ram_gb": hp_spec.get("ram_gb"),
-        "storage_tb": hp_spec.get("armazenamento_tb"),
-        "battery_wh": hp_spec.get("bateria_wh"),
+        "series_oid": series_oid,
+        "model_oid": model_oid,
+        "category_status": category_response.status_code,
+        "details_status": details_response.status_code,
+        "spec_category": spec_category,
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("MANUFACTURER_SOURCE_PROBE " + json.dumps(report, ensure_ascii=False), flush=True)
 
-    failures = []
     if not lenovo_ok or not lenovo_spec.get("cpu_modelo") or not lenovo_spec.get("ram_gb"):
-        failures.append("Lenovo PSREF não confirmou identidade/specs")
-    if not hp_ok or not hp_spec.get("cpu_modelo") or not hp_spec.get("ram_gb"):
-        failures.append("HP Support não confirmou identidade/specs")
-    if failures:
-        raise RuntimeError("; ".join(failures))
+        raise RuntimeError("Lenovo PSREF não confirmou identidade/specs")
 
 
 if __name__ == "__main__":
