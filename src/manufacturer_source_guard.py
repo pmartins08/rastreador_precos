@@ -121,11 +121,11 @@ def _hp_document(tracker_module, item: dict, config: dict):
     if not search:
         return None, hp.SOURCE_NAME, {"error": "identity_unresolved"}
     response, status = _fetch(
-        tracker_module, search, config, hp.SOURCE_NAME, "manufacturer_search"
+        tracker_module, search, config, hp.SOURCE_NAME, "manufacturer_search:typeahead"
     )
     if response is None:
         return None, hp.SOURCE_NAME, status
-    for url in hp.spec_links(response.text, str(response.url), item)[:3]:
+    for url in hp.spec_urls(response.text, item)[:3]:
         detail, detail_status = _fetch(
             tracker_module, url, config, hp.SOURCE_NAME, "manufacturer_specs:product"
         )
