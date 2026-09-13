@@ -3,7 +3,14 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+for candidate in (ROOT, ROOT / "src"):
+    value = str(candidate)
+    if value not in sys.path:
+        sys.path.insert(0, value)
 
 import scraper
 import hardware_guard
@@ -51,8 +58,6 @@ def _gaming_score(record: dict, weights: dict, settings: dict) -> float | None:
         return None
     spec = json.loads(json.dumps(spec))
     hardware_guard.upgrade_spec(spec, scraper, record.get("titulo"))
-    # O preço não altera Gaming; usamos o preço histórico só para manter a
-    # chamada ao cérebro fiel ao record. O Value resultante é ignorado aqui.
     assessment = scraper.score(spec, _effective_price(record), weights, settings)
     if assessment.get("status") != "ACEITE":
         return None
