@@ -45,3 +45,6 @@ jobs:
 
       - name: Testes unitários
         run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Auditar histórico atual
+        run: python scripts/audit_history.py --compact
