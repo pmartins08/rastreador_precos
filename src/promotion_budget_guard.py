@@ -3,15 +3,19 @@ from __future__ import annotations
 import promotion_value_guard as promotion_value
 
 
-def budget_view(item: dict, settings: dict) -> dict:
-    """Vista económica usada apenas para seleção/pré-ranking.
+_GATE_RAW_PRICE = "_promotion_budget_gate_raw_price"
+_GATE_CHECKOUT_PRICE = "_promotion_budget_gate_checkout_price"
 
-    O preço canónico da loja nunca é alterado. Uma promoção só pode mudar a
-    vista de orçamento quando a própria run confirmou ao vivo a elegibilidade e
-    o preço do produto (landing/listagem ou ficha).
+
+def budget_view(item: dict, settings: dict) -> dict:
+    """Vista económica usada apenas para orçamento/seleção.
+
+    O preço canónico da loja nunca é substituído de forma persistente. Uma
+    promoção só pode mudar a vista de orçamento quando a própria run confirmou
+    ao vivo a elegibilidade e o preço do produto.
     """
     try:
-        raw_price = float(item.get("preco"))
+        raw_price = float(item.get(_GATE_RAW_PRICE, item.get("preco")))
     except (TypeError, ValueError):
         return {
             "confirmed": False,
@@ -64,18 +68,61 @@ def _effective_price_priority_delta(tracker_module, item: dict, settings: dict) 
     return 0.35 * max(0.0, checkout_score - raw_score)
 
 
-def install(tracker_module) -> None:
-    """Faz o pré-ranking respeitar o preço realmente pago após promoção live.
+def _apply_main_budget_gate(items: list[dict], settings: dict) -> int:
+    """Torna temporariamente visível ao gate base o preço efetivo confirmado.
 
-    Não altera score técnico, Value canónico, preço histórico nem tier normal.
-    A camada de runtime continua responsável por recalcular Value/tier promocional
-    e por decidir alertas OURO/DIAMANTE.
+    `tracker.main` historicamente filtra `preco <= budget_hard` antes do
+    pré-ranking. Para não alterar o cérebro nem o histórico, só os produtos que
+    estão acima do hard em etiqueta MAS abaixo/de acordo com o hard no checkout
+    confirmado recebem um preço-proxy temporário. O preço bruto fica guardado e
+    é restaurado antes de qualquer ranking, detalhe, score ou persistência.
+    """
+    rescued = 0
+    for item in items:
+        if _GATE_RAW_PRICE in item:
+            continue
+        view = budget_view(item, settings)
+        if not view.get("rescued_by_promotion"):
+            continue
+        raw = float(view["raw_price"])
+        checkout = float(view["checkout_price"])
+        item[_GATE_RAW_PRICE] = raw
+        item[_GATE_CHECKOUT_PRICE] = checkout
+        item["preco"] = checkout
+        rescued += 1
+    return rescued
+
+
+def _restore_main_budget_gate(items: list[dict]) -> int:
+    restored = 0
+    for item in items:
+        if _GATE_RAW_PRICE not in item:
+            continue
+        raw = float(item.pop(_GATE_RAW_PRICE))
+        checkout = float(item.pop(_GATE_CHECKOUT_PRICE, raw))
+        item["preco"] = raw
+        # Campo público de diagnóstico; não participa no preço histórico.
+        item["promotion_budget_gate_checkout_price"] = round(checkout, 2)
+        item["promotion_budget_gate_rescued"] = True
+        restored += 1
+    return restored
+
+
+def install(tracker_module) -> None:
+    """Faz orçamento e pré-ranking respeitarem o checkout promocional live.
+
+    A instalação deve ser a última camada de composição que envolve
+    `scan_store`, `select_with_cache` e `candidate_priority`. Assim o preço-proxy
+    temporário existe apenas entre o retorno final do scan e o filtro bruto do
+    `main`; é restaurado antes de qualquer avaliação.
     """
     if getattr(tracker_module, "_PROMOTION_BUDGET_GUARD_INSTALLED", False):
         return
 
     base_candidate_priority = tracker_module.candidate_priority
     base_scan_store = getattr(tracker_module, "scan_store", None)
+    base_select_with_cache = getattr(tracker_module, "select_with_cache", None)
+    base_main = getattr(tracker_module, "main", None)
 
     def candidate_priority(item: dict, weights: dict, settings: dict) -> float:
         base = float(base_candidate_priority(item, weights, settings))
@@ -120,8 +167,34 @@ def install(tracker_module) -> None:
                     len(rescued),
                     promo_stats["max_gross_price"],
                 )
+
+            if getattr(tracker_module, "_PROMOTION_BUDGET_MAIN_ACTIVE", False):
+                proxied = _apply_main_budget_gate(items, settings)
+                if proxied:
+                    stat.setdefault("promotion_budget", {})["main_gate_rescued"] = proxied
             return items, stat
 
         tracker_module.scan_store = scan_store
+
+    if base_select_with_cache is not None:
+        def select_with_cache(items, spec_cache, max_items, weights, settings):
+            restored = _restore_main_budget_gate(items)
+            if restored:
+                tracker_module.LOGGER.info(
+                    "Gate promocional restaurado | candidatos=%d | preço bruto preservado",
+                    restored,
+                )
+            return base_select_with_cache(items, spec_cache, max_items, weights, settings)
+
+        tracker_module.select_with_cache = select_with_cache
+
+    if base_main is not None:
+        def main(*args, **kwargs):
+            tracker_module._PROMOTION_BUDGET_MAIN_ACTIVE = True
+            try:
+                return base_main(*args, **kwargs)
+            finally:
+                tracker_module._PROMOTION_BUDGET_MAIN_ACTIVE = False
+        tracker_module.main = main
 
     tracker_module._PROMOTION_BUDGET_GUARD_INSTALLED = True
