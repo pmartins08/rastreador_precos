@@ -211,8 +211,11 @@ class PromotionEngineV3Tests(unittest.TestCase):
         self.assertEqual(existing[0]["ean"], "123")
 
     def test_engine_hands_dynamic_routes_to_v2_without_duplicate_watch(self):
+        # This test checks route handoff, not campaign expiration. Keep the
+        # synthetic watch page date-free so the result is independent of the
+        # wall-clock date on which CI happens to run.
         watch_html = """
-        <section><h2>Lenovo Week</h2><p>de 7 a 13 de setembro</p>
+        <section><h2>Lenovo Week</h2>
         <a href="/collections/campanha-lenovo">ver tudo</a></section>
         """
         calls = []
