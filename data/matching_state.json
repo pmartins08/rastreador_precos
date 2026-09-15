@@ -1,6 +1,21 @@
 {
-  "conflicting_pairs": 1,
+  "conflicting_pairs": 4,
   "conflicts": [
+    {
+      "fields": [
+        "ecra_res"
+      ],
+      "identifier": "0199274824402",
+      "identifier_type": "ean",
+      "left_store": "Radio Popular",
+      "left_title": "PC PORTÁTIL LENOVO IDEAPAD S3 15AMN8-402",
+      "left_url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s3-15amn8-402",
+      "level": "NAO_FUNDIR",
+      "reason": "identificador forte contradiz configuração técnica",
+      "right_store": "FNAC",
+      "right_title": "Computador Portátil Lenovo IdeaPad Slim 3 15AMN8-402 | 15.6\" | AMD Ryzen™ 5 40 | 16GB | 512GB SSD",
+      "right_url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-3-15AMN8-402-15-6-AMD-Ryzen-5-40-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14260768"
+    },
     {
       "fields": [],
       "identifier": null,
@@ -13,6 +28,34 @@
       "right_store": "Radio Popular",
       "right_title": "PC PORTÁTIL HYPERX OMEN 15 GB0014NPX (AMD Ryzen 5, 1 TB, 24 GB, NVIDIA GeForce RTX 5050, Windows 11)",
       "right_url": "https://www.radiopopular.pt/produto/pc-portatil-hyperx-omen-15-gb0014npx"
+    },
+    {
+      "fields": [],
+      "identifier": null,
+      "identifier_type": null,
+      "left_store": "FNAC",
+      "left_title": "Pack Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD + Mochila + Rato + Carregador USB-C",
+      "left_url": "https://www.fnac.pt/Pack-Computador-Portatil-HP-OmniBook-3-Next-Gen-AI-14-hz0001np-14-Qualcomm-Snapdragon-X-X1-26-100-16GB-1TB-SSD-Mochila-Rato-Carregador-USB-C-Computador-Portatil-Computador-Portatil/a14627900",
+      "level": "NAO_FUNDIR",
+      "reason": "EAN/GTIN diferente",
+      "right_store": "Darty",
+      "right_title": "Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD",
+      "right_url": "https://darty.pt/products/computador-portatil-hp-omnibook-3-next-gen-ai-14-hz0001np-14-qualcomm-snapdragon-x-x1-26-100-16gb-1tb-ssd-0199896978392"
+    },
+    {
+      "fields": [
+        "cpu_modelo"
+      ],
+      "identifier": "0199276826169",
+      "identifier_type": "ean",
+      "left_store": "FNAC",
+      "left_title": "Computador Portátil Lenovo \tIdeaPad Slim 3 15IWC11-169 | 15,3'' | Intel® Core™ 7 350 | 16GB | 512GB SSD",
+      "left_url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-3-15IWC11-169-15-3-Intel-Core-7-350-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14603788",
+      "level": "NAO_FUNDIR",
+      "reason": "identificador forte contradiz configuração técnica",
+      "right_store": "Radio Popular",
+      "right_title": "PC PORTÁTIL LENOVO IDEAPAD S3 15IWC11-169 (Intel Core 7, 512 GB, 16 GB, Intel Graphics, Windows 11)",
+      "right_url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s3-15iwc11-169"
     }
   ],
   "cross_store_groups": [
@@ -73,6 +116,34 @@
       ]
     },
     {
+      "best_price": 599.99,
+      "best_store": "FNAC",
+      "configuration_key": "ean:0199896978392",
+      "offers": [
+        {
+          "loja": "FNAC",
+          "price": 599.99,
+          "tier": "PRATA",
+          "titulo": "Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-OmniBook-3-Next-Gen-AI-14-hz0001np-14-Qualcomm-Snapdragon-X-X1-26-100-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a13890618",
+          "value_score": 111.5
+        },
+        {
+          "loja": "Darty",
+          "price": 599.99,
+          "tier": "PRATA",
+          "titulo": "Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD",
+          "url": "https://darty.pt/products/computador-portatil-hp-omnibook-3-next-gen-ai-14-hz0001np-14-qualcomm-snapdragon-x-x1-26-100-16gb-1tb-ssd-0199896978392",
+          "value_score": 111.0
+        }
+      ],
+      "spread_eur": 0.0,
+      "stores": [
+        "Darty",
+        "FNAC"
+      ]
+    },
+    {
       "best_price": 699.0,
       "best_store": "Globaldata",
       "configuration_key": "ean:0199275275999",
@@ -125,6 +196,34 @@
       "spread_eur": 0.09,
       "stores": [
         "Globaldata",
+        "Radio Popular"
+      ]
+    },
+    {
+      "best_price": 699.99,
+      "best_store": "Radio Popular",
+      "configuration_key": "ean:4711636203593",
+      "offers": [
+        {
+          "loja": "Radio Popular",
+          "price": 699.99,
+          "tier": "PRATA",
+          "titulo": "PC PORTÁTIL ASUS VIVOBOOK F1605VA-74ALHDPB1",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-f1605va-74alhdpb1",
+          "value_score": 104.9
+        },
+        {
+          "loja": "FNAC",
+          "price": 699.99,
+          "tier": "PRATA",
+          "titulo": "Computador Portátil ASUS Vivobook 16 F1605VA-74ALHDPB1 | 16'' | Intel® Core™ 7 150U | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-ASUS-Vivobook-16-F1605VA-74ALHDPB1-16-Intel-Core-7-150U-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a13791908",
+          "value_score": 104.8
+        }
+      ],
+      "spread_eur": 0.0,
+      "stores": [
+        "FNAC",
         "Radio Popular"
       ]
     },
@@ -185,6 +284,62 @@
       ]
     },
     {
+      "best_price": 999.99,
+      "best_store": "Radio Popular",
+      "configuration_key": "ean:0199275205057",
+      "offers": [
+        {
+          "loja": "Radio Popular",
+          "price": 999.99,
+          "tier": "PRATA",
+          "titulo": "PC PORTÁTIL LENOVO IDEAPAD S5 16IMH10-057",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s5-16imh10-057",
+          "value_score": 115.9
+        },
+        {
+          "loja": "FNAC",
+          "price": 999.99,
+          "tier": "PRATA",
+          "titulo": "Computador Portátil Lenovo IdeaPad Slim 5 16IMH10-057 | 16\" | Intel Core™ Ultra 9 185H | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-16IMH10-057-16-Intel-Core-Ultra-9-185H-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260769",
+          "value_score": 115.2
+        }
+      ],
+      "spread_eur": 0.0,
+      "stores": [
+        "FNAC",
+        "Radio Popular"
+      ]
+    },
+    {
+      "best_price": 1099.99,
+      "best_store": "Radio Popular",
+      "configuration_key": "ean:4711636355247",
+      "offers": [
+        {
+          "loja": "Radio Popular",
+          "price": 1099.99,
+          "tier": "BRONZE",
+          "titulo": "PC PORTÁTIL ASUS VIVOBOOK M3407GA-A73AOHDCB1",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-m3407ga-a73aohdcb1",
+          "value_score": 99.8
+        },
+        {
+          "loja": "FNAC",
+          "price": 1299.99,
+          "tier": "BRONZE",
+          "titulo": "Computador Portátil Asus Vivobook S14 M3407GA-A73AOHDCB1 Copilot+ PC | 14\" | AMD Ryzen™ AI 7 445 | 32GB | 1TB SSD",
+          "url": "https://www.fnac.pt/ASUS-VB-S14-CP-OLED-R7-445-32-1-Computador-Portatil-Computador-Portatil/a13877503",
+          "value_score": 94.7
+        }
+      ],
+      "spread_eur": 200.0,
+      "stores": [
+        "FNAC",
+        "Radio Popular"
+      ]
+    },
+    {
       "best_price": 1099.99,
       "best_store": "Radio Popular",
       "configuration_key": "ean:0199276826176",
@@ -213,64 +368,36 @@
       ]
     },
     {
-      "best_price": 1299.0,
-      "best_store": "Globaldata",
-      "configuration_key": "ean:0199275936708",
+      "best_price": 1299.99,
+      "best_store": "FNAC",
+      "configuration_key": "ean:0821844154908",
       "offers": [
         {
-          "loja": "Globaldata",
-          "price": 1299.0,
-          "tier": "PRATA",
-          "titulo": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-708 15,3” Snapdragon X2P-42-100 32GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
-          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-708-15-3-snapdragon-x2p-42-100-32gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000UPG.html",
-          "value_score": 107.2
-        },
-        {
-          "loja": "Radio Popular",
-          "price": 1399.99,
-          "tier": "PRATA",
-          "titulo": "PC PORTÁTIL LENOVO IDEAPAD S3X 15Q8X10-708 (Snapdragon X2 Plus, 1 TB, 32 GB, Qualcomm Adreno GPU, Windows 11)",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s3x-15q8x10-708",
-          "value_score": 100.1
-        }
-      ],
-      "spread_eur": 100.99,
-      "stores": [
-        "Globaldata",
-        "Radio Popular"
-      ]
-    },
-    {
-      "best_price": 1299.0,
-      "best_store": "Globaldata",
-      "configuration_key": "ean:4711387864982",
-      "offers": [
-        {
-          "loja": "Globaldata",
-          "price": 1299.0,
-          "tier": "BRONZE",
-          "titulo": "Portátil ASUS Vivobook A14 OLED UX3407QA 14\" Snapdragon X X1 26 100 32GB 512GB Adreno Graphics WUXGA W11",
-          "url": "https://www.globaldata.pt/portatil-asus-vivobook-a14-oled-ux3407qa-14-snapdragon-x-x1-26-100-32gb-512gb-adreno-graphics-wuxga-w11/UX3407QA-X1PAOHDGB.html",
-          "value_score": 96.3
-        },
-        {
-          "loja": "Radio Popular",
+          "loja": "FNAC",
           "price": 1299.99,
           "tier": "BRONZE",
-          "titulo": "PC PORTÁTIL ASUS ZENBOOK A14 UX3407QA-X1PAOAHDGB1 (Snapdragon  X, 512 GB, 32 GB, Qualcomm Adreno, Windows 11)",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-ux3407qa-x1paoahdgb1",
-          "value_score": 97.7
+          "titulo": "Computador Portátil Gaming HyperX OMEN 15-ga0005npx | 15'' | GeForce RTX™ 5050 | Intel® Core™ i5-14450HX | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/HYPERX-OMEN-15-I5-16-1-5050-Computador-Portatil-Computador-Portatil-Gaming/a14290769",
+          "value_score": 83.0
+        },
+        {
+          "loja": "Radio Popular",
+          "price": 1499.99,
+          "tier": "BRONZE",
+          "titulo": "PC PORTÁTIL HYPERX OMEN 15 GA0005",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-hyperx-omen-15-ga0005npx",
+          "value_score": 92.5
         }
       ],
-      "spread_eur": 0.99,
+      "spread_eur": 200.0,
       "stores": [
-        "Globaldata",
+        "FNAC",
         "Radio Popular"
       ]
     }
   ],
-  "exact_pairs": 9,
-  "generated_at": "2026-09-15T00:28:00.064345Z",
+  "exact_pairs": 12,
+  "generated_at": "2026-09-15T06:25:36.396410Z",
   "identities": [
     {
       "identity": "ean:0198158976442",
@@ -306,6 +433,80 @@
       ],
       "stores": [
         "Globaldata",
+        "Radio Popular"
+      ]
+    },
+    {
+      "identity": "ean:0199274824402",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "0199274824402",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 599.99,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "Radio Popular",
+          "title": "PC PORTÁTIL LENOVO IDEAPAD S3 15AMN8-402",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s3-15amn8-402"
+        },
+        {
+          "cpu": null,
+          "ean": "0199274824402",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 599.99,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad Slim 3 15AMN8-402 | 15.6\" | AMD Ryzen™ 5 40 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-3-15AMN8-402-15-6-AMD-Ryzen-5-40-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14260768"
+        }
+      ],
+      "stores": [
+        "FNAC",
+        "Radio Popular"
+      ]
+    },
+    {
+      "identity": "ean:0199275205057",
+      "offers": [
+        {
+          "cpu": "core ultra 9 185h",
+          "ean": "0199275205057",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 999.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "Radio Popular",
+          "title": "PC PORTÁTIL LENOVO IDEAPAD S5 16IMH10-057",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s5-16imh10-057"
+        },
+        {
+          "cpu": "core ultra 9 185h",
+          "ean": "0199275205057",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 999.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad Slim 5 16IMH10-057 | 16\" | Intel Core™ Ultra 9 185H | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-16IMH10-057-16-Intel-Core-Ultra-9-185H-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260769"
+        }
+      ],
+      "stores": [
+        "FNAC",
         "Radio Popular"
       ]
     },
@@ -384,39 +585,39 @@
       ]
     },
     {
-      "identity": "ean:0199275936708",
+      "identity": "ean:0199276826169",
       "offers": [
         {
-          "cpu": null,
-          "ean": "0199275936708",
+          "cpu": "core 7 350",
+          "ean": "0199276826169",
           "gpu": "desconhecida",
-          "mpn": "83RL000UPG",
-          "price": 1299.0,
-          "ram_gb": 32,
-          "refresh_hz": 165,
-          "resolution": "qhd+",
-          "storage_tb": 1.0,
-          "store": "Globaldata",
-          "title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-708 15,3” Snapdragon X2P-42-100 32GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
-          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-708-15-3-snapdragon-x2p-42-100-32gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000UPG.html"
+          "mpn": null,
+          "price": 999.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo \tIdeaPad Slim 3 15IWC11-169 | 15,3'' | Intel® Core™ 7 350 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-3-15IWC11-169-15-3-Intel-Core-7-350-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14603788"
         },
         {
-          "cpu": null,
-          "ean": "0199275936708",
-          "gpu": "integrada",
+          "cpu": "ryzen ai 7 350",
+          "ean": "0199276826169",
+          "gpu": "radeon 860m",
           "mpn": null,
-          "price": 1399.99,
-          "ram_gb": 32,
-          "refresh_hz": 165,
-          "resolution": "qhd+",
-          "storage_tb": 1.0,
+          "price": 999.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
           "store": "Radio Popular",
-          "title": "PC PORTÁTIL LENOVO IDEAPAD S3X 15Q8X10-708 (Snapdragon X2 Plus, 1 TB, 32 GB, Qualcomm Adreno GPU, Windows 11)",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s3x-15q8x10-708"
+          "title": "PC PORTÁTIL LENOVO IDEAPAD S3 15IWC11-169 (Intel Core 7, 512 GB, 16 GB, Intel Graphics, Windows 11)",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s3-15iwc11-169"
         }
       ],
       "stores": [
-        "Globaldata",
+        "FNAC",
         "Radio Popular"
       ]
     },
@@ -458,39 +659,76 @@
       ]
     },
     {
-      "identity": "ean:4711387864982",
+      "identity": "ean:0199896978392",
       "offers": [
         {
           "cpu": null,
-          "ean": "4711387864982",
-          "gpu": "integrada",
-          "mpn": "UX3407QA-X1PAOHDGB",
-          "price": 1299.0,
-          "ram_gb": 32,
+          "ean": "0199896978392",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 599.99,
+          "ram_gb": 16,
           "refresh_hz": null,
-          "resolution": "fhd+",
-          "storage_tb": 0.5,
-          "store": "Globaldata",
-          "title": "Portátil ASUS Vivobook A14 OLED UX3407QA 14\" Snapdragon X X1 26 100 32GB 512GB Adreno Graphics WUXGA W11",
-          "url": "https://www.globaldata.pt/portatil-asus-vivobook-a14-oled-ux3407qa-14-snapdragon-x-x1-26-100-32gb-512gb-adreno-graphics-wuxga-w11/UX3407QA-X1PAOHDGB.html"
+          "resolution": "fhd",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-OmniBook-3-Next-Gen-AI-14-hz0001np-14-Qualcomm-Snapdragon-X-X1-26-100-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a13890618"
         },
         {
           "cpu": null,
-          "ean": "4711387864982",
-          "gpu": "integrada",
+          "ean": "0199896978392",
+          "gpu": "desconhecida",
           "mpn": null,
-          "price": 1299.99,
-          "ram_gb": 32,
-          "refresh_hz": 60,
-          "resolution": "fhd+",
-          "storage_tb": 0.5,
-          "store": "Radio Popular",
-          "title": "PC PORTÁTIL ASUS ZENBOOK A14 UX3407QA-X1PAOAHDGB1 (Snapdragon  X, 512 GB, 32 GB, Qualcomm Adreno, Windows 11)",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-ux3407qa-x1paoahdgb1"
+          "price": 599.99,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 1.0,
+          "store": "Darty",
+          "title": "Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD",
+          "url": "https://darty.pt/products/computador-portatil-hp-omnibook-3-next-gen-ai-14-hz0001np-14-qualcomm-snapdragon-x-x1-26-100-16gb-1tb-ssd-0199896978392"
         }
       ],
       "stores": [
-        "Globaldata",
+        "Darty",
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0821844154908",
+      "offers": [
+        {
+          "cpu": "i5-14450hx",
+          "ean": "0821844154908",
+          "gpu": "rtx 5050",
+          "mpn": null,
+          "price": 1499.99,
+          "ram_gb": 16,
+          "refresh_hz": 165,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "Radio Popular",
+          "title": "PC PORTÁTIL HYPERX OMEN 15 GA0005",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-hyperx-omen-15-ga0005npx"
+        },
+        {
+          "cpu": "i5-14450hx",
+          "ean": "0821844154908",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 1299.99,
+          "ram_gb": 16,
+          "refresh_hz": 165,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Gaming HyperX OMEN 15-ga0005npx | 15'' | GeForce RTX™ 5050 | Intel® Core™ i5-14450HX | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/HYPERX-OMEN-15-I5-16-1-5050-Computador-Portatil-Computador-Portatil-Gaming/a14290769"
+        }
+      ],
+      "stores": [
+        "FNAC",
         "Radio Popular"
       ]
     },
@@ -528,6 +766,80 @@
       ],
       "stores": [
         "Globaldata",
+        "Radio Popular"
+      ]
+    },
+    {
+      "identity": "ean:4711636203593",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "4711636203593",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 699.99,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "Radio Popular",
+          "title": "PC PORTÁTIL ASUS VIVOBOOK F1605VA-74ALHDPB1",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-f1605va-74alhdpb1"
+        },
+        {
+          "cpu": null,
+          "ean": "4711636203593",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 699.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil ASUS Vivobook 16 F1605VA-74ALHDPB1 | 16'' | Intel® Core™ 7 150U | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-ASUS-Vivobook-16-F1605VA-74ALHDPB1-16-Intel-Core-7-150U-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a13791908"
+        }
+      ],
+      "stores": [
+        "FNAC",
+        "Radio Popular"
+      ]
+    },
+    {
+      "identity": "ean:4711636355247",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "4711636355247",
+          "gpu": "radeon 840m",
+          "mpn": null,
+          "price": 1099.99,
+          "ram_gb": 32,
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "Radio Popular",
+          "title": "PC PORTÁTIL ASUS VIVOBOOK M3407GA-A73AOHDCB1",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-m3407ga-a73aohdcb1"
+        },
+        {
+          "cpu": "ryzen ai 7 445",
+          "ean": "4711636355247",
+          "gpu": "radeon 840m",
+          "mpn": null,
+          "price": 1299.99,
+          "ram_gb": 32,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Asus Vivobook S14 M3407GA-A73AOHDCB1 Copilot+ PC | 14\" | AMD Ryzen™ AI 7 445 | 32GB | 1TB SSD",
+          "url": "https://www.fnac.pt/ASUS-VB-S14-CP-OLED-R7-445-32-1-Computador-Portatil-Computador-Portatil/a13877503"
+        }
+      ],
+      "stores": [
+        "FNAC",
         "Radio Popular"
       ]
     },
@@ -643,28 +955,6 @@
           "store": "Radio Popular",
           "title": "PC PORTÁTIL ASUS F1605VA-53COPB1 PACK",
           "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-f1605va-53copb1-pack"
-        }
-      ],
-      "stores": [
-        "Radio Popular"
-      ]
-    },
-    {
-      "identity": "cfg:pc portatil asus fa507nv-r57a46cb exp|asus|?|?|rtx 4060|ram:16|ssd:0.5|res:?|hz:?",
-      "offers": [
-        {
-          "cpu": null,
-          "ean": null,
-          "gpu": "rtx 4060",
-          "mpn": null,
-          "price": 1199.99,
-          "ram_gb": 16,
-          "refresh_hz": null,
-          "resolution": null,
-          "storage_tb": 0.5,
-          "store": "Radio Popular",
-          "title": "PC PORTÁTIL ASUS FA507NV-R57A46CB EXP",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-fa507nv-r57a46cb-exp"
         }
       ],
       "stores": [
@@ -1200,6 +1490,28 @@
       ]
     },
     {
+      "identity": "ean:0198158564908",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "0198158564908",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 677.51,
+          "ram_gb": 16,
+          "refresh_hz": 120,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Consola Portátil Lenovo Legion Go S 8ARP1-908 | 8.1\" | AMD Ryzen™ Z2 Go | 16GB | 512GB SSD - Nebula",
+          "url": "https://www.fnac.pt/Consola-Portatil-Lenovo-Legion-Go-S-8ARP1-908-8-1-AMD-Ryzen-Z2-Go-16GB-512GB-SSD-Nebula-Computador-Portatil-Computador-Portatil-Gaming/a12746465?oref=9f1317e9-b6fb-139c-3d15-19d47d9452b7"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
       "identity": "ean:0198415352668",
       "offers": [
         {
@@ -1530,28 +1842,6 @@
       ]
     },
     {
-      "identity": "ean:0199274824402",
-      "offers": [
-        {
-          "cpu": null,
-          "ean": "0199274824402",
-          "gpu": "integrada",
-          "mpn": null,
-          "price": 599.99,
-          "ram_gb": 16,
-          "refresh_hz": null,
-          "resolution": "fhd",
-          "storage_tb": 0.5,
-          "store": "Radio Popular",
-          "title": "PC PORTÁTIL LENOVO IDEAPAD S3 15AMN8-402",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s3-15amn8-402"
-        }
-      ],
-      "stores": [
-        "Radio Popular"
-      ]
-    },
-    {
       "identity": "ean:0199275055621",
       "offers": [
         {
@@ -1596,25 +1886,25 @@
       ]
     },
     {
-      "identity": "ean:0199275205057",
+      "identity": "ean:0199275205064",
       "offers": [
         {
-          "cpu": "core ultra 9 185h",
-          "ean": "0199275205057",
+          "cpu": null,
+          "ean": "0199275205064",
           "gpu": "integrada",
           "mpn": null,
-          "price": 999.99,
+          "price": 749.99,
           "ram_gb": 16,
-          "refresh_hz": 60,
+          "refresh_hz": null,
           "resolution": "fhd+",
-          "storage_tb": 1.0,
-          "store": "Radio Popular",
-          "title": "PC PORTÁTIL LENOVO IDEAPAD S5 16IMH10-057",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s5-16imh10-057"
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad Slim 3 15Q8X10-064 | 15,3'' | Qualcomm Snapdragon X X1-26-100 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/LENOVO-IPS3X-15Q8X10-X1-16-512-SC-Computador-Portatil-Computador-Portatil/a14603783"
         }
       ],
       "stores": [
-        "Radio Popular"
+        "FNAC"
       ]
     },
     {
@@ -1662,6 +1952,50 @@
       ]
     },
     {
+      "identity": "ean:0199275236556",
+      "offers": [
+        {
+          "cpu": "i5-13420h",
+          "ean": "0199275236556",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 799.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad 5 14IRH9 | 14\" | Intel Core™ i5-13420H | 16GB | 512GB SSD + Lenovo Digital Pen 2",
+          "url": "https://www.fnac.pt/LENOVO-IP5-14IRH9-I5-16-512-PEN-SC-Computador-Portatil-Computador-Portatil/a14333324"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0199275275951",
+      "offers": [
+        {
+          "cpu": "i5-13420h",
+          "ean": "0199275275951",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 599.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad Slim 3 15IRH10-951 | 15.3\" | Intel Core™ i5-13420H | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/LENOVO-IPS3-15IRH10-I5-16-512-SC-Computador-Portatil-Computador-Portatil/a14260771"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
       "identity": "ean:0199275276002",
       "offers": [
         {
@@ -1706,25 +2040,25 @@
       ]
     },
     {
-      "identity": "ean:0199275316661",
+      "identity": "ean:0199275832369",
       "offers": [
         {
-          "cpu": "ryzen 7 170",
-          "ean": "0199275316661",
-          "gpu": "rtx 5050",
+          "cpu": null,
+          "ean": "0199275832369",
+          "gpu": "desconhecida",
           "mpn": null,
-          "price": 1299.99,
+          "price": 920.45,
           "ram_gb": 16,
-          "refresh_hz": 144,
-          "resolution": "fhd",
-          "storage_tb": 0.5,
-          "store": "Radio Popular",
-          "title": "PC PORTÁTIL LENOVO LOQ E 15ARP11-661",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-loq-e-15arp11-661"
+          "refresh_hz": 120,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Consola Portátil Lenovo Legion Go S 8APU1-369 | 8\" | Ryzen™ Z1 Extreme | 16GB | 1TB SSD - Nebula Nocturne",
+          "url": "https://www.fnac.pt/Consola-Portatil-Lenovo-Legion-Go-S-8APU1-369-8-Ryzen-Z1-Extreme-16GB-1TB-SSD-Nebula-Nocturne-Computador-Portatil-Computador-Portatil-Gaming/a14260781"
         }
       ],
       "stores": [
-        "Radio Popular"
+        "FNAC"
       ]
     },
     {
@@ -1747,6 +2081,28 @@
       ],
       "stores": [
         "Radio Popular"
+      ]
+    },
+    {
+      "identity": "ean:0199275936708",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "0199275936708",
+          "gpu": "desconhecida",
+          "mpn": "83RL000UPG",
+          "price": 1299.0,
+          "ram_gb": 32,
+          "refresh_hz": 165,
+          "resolution": "qhd+",
+          "storage_tb": 1.0,
+          "store": "Globaldata",
+          "title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-708 15,3” Snapdragon X2P-42-100 32GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
+          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-708-15-3-snapdragon-x2p-42-100-32gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000UPG.html"
+        }
+      ],
+      "stores": [
+        "Globaldata"
       ]
     },
     {
@@ -1901,28 +2257,6 @@
       ],
       "stores": [
         "Globaldata"
-      ]
-    },
-    {
-      "identity": "ean:0199276826169",
-      "offers": [
-        {
-          "cpu": "ryzen ai 7 350",
-          "ean": "0199276826169",
-          "gpu": "radeon 860m",
-          "mpn": null,
-          "price": 999.99,
-          "ram_gb": 16,
-          "refresh_hz": 60,
-          "resolution": "fhd+",
-          "storage_tb": 0.5,
-          "store": "Radio Popular",
-          "title": "PC PORTÁTIL LENOVO IDEAPAD S3 15IWC11-169 (Intel Core 7, 512 GB, 16 GB, Intel Graphics, Windows 11)",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-lenovo-ideapad-s3-15iwc11-169"
-        }
-      ],
-      "stores": [
-        "Radio Popular"
       ]
     },
     {
@@ -2146,6 +2480,28 @@
       ]
     },
     {
+      "identity": "ean:0199764567208",
+      "offers": [
+        {
+          "cpu": "core ultra 7 255h",
+          "ean": "0199764567208",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 1499.99,
+          "ram_gb": 24,
+          "refresh_hz": 144,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Gaming OMEN 16-am0047np | 16'' | GeForce RTX™ 5060 | Intel® Core™ Ultra 7 255H | 24GB | 1TB SSD",
+          "url": "https://www.fnac.pt/HP-OMEN-16-AM0047-U7-24-1-5060-Computador-Portatil-Computador-Portatil-Gaming/a14321036"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
       "identity": "ean:0199896459259",
       "offers": [
         {
@@ -2209,28 +2565,6 @@
       ],
       "stores": [
         "Radio Popular"
-      ]
-    },
-    {
-      "identity": "ean:0199896978392",
-      "offers": [
-        {
-          "cpu": null,
-          "ean": "0199896978392",
-          "gpu": "desconhecida",
-          "mpn": null,
-          "price": 599.99,
-          "ram_gb": 16,
-          "refresh_hz": null,
-          "resolution": "fhd",
-          "storage_tb": 1.0,
-          "store": "Darty",
-          "title": "Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD",
-          "url": "https://darty.pt/products/computador-portatil-hp-omnibook-3-next-gen-ai-14-hz0001np-14-qualcomm-snapdragon-x-x1-26-100-16gb-1tb-ssd-0199896978392"
-        }
-      ],
-      "stores": [
-        "Darty"
       ]
     },
     {
@@ -2366,28 +2700,6 @@
       ]
     },
     {
-      "identity": "ean:0821844154908",
-      "offers": [
-        {
-          "cpu": "i5-14450hx",
-          "ean": "0821844154908",
-          "gpu": "rtx 5050",
-          "mpn": null,
-          "price": 1499.99,
-          "ram_gb": 16,
-          "refresh_hz": 165,
-          "resolution": "fhd+",
-          "storage_tb": 1.0,
-          "store": "Radio Popular",
-          "title": "PC PORTÁTIL HYPERX OMEN 15 GA0005",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-hyperx-omen-15-ga0005npx"
-        }
-      ],
-      "stores": [
-        "Radio Popular"
-      ]
-    },
-    {
       "identity": "ean:0821844324851",
       "offers": [
         {
@@ -2495,6 +2807,188 @@
       ],
       "stores": [
         "Radio Popular"
+      ]
+    },
+    {
+      "identity": "ean:2200028118802",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "2200028118802",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 699.0,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Pack Fnac Computador Portátil Asus Vivobook 15 F1504VA-54CHDAB2 | 15.6\" | Intel® Core™ 5 120U | 16GB | 1TB SSD + Mochila + Rato + Microsoft 365 + McAfee",
+          "url": "https://www.fnac.pt/Pack-Fnac-Computador-Portatil-Asus-Vivobook-15-F1504VA-54CHDAB2-15-6-Intel-Core-5-120U-16GB-1TB-SSD-Mochila-Rato-Microsoft-365-McAfee-Computador-Portatil-Computador-Portatil/a14444617"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028118826",
+      "offers": [
+        {
+          "cpu": "core ultra 5 225u",
+          "ean": "2200028118826",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 899.0,
+          "ram_gb": 24,
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Pack Fnac Computador Portátil HP OmniBook 3 16-bu0021np | 16\" | Intel® Core™ Ultra 5 225U | 24GB | 512GB SSD + Mochila + Rato + Carregador USB-C + McAfee",
+          "url": "https://www.fnac.pt/Pack-Fnac-Computador-Portatil-HP-OmniBook-3-16-bu0021np-16-Intel-Core-Ultra-5-225U-24GB-512GB-SSD-Mochila-Rato-Carregador-USB-C-McAfee-Computador-Portatil-Computador-Portatil/a14444626"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028118833",
+      "offers": [
+        {
+          "cpu": "core ultra 5 322",
+          "ean": "2200028118833",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 999.0,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Pack Fnac Computador Portátil Lenovo IdeaPad 5 2-em-1 14IPH11-213 | 14\" | Intel Core™ Ultra 5 322 | 16GB | 512GB SSD + Mochila + Rato + Pen + McAfee",
+          "url": "https://www.fnac.pt/Pack-Fnac-Computador-Portatil-Lenovo-IdeaPad-5-2-em-1-14IPH11-213-14-Intel-Core-Ultra-5-322-16GB-512GB-SSD-Mochila-Rato-Pen-McAfee-Computador-Portatil-Computador-Portatil/a14444621"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028118840",
+      "offers": [
+        {
+          "cpu": "core ultra 7 256v",
+          "ean": "2200028118840",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 1199.0,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Pack Fnac Computador Portátil HP OmniBook X Flip 2-in-1 Next Gen AI 14-fm0002npx | OLED 14\" | Intel® Core™ Ultra 7 256V | 16GB | 1TB SSD + Mochila + Rato + Carregador USB-C + McAfee",
+          "url": "https://www.fnac.pt/Pack-Fnac-Computador-Portatil-HP-OmniBook-X-Flip-2-in-1-Next-Gen-AI-14-fm0002npx-OLED-14-Intel-Core-Ultra-7-256V-16GB-1TB-SSD-Mochila-Rato-Carregador-USB-C-McAfee-Computador-Portatil-Computador-Portatil/a14444614"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028129327",
+      "offers": [
+        {
+          "cpu": "core ultra 5 226v",
+          "ean": "2200028129327",
+          "gpu": "intel arc graphics 130v",
+          "mpn": null,
+          "price": 799.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Secundário Cursos Especializados Pack Asus S14 OLED Intel Core Ultra 5 226V | 16GB 512GB SSD | 14\" OLED Desempenho 5 de 5 Produtividade 5 de 5 Mobilidade 4 de 5 Versatilidade 5 de 5 Capacidade 4 de 5 PVPR 1.059,97€ 799,99€ Ver Pack",
+          "url": "https://www.fnac.pt/Computador-Portatil-ASUS-S14-S5406SAL-U52AOHDSB01-Copilot-PC-14-OLED-Intel-Core-Ultra-5-226V-16GB-512GB-SSD-Mochila-Rato-Computador-Portatil-Computador-Portatil/a14480809#bl=BTS-PacksFNAC_VerPack_21"
+        },
+        {
+          "cpu": "core ultra 5 226v",
+          "ean": "2200028129327",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 799.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Asus S14 S5406SAL-U52AOHDSB01 Copilot+ PC | 14\" OLED | Intel Core Ultra 5 226V | 16GB | 512GB SSD + Mochila + Rato",
+          "url": "https://www.fnac.pt/Computador-Portatil-Asus-S14-S5406SAL-U52AOHDSB01-Copilot-PC-14-OLED-Intel-Core-Ultra-5-226V-16GB-512GB-SSD-Mochila-Rato-Computador-Portatil-Computador-Portatil/a14480809"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028129334",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "2200028129334",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 899.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Secundário Universitário Pack Asus Zenbook Snapdragon® X X1-26-100 | 16GB 512GB SSD | 14\" Desempenho 5 de 5 Produtividade 5 de 5 Mobilidade 5 de 5 Versatilidade 5 de 5 Capacidade 5 de 5 PVPR 1.059,97€ 899,99€ Ver Pack",
+          "url": "https://www.fnac.pt/Computador-Portatil-Asus-Zenbook-A14-UX3407QA-X1PCOHDGB1-14-Snapdragon-X-X1-26-100-16GB-512GB-SSD-Mala-Rato-Computador-Portatil-Computador-Portatil/a14480810#bl=BTS-PacksFNAC_VerPack_22"
+        },
+        {
+          "cpu": null,
+          "ean": "2200028129334",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 899.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Asus Zenbook A14 UX3407QA-X1PCOHDGB1 | 14\" | Snapdragon® X X1-26-100 | 16GB | 512GB SSD + Mala + Rato",
+          "url": "https://www.fnac.pt/Computador-Portatil-Asus-Zenbook-A14-UX3407QA-X1PCOHDGB1-14-Snapdragon-X-X1-26-100-16GB-512GB-SSD-Mala-Rato-Computador-Portatil-Computador-Portatil/a14480810"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028174396",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "2200028174396",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 944.96,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Pack Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD + Mochila + Rato + Carregador USB-C",
+          "url": "https://www.fnac.pt/Pack-Computador-Portatil-HP-OmniBook-3-Next-Gen-AI-14-hz0001np-14-Qualcomm-Snapdragon-X-X1-26-100-16GB-1TB-SSD-Mochila-Rato-Carregador-USB-C-Computador-Portatil-Computador-Portatil/a14627900"
+        }
+      ],
+      "stores": [
+        "FNAC"
       ]
     },
     {
@@ -2828,6 +3322,28 @@
       ]
     },
     {
+      "identity": "ean:4711387864982",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "4711387864982",
+          "gpu": "integrada",
+          "mpn": "UX3407QA-X1PAOHDGB",
+          "price": 1299.0,
+          "ram_gb": 32,
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "Globaldata",
+          "title": "Portátil ASUS Vivobook A14 OLED UX3407QA 14\" Snapdragon X X1 26 100 32GB 512GB Adreno Graphics WUXGA W11",
+          "url": "https://www.globaldata.pt/portatil-asus-vivobook-a14-oled-ux3407qa-14-snapdragon-x-x1-26-100-32gb-512gb-adreno-graphics-wuxga-w11/UX3407QA-X1PAOHDGB.html"
+        }
+      ],
+      "stores": [
+        "Globaldata"
+      ]
+    },
+    {
       "identity": "ean:4711387894217",
       "offers": [
         {
@@ -2847,28 +3363,6 @@
       ],
       "stores": [
         "Radio Popular"
-      ]
-    },
-    {
-      "identity": "ean:4711387894392",
-      "offers": [
-        {
-          "cpu": null,
-          "ean": "4711387894392",
-          "gpu": "desconhecida",
-          "mpn": "UX3407QA-X1PBOHDGP",
-          "price": 1299.0,
-          "ram_gb": 32,
-          "refresh_hz": 60,
-          "resolution": "fhd+",
-          "storage_tb": 1.0,
-          "store": "Globaldata",
-          "title": "Portátil ASUS Zenbook A14 UX3407QA 14\" Snapdragon X1 32GB DDR5 1TB OLED W11 Pro",
-          "url": "https://www.globaldata.pt/portatil-asus-zenbook-a14-ux3407qa-14-snapdragon-x1-32gb-ddr5-1tb-oled-w11-pro/UX3407QA-X1PBOHDGP.html"
-        }
-      ],
-      "stores": [
-        "Globaldata"
       ]
     },
     {
@@ -3114,6 +3608,28 @@
       ]
     },
     {
+      "identity": "ean:4711636156905",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "4711636156905",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 999.99,
+          "ram_gb": 24,
+          "refresh_hz": 120,
+          "resolution": "fhd",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Consola Portátil Asus ROG Xbox Ally (2025) RC73XA-NH011W | 7'' | AMD Radeon™ Graphics | AMD Ryzen™ AI Z2 Extreme | 24GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Consola-Portatil-Asus-ROG-Xbox-Ally-2025-RC73XA-NH011W-7-AMD-Radeon-Graphics-AMD-Ryzen-AI-Z2-Extreme-24GB-1TB-SSD-Computador-Portatil-Computador-Portatil-Gaming/a13355313"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
       "identity": "ean:4711636203609",
       "offers": [
         {
@@ -3290,25 +3806,25 @@
       ]
     },
     {
-      "identity": "ean:4711636355247",
+      "identity": "ean:4711636352437",
       "offers": [
         {
-          "cpu": null,
-          "ean": "4711636355247",
+          "cpu": "ryzen ai 7 445",
+          "ean": "4711636352437",
           "gpu": "radeon 840m",
           "mpn": null,
           "price": 1099.99,
           "ram_gb": 32,
-          "refresh_hz": null,
+          "refresh_hz": 60,
           "resolution": "fhd+",
           "storage_tb": 1.0,
-          "store": "Radio Popular",
-          "title": "PC PORTÁTIL ASUS VIVOBOOK M3407GA-A73AOHDCB1",
-          "url": "https://www.radiopopular.pt/produto/pc-portatil-asus-m3407ga-a73aohdcb1"
+          "store": "FNAC",
+          "title": "Computador Portátil Asus Vivobook S16 M3607GA-A73COHDCB1 Copilot+ | OLED 16\" | AMD Ryzen™ AI 7 445 | 32GB | 1TB SSD",
+          "url": "https://www.fnac.pt/ASUS-VB-S16-M3607GA-OLED-R7-32-1-Computador-Portatil-Computador-Portatil/a14480811"
         }
       ],
       "stores": [
-        "Radio Popular"
+        "FNAC"
       ]
     },
     {
@@ -3459,28 +3975,6 @@
           "store": "Globaldata",
           "title": "Portátil ASUS VivoBook F1605VAPBF-94ALHDPB01 16\" Core 9 270H 24GB 512GB UMA UHD Graphics WUXGA W11 (sem carregador)",
           "url": "https://www.globaldata.pt/portatil-asus-vivobook-f1605vapbf-94alhdpb01-16-core-9-270h-24gb-512gb-uma-uhd-graphics-wuxga-w11-sem-carregador/90NB13W3-M00ZC0.html"
-        }
-      ],
-      "stores": [
-        "Globaldata"
-      ]
-    },
-    {
-      "identity": "ean:4711636591638",
-      "offers": [
-        {
-          "cpu": null,
-          "ean": "4711636591638",
-          "gpu": "dedicada",
-          "mpn": "90NB0ZR2-M07XE0",
-          "price": 499.9,
-          "ram_gb": 16,
-          "refresh_hz": null,
-          "resolution": "fhd",
-          "storage_tb": 0.5,
-          "store": "Globaldata",
-          "title": "Portátil ASUS VivoBook Go E1504FA-R50BLHDPS04 15.6\" R5 40 16GB 512GB Radeon Graphics FHD (sem carregador)",
-          "url": "https://www.globaldata.pt/portatil-asus-vivobook-go-e1504fa-r50blhdps04-15.6-r5-40-16gb-512gb-radeon-graphics-fhd-sem-carregador/90NB0ZR2-M07XE0.html"
         }
       ],
       "stores": [
@@ -3686,10 +4180,10 @@
       ]
     }
   ],
-  "identity_count": 149,
+  "identity_count": 161,
   "probable_pairs": 0,
   "probable_review": [],
-  "records_considered": 158,
+  "records_considered": 177,
   "schema_version": 1,
   "source": "current_run_records",
   "strong_pairs": 0,
