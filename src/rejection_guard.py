@@ -67,10 +67,18 @@ def _notification_reason(
     *, sent: bool, item: dict, assessment: dict, tier: str | None,
     prior: dict | None, latest: dict, settings: dict, suppressed_low_tier: bool,
 ) -> tuple[str, str | None, float | None, float | None]:
-    effective_tier = latest.get("promotion_tier") or tier
+    # V9: a Decision Truth Layer é a fonte preferida. Os fallbacks mantêm
+    # compatibilidade com histórico V8.8.9 ainda não migrado.
+    effective_tier = (
+        latest.get("effective_tier")
+        or latest.get("promotion_tier")
+        or tier
+    )
     try:
         effective_value = float(
-            latest.get("promotion_value_score")
+            latest.get("effective_value_score")
+            if latest.get("effective_value_score") is not None
+            else latest.get("promotion_value_score")
             if latest.get("promotion_value_score") is not None
             else assessment.get("value_score")
         )
@@ -78,7 +86,9 @@ def _notification_reason(
         effective_value = None
     try:
         effective_price = float(
-            latest.get("promotion_checkout_price")
+            latest.get("effective_price")
+            if latest.get("effective_price") is not None
+            else latest.get("promotion_checkout_price")
             if latest.get("promotion_checkout_price") is not None
             else item.get("preco")
         )
@@ -105,8 +115,14 @@ def _notification_reason(
         return "value_below_alert_floor", effective_tier, effective_value, effective_price
 
     if prior:
-        prior_tier = prior.get("promotion_tier") or prior.get("tier")
-        prior_price = prior.get("promotion_checkout_price")
+        prior_tier = (
+            prior.get("effective_tier")
+            or prior.get("promotion_tier")
+            or prior.get("tier")
+        )
+        prior_price = prior.get("effective_price")
+        if prior_price is None:
+            prior_price = prior.get("promotion_checkout_price")
         if prior_price is None:
             prior_price = prior.get("price")
         try:
@@ -179,6 +195,20 @@ def install(scraper_module, tracker_module) -> None:
                 suppressed_low_tier=bool(suppressed_low_tier),
             )
 
+            # Se houve alerta, enriquecemos o snapshot de alert_state com a mesma
+            # decisão canónica. Isto preserva base/promo nos campos antigos e dá
+            # aos consumidores V9 uma única leitura efetiva.
+            current_alert = (history.get("alert_state", {}) or {}).get(alert_key)
+            if sent and isinstance(current_alert, dict):
+                current_alert["effective_tier"] = effective_tier
+                current_alert["effective_value"] = (
+                    round(effective_value, 3) if effective_value is not None else None
+                )
+                current_alert["effective_price"] = (
+                    round(effective_price, 2) if effective_price is not None else None
+                )
+                current_alert["decision_truth_schema"] = 1
+
             # Guardamos apenas candidatos relevantes ou já alertados, não cada
             # BRONZE do catálogo. É um snapshot por URL, logo não cresce por run.
             raw_value = assessment.get("value_score")
@@ -198,6 +228,7 @@ def install(scraper_module, tracker_module) -> None:
                     "effective_tier": effective_tier,
                     "effective_value": round(effective_value, 3) if effective_value is not None else None,
                     "effective_price": round(effective_price, 2) if effective_price is not None else None,
+                    "decision_truth_schema": 1 if latest.get("decision_truth_schema") == 1 else 0,
                     "price_page_confidence": spec.get("price_page_confidence"),
                     "promotion_live_confirmed": item.get("promotion_price_live_confirmed"),
                     "had_prior_alert": bool(prior),
