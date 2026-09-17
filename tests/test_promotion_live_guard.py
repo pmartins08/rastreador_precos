@@ -10,6 +10,9 @@ class Response:
         self.text = text
 
 
+# Generic campaign economics used by the live-validation tests.  The date
+# window itself is tested elsewhere; keeping this fixture undated prevents
+# otherwise unrelated tests from expiring as wall-clock time moves on.
 CONFIGURED_PROMO = {
     "kind": "TIERED_DISCOUNT",
     "title": "Ganha 50€ por cada 250€ em compras (até 500€)",
@@ -19,8 +22,6 @@ CONFIGURED_PROMO = {
     "eligibility": "campaign_listing",
     "applicable": True,
     "source": "official_campaign",
-    "valid_from": "2026-09-12",
-    "valid_until": "2026-09-15",
 }
 
 
@@ -57,15 +58,13 @@ class PromotionLiveGuardTests(unittest.TestCase):
         candidates = {}
         stat = {}
         tracker._discover_html(
-            Response("Válido de 12 a 15 de setembro de 2026. Ganha 50€ por cada 250€ em compras."),
+            Response("Ganha 50€ por cada 250€ em compras."),
             {"url": "https://example.com/promo"}, 10, candidates, "promocao", stat,
         )
         promo = candidates["https://example.com/p1"]["promotions"][0]
         self.assertEqual(promo["step_discount_eur"], 50)
         self.assertEqual(promo["threshold_step_eur"], 250)
         self.assertEqual(promo["cap_eur"], 500)
-        self.assertEqual(promo["valid_from"], "2026-09-12")
-        self.assertEqual(promo["valid_until"], "2026-09-15")
         self.assertEqual(promo["source"], "campaign_page_live_verified")
         self.assertTrue(promo["live_verified"])
         self.assertEqual(stat["promotion_live_confirmed"], 1)
@@ -77,7 +76,7 @@ class PromotionLiveGuardTests(unittest.TestCase):
         candidates = {}
         stat = {}
         tracker._discover_html(
-            Response("Válido de 12 a 15 de setembro de 2026. Ganha 25€ por cada 250€ em compras."),
+            Response("Ganha 25€ por cada 250€ em compras."),
             {"url": "https://example.com/promo"}, 10, candidates, "promocao", stat,
         )
         self.assertNotIn("promotions", candidates["https://example.com/p1"])
@@ -90,10 +89,7 @@ class PromotionLiveGuardTests(unittest.TestCase):
         candidates = {}
         stat = {}
         tracker._discover_html(
-            Response(
-                "Válido de 12 a 15 de setembro de 2026. "
-                "Ganha 75€ por cada 300€ em compras, até 600€."
-            ),
+            Response("Ganha 75€ por cada 300€ em compras, até 600€."),
             {"url": "https://example.com/promo"}, 10, candidates, "promocao", stat,
         )
         promo = candidates["https://example.com/p1"]["promotions"][0]
@@ -113,7 +109,7 @@ class PromotionLiveGuardTests(unittest.TestCase):
         stat = {}
         route = {"url": "https://example.com/promo"}
         tracker._discover_html(
-            Response("Válido de 12 a 15 de setembro de 2026. Ganha 50€ por cada 250€ em compras."),
+            Response("Ganha 50€ por cada 250€ em compras."),
             route, 10, candidates, "promocao", stat,
         )
         tracker._discover_html(
