@@ -33,11 +33,15 @@ def _truth_from_entry(entry: dict, *, diamond_threshold: float = 120.0) -> dict:
 
 
 def _annotate_entry(entry: dict, truth: dict) -> None:
+    promotion_applied = bool(truth.get("promotion_applied"))
     entry["base_value_score"] = truth.get("base_value_score")
     entry["base_tier"] = truth.get("base_tier")
     entry["effective_value_score"] = truth.get("effective_value_score")
     entry["effective_tier"] = truth.get("effective_tier")
-    entry["promotion_applied"] = bool(truth.get("promotion_applied"))
+    entry["effective_price"] = (
+        entry.get("promotion_checkout_price") if promotion_applied else entry.get("price")
+    )
+    entry["promotion_applied"] = promotion_applied
     entry["decision_truth_schema"] = 1
 
 
@@ -91,14 +95,13 @@ def install(tracker_module) -> None:
                 state["effective_tiers"][effective_tier] += 1
             state["promotion_applied"] += int(bool(truth.get("promotion_applied")))
 
-            effective_price = entry.get("promotion_checkout_price") if truth.get("promotion_applied") else entry.get("price")
             state["records"].append(
                 {
                     "loja": entry.get("loja") or item.get("loja"),
                     "titulo": entry.get("titulo") or item.get("titulo"),
                     "url": entry.get("url") or item.get("url"),
                     "raw_price": entry.get("price"),
-                    "effective_price": effective_price,
+                    "effective_price": entry.get("effective_price"),
                     "score_ranking": entry.get("score_ranking"),
                     **deepcopy(truth),
                 }
