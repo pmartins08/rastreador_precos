@@ -4,6 +4,9 @@ from gpu_guard import TierAwareValue
 import promotion_runtime_guard
 
 
+# Runtime alert behavior is independent from a specific campaign calendar.
+# Date windows are covered in promotion_value_guard tests, so this fixture stays
+# undated and cannot silently expire as the real date advances.
 PROMO = {
     "kind": "TIERED_DISCOUNT",
     "title": "Ganha 50€ por cada 250€",
@@ -12,8 +15,6 @@ PROMO = {
     "cap_eur": 500.0,
     "eligibility": "campaign_listing",
     "applicable": True,
-    "valid_from": "2026-09-12",
-    "valid_until": "2026-09-15",
 }
 
 
