@@ -48,11 +48,13 @@ class PromotionValueGuardTests(unittest.TestCase):
         self.assertEqual(economics["effective_checkout_price"], 1049.99)
 
     def test_current_rp_campaign_applies_while_old_10_percent_voucher_is_expired(self):
+        # This test is about stacking/economics, not the historical Sept-2026
+        # calendar. Keep the active campaign undated; exact date-window behavior
+        # is asserted separately in test_parser_recognizes_radio_popular_tiered_promotion.
         campaign = {
             "kind": "TIERED_DISCOUNT", "step_discount_eur": 50,
             "threshold_step_eur": 250, "cap_eur": 500,
             "eligibility": "campaign_listing", "applicable": True,
-            "valid_from": "2026-09-12", "valid_until": "2026-09-15",
         }
         expired_voucher = {
             "kind": "STORE_CREDIT", "percent": 10,
