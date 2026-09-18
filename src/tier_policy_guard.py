@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decision_truth_runtime_guard import install as install_decision_truth_runtime_guard
+
 
 _INSTALLED = False
 
@@ -11,6 +13,10 @@ def install(tracker_module) -> None:
     This keeps the continuous GPU influence for OURO/PRATA/BRONZE while making
     the requested policy absolute at the top end: raw ``Value > 120`` cannot be
     downgraded from DIAMANTE by an auxiliary tier score.
+
+    Na V9, quando o tracker completo está disponível, esta mesma composição
+    instala também a Decision Truth Layer de runtime. Testes unitários mínimos
+    que só expõem ``scraper.tier_from_value`` continuam independentes.
     """
     global _INSTALLED
     if _INSTALLED:
@@ -26,4 +32,16 @@ def install(tracker_module) -> None:
         return previous_tier_from_value(value, settings)
 
     tracker_module.scraper.tier_from_value = tier_with_diamond_floor
+
+    runtime_contract = (
+        "record_offer",
+        "send_heartbeat",
+        "main",
+        "LOGGER",
+        "load_json",
+        "CONFIG_PATH",
+    )
+    if all(hasattr(tracker_module, name) for name in runtime_contract):
+        install_decision_truth_runtime_guard(tracker_module)
+
     _INSTALLED = True
