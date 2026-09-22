@@ -67,6 +67,7 @@ jobs:
         run: cp data/history.json /tmp/history-before-run.json
 
       - name: Corrigir resumo solicitado após ajuste do limiar
+        continue-on-error: true
         if: success() && github.event_name == 'push'
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
@@ -337,6 +338,7 @@ jobs:
           exit 1
 
       - name: Enviar Top 3 único solicitado
+        continue-on-error: true
         if: success()
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}

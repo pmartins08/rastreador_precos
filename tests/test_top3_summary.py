@@ -28,6 +28,12 @@ class SummaryTests(unittest.TestCase):
         rows = summary.top3(self.h, {}, self.now, evaluate=evaluate)
         self.assertTrue(all(r['tier'] == 'OURO' and r['value'] == 115 for r in rows))
 
+    def test_explicit_partial_summary_keeps_only_eligible_offers(self):
+        self.h['offers']['2'][0]['tier'] = 'PRATA'
+        rows = summary.top3(self.h, {}, self.now, allow_partial=True)
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(r['tier'] in {'OURO', 'DIAMANTE'} for r in rows))
+
     def test_stale_run_is_never_sent(self):
         with self.assertRaises(ValueError):
             summary.top3(self.h, {}, datetime(2026, 9, 23, tzinfo=timezone.utc))

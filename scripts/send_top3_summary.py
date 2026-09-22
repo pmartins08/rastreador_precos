@@ -18,7 +18,7 @@ def timestamp(value):
     return datetime.fromisoformat(str(value).replace('Z', '+00:00'))
 
 
-def top3(history, settings, now=None, evaluate=None):
+def top3(history, settings, now=None, evaluate=None, allow_partial=False):
     now = now or datetime.now(timezone.utc)
     run = max(history['learning']['runs'], key=lambda r: r['timestamp'])
     end = timestamp(run['timestamp'])
@@ -54,7 +54,7 @@ def top3(history, settings, now=None, evaluate=None):
         if old is None or (value, -price) > (old['value'], -old['price']):
             choices[identity] = candidate
     result = sorted(choices.values(), key=lambda r: (-r['value'], r['price'], r['url']))[:3]
-    if len(result) != 3:
+    if len(result) != 3 and not allow_partial:
         raise ValueError(f'Existem apenas {len(result)} configurações Ouro/Diamante atuais; resumo não enviado')
     return result
 
@@ -99,7 +99,7 @@ def main():
             else:
                 result['promotion_price_live_confirmed'] = False
         return result
-    rows = top3(json.loads((ROOT / 'data/history.json').read_text()), settings, evaluate=evaluate)
+    rows = top3(json.loads((ROOT / 'data/history.json').read_text()), settings, evaluate=evaluate, allow_partial=True)
     topic = os.environ.get('NTFY_TOPIC', '').strip()
     if not topic:
         raise ValueError('NTFY_TOPIC ausente')
@@ -108,8 +108,10 @@ def main():
     from curl_cffi import requests
     message = '\n\n'.join(f"{i}. {r['tier']} | {r['title']}\n{r['store']} | {r['price']:.2f}€ | Value {r['value']:.1f}\n{r['url']}" for i, r in enumerate(rows, 1))
     if args.request_id.endswith('-correction'):
-        message = 'Corrige o resumo anterior: uma calibração antiga substituía o limiar Diamante de 120 por 118. Segue o Top3 recalculado com o limiar correto.\n\n' + message
-    response = requests.post('https://ntfy.sh', json={'topic': topic, 'title': ('Correção — Top 3 V9 beta' if args.request_id.endswith('-correction') else 'V9 beta — Top 3 atual (resumo único)'), 'message': message, 'priority': 3, 'tags': ['computer', 'trophy']}, timeout=25, allow_redirects=False)
+        message = 'Corrige o resumo anterior: uma calibração antiga substituía o limiar Diamante de 120 por 118. Segue o resumo recalculado com o limiar correto.\n\n' + message
+    if len(rows) < 3:
+        message = f'Existem apenas {len(rows)} configurações Ouro/Diamante confirmadas nesta execução; não foram incluídas ofertas Prata nem antigas.\n\n' + message
+    response = requests.post('https://ntfy.sh', json={'topic': topic, 'title': (f'Correção — {len(rows)} oportunidades V9 beta' if args.request_id.endswith('-correction') else 'V9 beta — Top 3 atual (resumo único)'), 'message': message, 'priority': 3, 'tags': ['computer', 'trophy']}, timeout=25, allow_redirects=False)
     response.raise_for_status()
     receipt = response.json()
     if not receipt.get('id'):
