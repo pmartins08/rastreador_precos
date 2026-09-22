@@ -36,7 +36,7 @@ Versão pública: **9.0.0-beta.1**. Consolida main V8.8.9 e a Fase 1 V9 desenvol
 
 ## Validação e limites
 - Benchmark prévio V9 35722147798: sucesso real, 333 candidatos, 272 avaliados, 153 aceites, 164 requests, 100 detalhes, 154,12 s. Não é um teste A/B: dados, cache e cobertura diferem da produção.
-- Suite local após consolidação: 337 testes. CI e execução de produção são os gates finais; consultar Actions para resultados efetivos.
+- Suite local após consolidação e correção do limiar: 338 testes. CI e execução de produção são os gates finais; consultar Actions para resultados efetivos.
 - Esta versão mantém a política implementada: Value estritamente acima de 120 força Diamante; abaixo/equal preserva o cálculo existente. Não muda o cérebro de scoring.
 - O Top3 solicitado só é enviado após uma execução fresca bem-sucedida e validação de três configurações Ouro/Diamante. Reserva sem recibo significa entrega incerta e exige revisão manual antes de qualquer reenvio.
 
@@ -48,3 +48,12 @@ Versão pública: **9.0.0-beta.1**. Consolida main V8.8.9 e a Fase 1 V9 desenvol
 5. Só depois expandir Auchan/MEO e declarar V9 estável.
 
 Rollback: reverter o commit de integração e manter data/ e STATE_EPOCH. Não restaurar ficheiros de dados antigos da branch de desenvolvimento.
+
+## Resultado observado após publicação
+PR #41 integrado; run 35726150936 concluída com sucesso: 367 candidatos, 299 avaliados, 189 aceites, 120 requests, 54 detalhes, 246 reutilizações, 177,84 s. Gate V9 validado em produção, 0 alertas normais e heartbeat confirmado. Comparação indicativa com a execução anterior, não um benchmark controlado.
+
+A auditoria posterior encontrou `official_store_guard` a substituir 120 por uma calibração antiga de 118. PR #42 remove essa substituição: o limiar configurado passa efetivamente a ser respeitado, sem alterar pesos. Teste de composição real cobre a regressão. O resumo excecional recalcula Value e tier usando o runtime corrigido e preços recentemente observados.
+
+O primeiro resumo foi entregue antes de a correção estar integrada (recibo OqLwMeMVsOn1); a mensagem de correção tem identificador separado e explica a divergência. Consultar `data/top3_summary_receipts.json` para confirmar a entrega; reserva não equivale a envio.
+
+Pendência adicional: `scripts/history_audit.py` conta apenas nós com `points`; o esquema atual usa `identities` (394 séries na baseline), por isso o relatório de zero séries é um erro do auditor, não perda de histórico.
