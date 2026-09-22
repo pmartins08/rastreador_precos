@@ -1,4 +1,4 @@
-name: Executar Rastreador de Preços
+name: Executar LapIntel V9 beta
 
 on:
   push:
@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: rastreador-precos-main
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   scrape:
@@ -78,6 +78,9 @@ jobs:
           PYTHONUNBUFFERED: '1'
         run: python runner.py
 
+      - name: Validar coerência V9 da run
+        run: python scripts/validate_decision_run.py
+
       - name: Auditar notificações NTFY da run
         if: success()
         run: |
@@ -99,7 +102,7 @@ jobs:
           for key, value in changed.items():
               base_tier = str(value.get('tier') or '').upper()
               promo_tier = str(value.get('promotion_tier') or '').upper()
-              effective_tier = promo_tier or base_tier
+              effective_tier = value.get("effective_tier") or promo_tier or base_tier
               if effective_tier and effective_tier not in {'OURO', 'DIAMANTE'}:
                   forbidden.append((key, base_tier or '—', promo_tier or '—'))
           if forbidden:
@@ -328,4 +331,4 @@ jobs:
         if: success()
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python scripts/send_top3_once.py
+        run: python scripts/send_top3_summary.py --request-id pedro-v9-beta-2026-09-22

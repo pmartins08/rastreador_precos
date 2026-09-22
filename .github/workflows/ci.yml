@@ -1,12 +1,6 @@
-name: Validar Rastreador
+name: Validar LapIntel V9 beta
 
 on:
-  push:
-    branches:
-      - 'feature/**'
-      - 'fix/**'
-      - 'chore/**'
-      - 'refactor/**'
   pull_request:
     branches: [main]
   workflow_dispatch:

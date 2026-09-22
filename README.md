@@ -4,11 +4,13 @@
 
 **LapIntel PT** é um motor de inteligência de mercado para portáteis novos em Portugal, desenvolvido para descobrir ofertas, interpretar hardware, validar preços, comparar configurações entre lojas e transformar tudo isso numa decisão explicável.
 
-A linha atual é a **V8.8.9**. O objetivo original do projeto foi cumprido em 13 de setembro de 2026: depois de evoluir de um simples comparador de preços para um sistema de decisão, o LapIntel PT encontrou três oportunidades Diamante e ajudou a fechar a compra do **Lenovo Legion 5 15AHP-682**.
+A linha atual é a **V9 beta (9.0.0-beta.1)**. A análise operacional e limitações estão em [V9 beta — estado atual](docs/V9_BETA_STATUS.md).
+
+A V8.8.9 é a baseline histórica. O objetivo original do projeto foi cumprido em 13 de setembro de 2026: depois de evoluir de um simples comparador de preços para um sistema de decisão, o LapIntel PT encontrou três oportunidades Diamante e ajudou a fechar a compra do **Lenovo Legion 5 15AHP-682**.
 
 ## O resultado que fechou o ciclo
 
-Na última run operacional validada da V8.8.9:
+Na run histórica de referência da V8.8.9, em 13/09/2026 (não representa preços atuais):
 
 | Métrica | Resultado |
 |---|---:|

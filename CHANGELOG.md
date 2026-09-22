@@ -2,6 +2,14 @@
 
 Este ficheiro concentra o histórico funcional e arquitetural relevante. Detalhes de implementação continuam preservados no histórico Git e nas métricas das runs; relatórios temporários de validação não são mantidos indefinidamente no repositório.
 
+## 9.0.0-beta.1 — Decision Truth e consolidação operacional
+
+- Integra Fase 1 V9: decisão efetiva coerente em histórico, resumos, heartbeat e auditoria.
+- Consolida CI, preserva cron e adiciona gate end-to-end em produção.
+- Evita leitura repetida de configuração por oferta e cancelamento de runs que persistem alertas.
+- Substitui campanha obsoleta por resumo Top3 explícito, fresco e com recibo idempotente.
+- Mantém scoring, histórico e época de estado; cobertura bloqueada continua documentada em `docs/V9_BETA_STATUS.md`.
+
 ## 8.8.9 — Market intelligence, coverage sources & repository cleanup
 
 - GPU/iGPU deixa de impor um hard-cap artificial de Prata: a dimensão Gaming passa a influenciar o tier de forma contínua sem alterar o `value_score` bruto.
