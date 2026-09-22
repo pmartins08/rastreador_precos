@@ -18,6 +18,9 @@ class DecisionTruthRealRuntimeTests(unittest.TestCase):
 
             config = json.loads(Path("config/config.json").read_text(encoding="utf-8"))
             settings = config.get("settings", {})
+            runtime_settings = tracker.load_json(tracker.CONFIG_PATH)["settings"]
+            assert runtime_settings["diamante_value_min"] == settings["diamante_value_min"], runtime_settings
+            assert scraper.tier_from_value(118.2, runtime_settings) != "DIAMANTE"
 
             assert getattr(tracker, "_DECISION_TRUTH_RUNTIME_GUARD_INSTALLED", False), "Decision Truth runtime não instalado"
             assert getattr(tracker, "_PROMOTION_RUNTIME_GUARD_INSTALLED", False), "Promotion runtime não instalado"

@@ -22,6 +22,12 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(rows[0]['tier'], 'DIAMANTE')
         self.assertEqual(rows[0]['price'], 1000)
 
+    def test_current_evaluator_replaces_obsolete_tier(self):
+        def evaluate(row):
+            return dict(row, tier='OURO', value_score=115.0)
+        rows = summary.top3(self.h, {}, self.now, evaluate=evaluate)
+        self.assertTrue(all(r['tier'] == 'OURO' and r['value'] == 115 for r in rows))
+
     def test_stale_run_is_never_sent(self):
         with self.assertRaises(ValueError):
             summary.top3(self.h, {}, datetime(2026, 9, 23, tzinfo=timezone.utc))
