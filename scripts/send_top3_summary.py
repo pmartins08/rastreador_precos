@@ -18,7 +18,7 @@ def timestamp(value):
     return datetime.fromisoformat(str(value).replace('Z', '+00:00'))
 
 
-def top3(history, settings, now=None):
+def top3(history, settings, now=None, evaluate=None):
     now = now or datetime.now(timezone.utc)
     run = max(history['learning']['runs'], key=lambda r: r['timestamp'])
     end = timestamp(run['timestamp'])
@@ -36,6 +36,10 @@ def top3(history, settings, now=None):
         active = any(promotion_value_guard.is_active(p) for p in row.get('promotions', []))
         if not active:
             row['promotion_price_live_confirmed'] = False
+        if evaluate is not None:
+            row = evaluate(row)
+            if row is None:
+                continue
         truth = _truth_from_entry(row, diamond_threshold=float(settings.get('diamante_value_min', 120)))
         if truth['effective_tier'] not in {'OURO', 'DIAMANTE'}:
             continue
@@ -73,7 +77,29 @@ def main():
         print('TOP3_SUMMARY_ALREADY_RESERVED_OR_SENT')
         return
     settings = json.loads((ROOT / 'config/config.json').read_text())['settings']
-    rows = top3(json.loads((ROOT / 'data/history.json').read_text()), settings)
+    # Re-evaluate fresh observed prices with the current production brain, so a
+    # configuration correction during deployment cannot reuse an obsolete tier.
+    sys.path.insert(0, str(ROOT))
+    import runner
+    config = runner.tracker.load_json(runner.tracker.CONFIG_PATH)
+    settings = config['settings']
+    def evaluate(row):
+        result = dict(row)
+        assessment = runner.tracker.score_allow_unknown(dict(row.get('specs') or {}), float(row['price']), config['weights'], settings)
+        if assessment.get('status') != 'ACEITE':
+            return None
+        result['value_score'] = float(assessment['value_score'])
+        result['tier'] = runner.scraper.tier_from_value(assessment['value_score'], settings)
+        if row.get('promotion_price_live_confirmed') and float(row.get('promotion_discount_eur') or 0) > 0:
+            from promotion_runtime_guard import _revalue_from_accepted
+            promo = _revalue_from_accepted(runner.tracker, assessment, float(row['promotion_checkout_price']), settings)
+            if promo.get('status') == 'ACEITE':
+                result['promotion_value_score'] = float(promo['value_score'])
+                result['promotion_tier'] = runner.scraper.tier_from_value(promo['value_score'], settings)
+            else:
+                result['promotion_price_live_confirmed'] = False
+        return result
+    rows = top3(json.loads((ROOT / 'data/history.json').read_text()), settings, evaluate=evaluate)
     topic = os.environ.get('NTFY_TOPIC', '').strip()
     if not topic:
         raise ValueError('NTFY_TOPIC ausente')
