@@ -14,6 +14,22 @@ def normalize_tier(value: Any) -> str | None:
     return tier if tier in VALID_TIERS else None
 
 
+def _score_or_none(value: Any) -> float | None:
+    """Converte scores runtime (incluindo subclasses de float) num escalar estável.
+
+    O cérebro pode transportar metadata em subclasses de ``float``. A Decision
+    Truth Layer já recebe o tier calculado separadamente, por isso deve persistir
+    apenas o valor numérico: isso mantém histórico/heartbeat JSON-safe e evita
+    operações como ``deepcopy`` tentarem reconstruir tipos runtime especializados.
+    """
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def force_diamond_for_value(
     value_score: Any,
     tier: Any,
@@ -27,9 +43,8 @@ def force_diamond_for_value(
     invariância global que todas as superfícies de observabilidade devem respeitar.
     """
     normalized = normalize_tier(tier)
-    try:
-        numeric_value = float(value_score)
-    except (TypeError, ValueError):
+    numeric_value = _score_or_none(value_score)
+    if numeric_value is None:
         return normalized
     if numeric_value > float(threshold):
         return "DIAMANTE"
@@ -53,10 +68,13 @@ def promotion_is_effective(
         return False
     try:
         discount = float(promotion_discount_eur or 0.0)
-        float(promotion_value_score)
     except (TypeError, ValueError):
         return False
-    return discount > 0.0 and normalize_tier(promotion_tier) is not None
+    return (
+        discount > 0.0
+        and _score_or_none(promotion_value_score) is not None
+        and normalize_tier(promotion_tier) is not None
+    )
 
 
 def decision_truth(
@@ -72,10 +90,15 @@ def decision_truth(
     """Devolve a fonte de verdade V9 para Value/tier base, promo e efetivo.
 
     O resultado preserva a decisão base para auditoria e produz uma única visão
-    `effective_*` para ranking, resumo, heartbeat, logs e notificações.
+    ``effective_*`` para ranking, resumo, heartbeat, logs e notificações. Scores
+    são sempre escalares ``float``/``None`` para não deixar tipos runtime escapar
+    para histórico ou observabilidade.
     """
+    base_value = _score_or_none(base_value_score)
+    promo_value = _score_or_none(promotion_value_score)
+
     base_normalized = force_diamond_for_value(
-        base_value_score,
+        base_value,
         base_tier,
         threshold=diamond_threshold,
     )
@@ -83,19 +106,19 @@ def decision_truth(
     promo_applied = promotion_is_effective(
         promotion_confirmed=promotion_confirmed,
         promotion_discount_eur=promotion_discount_eur,
-        promotion_value_score=promotion_value_score,
+        promotion_value_score=promo_value,
         promotion_tier=promotion_tier,
     )
 
     promo_normalized = None
-    if promotion_value_score is not None or promotion_tier is not None:
+    if promo_value is not None or promotion_tier is not None:
         promo_normalized = force_diamond_for_value(
-            promotion_value_score,
+            promo_value,
             promotion_tier,
             threshold=diamond_threshold,
         )
 
-    effective_value = promotion_value_score if promo_applied else base_value_score
+    effective_value = promo_value if promo_applied else base_value
     effective_tier = promo_normalized if promo_applied else base_normalized
     effective_tier = force_diamond_for_value(
         effective_value,
@@ -103,13 +126,18 @@ def decision_truth(
         threshold=diamond_threshold,
     )
 
+    try:
+        discount = float(promotion_discount_eur or 0.0)
+    except (TypeError, ValueError):
+        discount = 0.0
+
     return {
-        "base_value_score": base_value_score,
+        "base_value_score": base_value,
         "base_tier": base_normalized,
-        "promotion_value_score": promotion_value_score,
+        "promotion_value_score": promo_value,
         "promotion_tier": promo_normalized,
         "promotion_confirmed": bool(promotion_confirmed),
-        "promotion_discount_eur": float(promotion_discount_eur or 0.0),
+        "promotion_discount_eur": discount,
         "promotion_applied": promo_applied,
         "effective_value_score": effective_value,
         "effective_tier": effective_tier,
