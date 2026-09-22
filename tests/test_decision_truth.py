@@ -1,6 +1,16 @@
 import unittest
+from copy import deepcopy
 
 from decision_truth import decision_truth, force_diamond_for_value, tier_meets_minimum
+
+
+class _RuntimeScore(float):
+    """Mimetiza um score runtime que não pode ser reconstruído por deepcopy."""
+
+    def __new__(cls, value, *, metadata):
+        obj = super().__new__(cls, value)
+        obj.metadata = metadata
+        return obj
 
 
 class DecisionTruthTests(unittest.TestCase):
@@ -55,6 +65,15 @@ class DecisionTruthTests(unittest.TestCase):
         view = decision_truth(base_value_score=121.0, base_tier="OURO")
         self.assertFalse(view["promotion_applied"])
         self.assertEqual(view["effective_tier"], "DIAMANTE")
+
+    def test_specialized_runtime_score_becomes_plain_float_and_is_copy_safe(self):
+        score = _RuntimeScore(118.2, metadata={"gaming": 5.0})
+        view = decision_truth(base_value_score=score, base_tier="DIAMANTE")
+
+        self.assertIs(type(view["base_value_score"]), float)
+        self.assertIs(type(view["effective_value_score"]), float)
+        self.assertEqual(view["effective_value_score"], 118.2)
+        self.assertEqual(deepcopy(view)["effective_value_score"], 118.2)
 
     def test_effective_alert_floor_can_be_checked_from_same_tier(self):
         self.assertTrue(tier_meets_minimum("OURO", "OURO"))
