@@ -57,3 +57,6 @@ A auditoria posterior encontrou `official_store_guard` a substituir 120 por uma 
 O primeiro resumo foi entregue antes de a correção estar integrada (recibo OqLwMeMVsOn1); a mensagem de correção tem identificador separado e explica a divergência. Consultar `data/top3_summary_receipts.json` para confirmar a entrega; reserva não equivale a envio.
 
 Pendência adicional: `scripts/history_audit.py` conta apenas nós com `points`; o esquema atual usa `identities` (394 séries na baseline), por isso o relatório de zero séries é um erro do auditor, não perda de histórico.
+
+## Correção do resumo confirmada
+A correção posterior permite resumir menos de três configurações elegíveis e torna os passos excecionais de notificação não bloqueantes. 339 testes locais aprovados. A mensagem corretiva foi entregue às 12:28:26 UTC de 22/09/2026, recibo ntfy `ezSaYh0fCMjO`: ASUS TUF A16 FA608UH-R72B55CS2 (1299 €, Value 116,7, Ouro) e ASUS Gaming V16 5050B (1299 €, Value 115,3, Ouro), ambos Globaldata. Eram as duas oportunidades elegíveis após recálculo no conjunto observado às 12:22 UTC; não foi inventado terceiro lugar. A run 35727351388 prossegue a validação operacional completa.
