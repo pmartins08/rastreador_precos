@@ -66,6 +66,15 @@ jobs:
       - name: Guardar estado de alertas antes da run
         run: cp data/history.json /tmp/history-before-run.json
 
+      - name: Corrigir resumo solicitado após ajuste do limiar
+        if: success() && github.event_name == 'push'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          python scripts/send_top3_summary.py --request-id pedro-v9-beta-2026-09-22-correction
+
       - name: Executar rastreador
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}

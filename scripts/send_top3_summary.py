@@ -107,7 +107,9 @@ def main():
     persist(path, receipts)
     from curl_cffi import requests
     message = '\n\n'.join(f"{i}. {r['tier']} | {r['title']}\n{r['store']} | {r['price']:.2f}€ | Value {r['value']:.1f}\n{r['url']}" for i, r in enumerate(rows, 1))
-    response = requests.post('https://ntfy.sh', json={'topic': topic, 'title': 'V9 beta — Top 3 atual (resumo único)', 'message': message, 'priority': 3, 'tags': ['computer', 'trophy']}, timeout=25, allow_redirects=False)
+    if args.request_id.endswith('-correction'):
+        message = 'Corrige o resumo anterior: uma calibração antiga substituía o limiar Diamante de 120 por 118. Segue o Top3 recalculado com o limiar correto.\n\n' + message
+    response = requests.post('https://ntfy.sh', json={'topic': topic, 'title': ('Correção — Top 3 V9 beta' if args.request_id.endswith('-correction') else 'V9 beta — Top 3 atual (resumo único)'), 'message': message, 'priority': 3, 'tags': ['computer', 'trophy']}, timeout=25, allow_redirects=False)
     response.raise_for_status()
     receipt = response.json()
     if not receipt.get('id'):
