@@ -11,7 +11,6 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         module = types.SimpleNamespace()
         module._SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED = False
         module.last_cat = None
-        module.last_fetch = None
         module._bucket = {
             "methods": {"sitemap": 11, "category": 20},
             "contexts": {
@@ -46,16 +45,6 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
             },
         }
         module.bucket = lambda store: module._bucket
-        module.store_for_url = lambda url, config: "PCDiga" if "pcdiga" in url else "TEST"
-
-        def adaptive_fetch(url, config, timeout_s=8.0, *, store=None, method="page"):
-            module.last_fetch = {
-                "url": url,
-                "timeout_s": timeout_s,
-                "store": store,
-                "method": method,
-            }
-            return ("response", "chrome131", "http_success")
 
         def scan_store(cat, config, settings):
             module.last_cat = cat
@@ -64,7 +53,6 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
             stats["new_candidates"] = int(stats.get("new_candidates", 0)) + 3
             return ([{"url": "https://example.test/p"}], {"candidatos": 1})
 
-        module.adaptive_fetch = adaptive_fetch
         module.scan_store = scan_store
         return module
 
@@ -97,64 +85,26 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         self.assertEqual(archived["method_attempts"], 11)
         self.assertEqual(archived["contexts"]["chrome131"]["blocks"], 6)
 
-    def test_pcdiga_sitemap_fetch_uses_public_origin_directly(self):
-        module = self._module()
-        sitemap_strategy_epoch_guard.install(module)
-
-        result = module.adaptive_fetch(
-            "https://www.pcdiga.com/sitemap/sitemap.xml",
-            {},
-            6,
-            store="PCDiga",
-            method="sitemap",
-        )
-
-        self.assertEqual(result[2], "http_success")
-        self.assertEqual(
-            module.last_fetch["url"],
-            "https://public.pcdiga.com/sitemap/sitemap.xml",
-        )
-        self.assertEqual(module.last_fetch["store"], "PCDiga")
-        self.assertEqual(module.last_fetch["method"], "sitemap")
-
-    def test_pcdiga_non_sitemap_fetch_is_never_rewritten(self):
-        module = self._module()
-        sitemap_strategy_epoch_guard.install(module)
-        url = "https://www.pcdiga.com/computadores-e-software/computadores-laptop"
-
-        module.adaptive_fetch(url, {}, 6, store="PCDiga", method="category")
-
-        self.assertEqual(module.last_fetch["url"], url)
-
-    def test_pcdiga_drops_robots_blocked_filter_routes(self):
+    def test_pcdiga_disables_dead_sitemap_and_extra_routes(self):
         module = self._module()
         sitemap_strategy_epoch_guard.install(module)
         module.scan_store(
             {
                 "loja": "PCDiga",
+                "sitemap_enabled": True,
                 "extra_discovery_urls": [
-                    {
-                        "label": "blocked_filter",
-                        "url": "https://www.pcdiga.com/computadores?filter_by=gpu%3Artx5060",
-                    },
-                    {
-                        "label": "brand",
-                        "url": "https://www.pcdiga.com/portateis-asus",
-                    },
+                    {"label": "gpu", "url": "https://www.pcdiga.com/x?filter_by=gpu"},
+                    {"label": "brand", "url": "https://www.pcdiga.com/portateis-lenovo"},
                 ],
             },
             {},
             {},
         )
-        urls = [entry["url"] for entry in module.last_cat["extra_discovery_urls"]]
-        self.assertNotIn(
-            "https://www.pcdiga.com/computadores?filter_by=gpu%3Artx5060",
-            urls,
-        )
-        self.assertIn("https://www.pcdiga.com/portateis-asus", urls)
-        self.assertIn(
-            "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
-            urls,
+        self.assertFalse(module.last_cat["sitemap_enabled"])
+        self.assertEqual(module.last_cat["extra_discovery_urls"], [])
+        self.assertEqual(
+            module.last_cat["sitemap_strategy_version"],
+            "pcdiga-cloud-edge-v3",
         )
 
     def test_recovery_enables_pccomponentes_sitemap_and_public_route(self):
