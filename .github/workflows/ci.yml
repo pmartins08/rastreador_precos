@@ -40,17 +40,6 @@ jobs:
       - name: Testes unitários
         run: python -m unittest discover -s tests -p 'test_*.py' -v
 
-      - name: Diagnóstico temporário de acesso loja a loja
-        continue-on-error: true
-        run: >-
-          python scripts/store_access_probe.py
-          --output /tmp/store-access.json
-          --stores Worten PCDiga PcComponentes CHIP7
-
-      - name: Diagnóstico profundo temporário PCDiga/Worten
-        continue-on-error: true
-        run: python scripts/store_access_phase2_probe.py
-
       - name: Auditar histórico e distribuição de Value
         run: >-
           python scripts/history_audit.py
