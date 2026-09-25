@@ -11,6 +11,27 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         module = types.SimpleNamespace()
         module._SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED = False
         module._bucket = {
+            "methods": {"sitemap": 11, "category": 20},
+            "contexts": {
+                "sitemap": {
+                    "chrome131": {
+                        "attempts": 6,
+                        "successes": 0,
+                        "blocks": 6,
+                        "errors": 0,
+                        "results": {},
+                    }
+                },
+                "category": {
+                    "chrome131": {
+                        "attempts": 20,
+                        "successes": 0,
+                        "blocks": 20,
+                        "errors": 0,
+                        "results": {},
+                    }
+                },
+            },
             "discovery": {
                 "sitemap": {
                     "attempts": 8,
@@ -20,7 +41,7 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
                     "ema_yield": 0.0,
                     "last_updated": "2026-09-10T18:00:00Z",
                 }
-            }
+            },
         }
         module.bucket = lambda store: module._bucket
 
@@ -37,30 +58,54 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         module = self._module()
         sitemap_strategy_epoch_guard.install(module)
         _items, stat = module.scan_store(
-            {"loja": "Worten", "sitemap_strategy_version": "worten-index-hints-v2"}, {}, {}
+            {"loja": "Worten", "sitemap_strategy_version": "worten-index-hints-v3"}, {}, {}
         )
         active = module._bucket["discovery"]["sitemap"]
         archived = module._bucket["discovery_history"]["sitemap"]["legacy"]
         self.assertEqual(active["attempts"], 1)
         self.assertEqual(active["new_candidates"], 3)
-        self.assertEqual(active["strategy_version"], "worten-index-hints-v2")
+        self.assertEqual(active["strategy_version"], "worten-index-hints-v3")
         self.assertEqual(archived["attempts"], 8)
         self.assertTrue(stat["sitemap_strategy_reset"])
 
-    def test_same_strategy_keeps_learning(self):
+    def test_new_strategy_reopens_blocked_sitemap_context_only(self):
+        module = self._module()
+        old_category_context = module._bucket["contexts"]["category"]
+        sitemap_strategy_epoch_guard.install(module)
+
+        module.scan_store(
+            {"loja": "PCDiga", "sitemap_strategy_version": "pcdiga-public-sitemap-v1"},
+            {},
+            {},
+        )
+
+        self.assertNotIn("sitemap", module._bucket["contexts"])
+        self.assertNotIn("sitemap", module._bucket["methods"])
+        self.assertIs(module._bucket["contexts"]["category"], old_category_context)
+        archived = module._bucket["access_context_history"]["sitemap"]["legacy"]
+        self.assertEqual(archived["method_attempts"], 11)
+        self.assertEqual(archived["contexts"]["chrome131"]["blocks"], 6)
+
+    def test_same_strategy_keeps_learning_and_access_context(self):
         module = self._module()
         module._bucket["discovery"]["sitemap"]["strategy_version"] = "v2"
         sitemap_strategy_epoch_guard.install(module)
         module.scan_store({"loja": "Worten", "sitemap_strategy_version": "v2"}, {}, {})
         self.assertEqual(module._bucket["discovery"]["sitemap"]["attempts"], 9)
+        self.assertIn("sitemap", module._bucket["contexts"])
+        self.assertEqual(module._bucket["methods"]["sitemap"], 11)
         self.assertNotIn("discovery_history", module._bucket)
+        self.assertNotIn("access_context_history", module._bucket)
 
     def test_unconfigured_store_is_noop(self):
         module = self._module()
         sitemap_strategy_epoch_guard.install(module)
         module.scan_store({"loja": "Darty"}, {}, {})
         self.assertEqual(module._bucket["discovery"]["sitemap"]["attempts"], 9)
+        self.assertIn("sitemap", module._bucket["contexts"])
+        self.assertEqual(module._bucket["methods"]["sitemap"], 11)
         self.assertNotIn("discovery_history", module._bucket)
+        self.assertNotIn("access_context_history", module._bucket)
 
 
 if __name__ == "__main__":
