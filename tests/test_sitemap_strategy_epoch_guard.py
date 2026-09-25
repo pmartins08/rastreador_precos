@@ -122,6 +122,32 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         self.assertEqual(urls.count("https://chip7.pt/landing/portateis"), 1)
         self.assertTrue(module.last_cat["sitemap_enabled"])
 
+    def test_worten_sitemap_rejects_accessory_that_mentions_laptop_family(self):
+        self.assertFalse(
+            sitemap_strategy_epoch_guard._worten_sitemap_product_url(
+                "https://www.worten.pt/produtos/carregador-lojacharger-para-portatil-lenovo-ideapad-3-7442239573574"
+            )
+        )
+
+    def test_worten_sitemap_rejects_monitor_and_outlet(self):
+        self.assertFalse(
+            sitemap_strategy_epoch_guard._worten_sitemap_product_url(
+                "https://www.worten.pt/produtos/monitor-gaming-asus-tuf-vg34vqel1a-8112719"
+            )
+        )
+        self.assertFalse(
+            sitemap_strategy_epoch_guard._worten_sitemap_product_url(
+                "https://www.worten.pt/produtos/portatil-gaming-lenovo-loq-15iax9-025-outlet-caixa-aberta-8655523"
+            )
+        )
+
+    def test_worten_sitemap_keeps_new_laptop(self):
+        self.assertTrue(
+            sitemap_strategy_epoch_guard._worten_sitemap_product_url(
+                "https://www.worten.pt/produtos/portatil-gaming-asus-tuf-a16-fa608up-rtx-5060-1234567"
+            )
+        )
+
     def test_same_strategy_keeps_learning_and_access_context(self):
         module = self._module()
         version = "worten-index-hints-v3-reopen"
