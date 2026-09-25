@@ -47,6 +47,10 @@ jobs:
           --output /tmp/store-access.json
           --stores Worten PCDiga PcComponentes CHIP7
 
+      - name: Diagnóstico profundo temporário PCDiga/Worten
+        continue-on-error: true
+        run: python scripts/store_access_phase2_probe.py
+
       - name: Auditar histórico e distribuição de Value
         run: >-
           python scripts/history_audit.py
