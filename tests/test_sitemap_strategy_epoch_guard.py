@@ -85,42 +85,70 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         self.assertEqual(archived["method_attempts"], 11)
         self.assertEqual(archived["contexts"]["chrome131"]["blocks"], 6)
 
-    def test_recovery_enables_pccomponentes_sitemap_and_public_route(self):
+    def test_pcdiga_dead_public_routes_enter_canary_mode(self):
+        module = self._module()
+        sitemap_strategy_epoch_guard.install(module)
+        module.scan_store(
+            {
+                "loja": "PCDiga",
+                "extra_discovery_urls": [{"label": "legacy", "url": "https://www.pcdiga.com/foo"}],
+                "product_fetch_host_fallbacks": ["publojas.pcdiga.com"],
+            },
+            {},
+            {},
+        )
+        self.assertFalse(module.last_cat["sitemap_enabled"])
+        self.assertEqual(module.last_cat["extra_discovery_urls"], [])
+        self.assertNotIn("product_fetch_host_fallbacks", module.last_cat)
+        self.assertEqual(module.last_cat["sitemap_strategy_version"], "pcdiga-canary-v2")
+
+    def test_pccomponentes_dead_sitemap_and_segments_enter_canary_mode(self):
         module = self._module()
         sitemap_strategy_epoch_guard.install(module)
         module.scan_store(
             {
                 "loja": "PcComponentes",
-                "sitemap_enabled": False,
-                "extra_discovery_urls": [],
+                "sitemap_enabled": True,
+                "extra_discovery_urls": [{"label": "legacy", "url": "https://www.pccomponentes.pt/x"}],
+            },
+            {},
+            {},
+        )
+        self.assertFalse(module.last_cat["sitemap_enabled"])
+        self.assertEqual(module.last_cat["extra_discovery_urls"], [])
+        self.assertEqual(module.last_cat["sitemap_strategy_version"], "pccomponentes-canary-v2")
+
+    def test_chip7_dead_sitemap_and_segments_enter_canary_mode(self):
+        module = self._module()
+        sitemap_strategy_epoch_guard.install(module)
+        module.scan_store(
+            {
+                "loja": "CHIP7",
+                "extra_discovery_urls": [{"label": "legacy", "url": "https://chip7.pt/x"}],
+            },
+            {},
+            {},
+        )
+        self.assertFalse(module.last_cat["sitemap_enabled"])
+        self.assertEqual(module.last_cat["extra_discovery_urls"], [])
+        self.assertEqual(module.last_cat["sitemap_strategy_version"], "chip7-canary-v2")
+
+    def test_worten_keeps_public_sitemap_but_only_one_product_probe(self):
+        module = self._module()
+        sitemap_strategy_epoch_guard.install(module)
+        module.scan_store(
+            {
+                "loja": "Worten",
+                "sitemap_strategy_version": "worten-index-hints-v3-reopen",
+                "sitemap_probe_limit": 20,
+                "max_sitemaps": 20,
             },
             {},
             {},
         )
         self.assertTrue(module.last_cat["sitemap_enabled"])
-        self.assertEqual(
-            module.last_cat["sitemap_strategy_version"],
-            "pccomponentes-public-sitemap-v1",
-        )
-        self.assertGreaterEqual(module.last_cat["sitemap_probe_limit"], 6)
-        urls = [route["url"] for route in module.last_cat["extra_discovery_urls"]]
-        self.assertIn("https://www.pccomponentes.pt/categorias/portateis", urls)
-
-    def test_recovery_adds_chip7_public_landing_without_duplicates(self):
-        module = self._module()
-        sitemap_strategy_epoch_guard.install(module)
-        route = {
-            "label": "landing_portateis_public",
-            "url": "https://chip7.pt/landing/portateis",
-        }
-        module.scan_store(
-            {"loja": "CHIP7", "extra_discovery_urls": [route]},
-            {},
-            {},
-        )
-        urls = [entry["url"] for entry in module.last_cat["extra_discovery_urls"]]
-        self.assertEqual(urls.count("https://chip7.pt/landing/portateis"), 1)
-        self.assertTrue(module.last_cat["sitemap_enabled"])
+        self.assertEqual(module.last_cat["sitemap_probe_limit"], 1)
+        self.assertEqual(module.last_cat["max_sitemaps"], 3)
 
     def test_worten_sitemap_rejects_accessory_that_mentions_laptop_family(self):
         self.assertFalse(
@@ -137,7 +165,7 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         )
         self.assertFalse(
             sitemap_strategy_epoch_guard._worten_sitemap_product_url(
-                "https://www.worten.pt/produtos/portatil-gaming-lenovo-loq-15iax9-025-outlet-caixa-aberta-8655523"
+                "https://www.worten.pt/produtos/portatil-gaming-lenovo-loq-15iax9e-030-outlet-caixa-aberta-8655523"
             )
         )
 
