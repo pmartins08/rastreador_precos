@@ -1,8 +1,9 @@
 """Diagnóstico temporário CHIP7/PcComponentes no GitHub Actions.
 
-Só testa páginas e ficheiros públicos oficiais. Não grava estado, não envia NTFY,
-não usa endpoints privados e não tenta contornar proteções anti-bot. O ficheiro é
-temporário e será removido antes do merge da fase de acesso.
+Só testa páginas públicas e, para PcComponentes, uma configuração Algolia de
+pesquisa-only publicada historicamente no frontend/código público. Não grava
+estado, não envia NTFY, não usa endpoints privados e não tenta contornar
+proteções anti-bot. O ficheiro é temporário e será removido antes do merge.
 """
 from __future__ import annotations
 
@@ -76,6 +77,71 @@ def probe_store(name: str, urls: list[tuple[str, str]]) -> dict:
     return {"store": name, "routes": rows}
 
 
+def probe_pccomponentes_algolia() -> dict:
+    """Testa apenas se a antiga chave pública de pesquisa continua viva.
+
+    A configuração foi publicada em código de demonstração de 2021 e corresponde
+    a uma chave de search-only usada pelo InstantSearch do site. Não é aceite como
+    fonte permanente sem confirmação de que o índice PT devolve dados atuais.
+    """
+    endpoint = "https://bewoyx1cf1-dsn.algolia.net/1/indexes/*/queries"
+    headers = {
+        "User-Agent": UA,
+        "Content-Type": "application/json",
+        "X-Algolia-Application-Id": "BEWOYX1CF1",
+        "X-Algolia-API-Key": "47978d8b445ceaceb718dd842d434099",
+    }
+    output: dict = {"endpoint": endpoint, "indexes": []}
+    for index_name in ("pccomponentes:pt", "pccomponentes:es"):
+        payload = {
+            "requests": [
+                {
+                    "indexName": index_name,
+                    "params": "query=portatil&hitsPerPage=3&page=0&facets=[]",
+                }
+            ]
+        }
+        try:
+            response = requests.post(endpoint, headers=headers, json=payload, timeout=10)
+            row: dict = {
+                "index": index_name,
+                "status": int(response.status_code),
+                "content_type": response.headers.get("Content-Type"),
+                "bytes": len(response.content),
+            }
+            try:
+                data = response.json()
+            except Exception:
+                data = None
+            if isinstance(data, dict):
+                if isinstance(data.get("message"), str):
+                    row["message"] = data["message"][:200]
+                results = data.get("results")
+                if isinstance(results, list) and results and isinstance(results[0], dict):
+                    result = results[0]
+                    row["nb_hits"] = result.get("nbHits")
+                    hits = []
+                    for hit in result.get("hits", [])[:3]:
+                        if not isinstance(hit, dict):
+                            continue
+                        price = hit.get("price")
+                        if isinstance(price, dict):
+                            price = price.get("amount")
+                        hits.append(
+                            {
+                                "title": hit.get("title") or hit.get("name"),
+                                "price": price,
+                                "url": hit.get("url") or hit.get("productUrl") or hit.get("link"),
+                                "object_id": hit.get("objectID"),
+                            }
+                        )
+                    row["hits"] = hits
+            output["indexes"].append(row)
+        except Exception as exc:
+            output["indexes"].append({"index": index_name, "error": f"{type(exc).__name__}: {exc}"})
+    return output
+
+
 def main() -> None:
     chip7 = probe_store(
         "CHIP7",
@@ -102,9 +168,9 @@ def main() -> None:
             ),
             # Controlo apenas diagnóstico: a loja ES nunca será usada para preço PT.
             ("es_home_control", "https://www.pccomponentes.com/"),
-            ("es_category_control", "https://www.pccomponentes.com/portatiles"),
         ],
     )
+    pccomponentes["historical_public_algolia"] = probe_pccomponentes_algolia()
     print(
         "STORE_ACCESS_PHASE2="
         + json.dumps(
