@@ -52,6 +52,21 @@ class RankingHistoryGuardTests(unittest.TestCase):
         self.assertEqual(ranked[0]["ranking_position"], 1)
         self.assertEqual(ranked[0]["ranking_position_delta"], 3)
 
+    def test_effective_decision_truth_is_never_replaced_by_raw_tier(self):
+        value, price, tier = ranking_history_guard._effective_fields(
+            {
+                "price": 999.0,
+                "value_score": 112.0,
+                "tier": "PRATA",
+                "effective_price": 999.0,
+                "effective_value_score": 108.5,
+                "effective_tier": "BRONZE",
+            }
+        )
+        self.assertEqual(value, 108.5)
+        self.assertEqual(price, 999.0)
+        self.assertEqual(tier, "BRONZE")
+
 
 if __name__ == "__main__":
     unittest.main()
