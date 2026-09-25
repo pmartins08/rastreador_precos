@@ -4,78 +4,36 @@ import copy
 from urllib.parse import unquote, urlparse
 
 
-# Recuperação conservadora das lojas que o GitHub Actions vê frequentemente
-# bloqueadas na categoria principal. Só reabre rotas públicas/sitemap; não tenta
-# contornar autenticação, checkout ou endpoints privados.
+# Política de acesso por loja. Quando uma rota pública foi confirmada como
+# permanentemente inútil no GitHub Actions, a produção deixa de a martelar e
+# mantém apenas o canário barato da categoria. Isto liberta budget HTTP para as
+# lojas que conseguem devolver dados reais.
 _RECOVERY = {
     "PCDiga": {
-        "version": "pcdiga-public-sitemap-v1",
-        "force_sitemap": True,
-        "sitemap_probe_limit": 8,
-        "max_sitemaps": 8,
-        "sitemap_child_hints": [
-            "product",
-            "produto",
-            "catalog",
-            "portatil",
-            "laptop",
-            "computador",
-        ],
-        "extra_routes": [
-            {
-                "label": "computadores_laptop_public",
-                "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
-            }
-        ],
+        "version": "pcdiga-canary-v2",
+        "disable_sitemap": True,
+        "suppress_extra_routes": True,
+        "disable_product_host_fallbacks": True,
     },
     "PcComponentes": {
-        "version": "pccomponentes-public-sitemap-v1",
-        "force_sitemap": True,
-        "sitemap_probe_limit": 6,
-        "max_sitemaps": 8,
-        "sitemap_child_hints": [
-            "product",
-            "produto",
-            "catalog",
-            "portatil",
-            "laptop",
-            "computer",
-        ],
-        "extra_routes": [
-            {
-                "label": "portateis_public",
-                "url": "https://www.pccomponentes.pt/categorias/portateis",
-            }
-        ],
+        "version": "pccomponentes-canary-v2",
+        "disable_sitemap": True,
+        "suppress_extra_routes": True,
     },
     "CHIP7": {
-        "version": "chip7-public-sitemap-v1",
-        "force_sitemap": True,
-        "sitemap_probe_limit": 6,
-        "max_sitemaps": 8,
-        "sitemap_child_hints": [
-            "product",
-            "produto",
-            "catalog",
-            "portatil",
-            "laptop",
-            "computador",
-        ],
-        "extra_routes": [
-            {
-                "label": "landing_portateis_public",
-                "url": "https://chip7.pt/landing/portateis",
-            }
-        ],
+        "version": "chip7-canary-v2",
+        "disable_sitemap": True,
+        "suppress_extra_routes": True,
     },
     "Worten": {
-        # A configuração V9 beta.2 tinha v2, mas o contexto HTTP antigo já tinha
-        # entrado em probe. Esta revisão força uma única reabertura controlada.
+        # O sitemap é público e útil para descoberta, mas as fichas de produto
+        # continuam 403 no GitHub Actions. Mantemos só um probe de ficha por run
+        # para detetar recuperação, sem gastar dezenas de pedidos.
         "version": "worten-index-hints-v3-reopen",
         "replace_versions": {"", "legacy", "worten-index-hints-v2"},
         "force_sitemap": True,
-        "sitemap_probe_limit": 6,
-        "max_sitemaps": 12,
+        "sitemap_probe_limit_override": 1,
+        "max_sitemaps_override": 3,
         "sitemap_child_hints": [
             "informatica",
             "computador",
@@ -85,7 +43,6 @@ _RECOVERY = {
             "produto",
             "catalog",
         ],
-        "extra_routes": [],
     },
 }
 
@@ -134,7 +91,7 @@ def _worten_sitemap_product_url(url: str) -> bool:
 
 
 def _recovery_cat(cat: dict) -> dict:
-    """Aplica apenas rotas públicas de recuperação, sem alterar o cérebro."""
+    """Aplica a política pública de acesso sem alterar o cérebro de scoring."""
     store = str(cat.get("loja") or "")
     policy = _RECOVERY.get(store)
     if not policy:
@@ -146,45 +103,57 @@ def _recovery_cat(cat: dict) -> dict:
     if replace_versions is None or configured_version in replace_versions:
         out["sitemap_strategy_version"] = policy["version"]
 
-    if policy.get("force_sitemap"):
+    if policy.get("disable_sitemap"):
+        out["sitemap_enabled"] = False
+    elif policy.get("force_sitemap"):
         out["sitemap_enabled"] = True
-    out["sitemap_probe_limit"] = max(
-        int(out.get("sitemap_probe_limit", 0) or 0),
-        int(policy.get("sitemap_probe_limit", 0) or 0),
-    )
-    out["max_sitemaps"] = max(
-        int(out.get("max_sitemaps", 0) or 0),
-        int(policy.get("max_sitemaps", 0) or 0),
-    )
+
+    if "sitemap_probe_limit_override" in policy:
+        out["sitemap_probe_limit"] = int(policy["sitemap_probe_limit_override"])
+    elif "sitemap_probe_limit" in policy:
+        out["sitemap_probe_limit"] = max(
+            int(out.get("sitemap_probe_limit", 0) or 0),
+            int(policy.get("sitemap_probe_limit", 0) or 0),
+        )
+
+    if "max_sitemaps_override" in policy:
+        out["max_sitemaps"] = int(policy["max_sitemaps_override"])
+    elif "max_sitemaps" in policy:
+        out["max_sitemaps"] = max(
+            int(out.get("max_sitemaps", 0) or 0),
+            int(policy.get("max_sitemaps", 0) or 0),
+        )
 
     configured_hints = [str(value) for value in out.get("sitemap_child_hints", []) if value]
     out["sitemap_child_hints"] = list(
         dict.fromkeys([*configured_hints, *policy.get("sitemap_child_hints", [])])
     )
 
-    routes = [dict(route) if isinstance(route, dict) else route for route in out.get("extra_discovery_urls", [])]
-    existing_urls = {
-        str(route.get("url"))
-        for route in routes
-        if isinstance(route, dict) and route.get("url")
-    }
-    for route in policy.get("extra_routes", []):
-        if str(route.get("url")) not in existing_urls:
-            routes.append(dict(route))
-            existing_urls.add(str(route.get("url")))
-    out["extra_discovery_urls"] = routes
+    if policy.get("suppress_extra_routes"):
+        out["extra_discovery_urls"] = []
+    else:
+        routes = [
+            dict(route) if isinstance(route, dict) else route
+            for route in out.get("extra_discovery_urls", [])
+        ]
+        existing_urls = {
+            str(route.get("url"))
+            for route in routes
+            if isinstance(route, dict) and route.get("url")
+        }
+        for route in policy.get("extra_routes", []):
+            if str(route.get("url")) not in existing_urls:
+                routes.append(dict(route))
+                existing_urls.add(str(route.get("url")))
+        out["extra_discovery_urls"] = routes
+
+    if policy.get("disable_product_host_fallbacks"):
+        out.pop("product_fetch_host_fallbacks", None)
     return out
 
 
 def _archive_and_reset_sitemap_access(bucket: dict, previous_version: str) -> None:
-    """Reabre o método HTTP `sitemap` sem apagar aprendizagem global da loja.
-
-    `access_mode()` decide entrar em probe através de `contexts['sitemap']`.
-    Limpar apenas as estatísticas de discovery não chega: uma estratégia nova
-    continuaria bloqueada antes do primeiro pedido. Arquivamos o contexto antigo
-    e zeramos apenas o método sitemap; perfis e aprendizagem das restantes rotas
-    permanecem intactos.
-    """
+    """Reabre o método HTTP `sitemap` sem apagar aprendizagem global da loja."""
     contexts = bucket.setdefault("contexts", {})
     methods = bucket.setdefault("methods", {})
     previous_context = contexts.get("sitemap")
@@ -205,16 +174,12 @@ def _archive_and_reset_sitemap_access(bucket: dict, previous_version: str) -> No
 
 
 def install(tracker_module) -> None:
-    """Reabre sitemap quando a estratégia muda e aplica filtros de acesso.
+    """Gere mudanças de estratégia e filtros de acesso por loja.
 
-    A aprendizagem antiga é arquivada por versão em `discovery_history`; apenas
-    o estado ativo de `sitemap` começa fresco para a estratégia nova. Também é
-    reiniciado o contexto HTTP específico de sitemap, porque é esse estado que
-    controla o modo `probe`. A aprendizagem global da loja não é apagada.
-
-    Para PCDiga, PcComponentes, CHIP7 e Worten aplica ainda uma política mínima
-    de recuperação por rotas públicas. Isto não altera scoring, Value, tiers,
-    matching, histórico de preços ou regras de NTFY.
+    A aprendizagem antiga de sitemap é arquivada quando a estratégia muda. A
+    aprendizagem global da loja é preservada. Rotas confirmadamente bloqueadas
+    entram em modo canário barato; fontes públicas produtivas continuam ativas.
+    Nada aqui altera Value, tiers, matching, preços ou regras de NTFY.
     """
     if getattr(tracker_module, "_SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED", False):
         return
