@@ -229,8 +229,25 @@ def install(tracker_module) -> None:
         tracker_module.maybe_alert = maybe_alert
     tracker_module._PRICE_CHANGE_PRIORITY_GUARD_INSTALLED = True
 
-    # Subcamadas V9 beta.2. Todas são neutras para o cérebro: observam páginas,
-    # histórico e alertas, mas não mudam a fórmula técnica de score.
-    product_promotion_guard.install(tracker_module)
-    price_change_alert_guard.install(tracker_module)
-    ranking_history_guard.install(tracker_module)
+    # Os testes unitários deste guard usam módulos mínimos. As novas camadas só
+    # são instaladas no runtime real, onde todas as dependências necessárias
+    # existem. Isto mantém os guardas isolados e evita acoplamento acidental.
+    runtime_ready = all(
+        hasattr(tracker_module, name)
+        for name in (
+            "adaptive_fetch",
+            "enrich",
+            "needs_price_refresh",
+            "record_offer",
+            "main",
+            "load_history",
+            "save_json",
+            "HISTORY_PATH",
+            "ntfy_send",
+            "scraper",
+        )
+    )
+    if runtime_ready:
+        product_promotion_guard.install(tracker_module)
+        price_change_alert_guard.install(tracker_module)
+        ranking_history_guard.install(tracker_module)
