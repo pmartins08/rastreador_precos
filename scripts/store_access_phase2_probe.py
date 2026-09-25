@@ -6,6 +6,7 @@ Este ficheiro é deliberadamente temporário e deve ser removido antes do merge.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -49,44 +50,49 @@ def declared_sitemaps(robots_text: str) -> list[str]:
     ]
 
 
+def _xml_block_for_url(text: str, url: str) -> str | None:
+    escaped = re.escape(url)
+    match = re.search(rf"<url>.*?<loc>\s*{escaped}\s*</loc>.*?</url>", text, re.I | re.S)
+    if not match:
+        return None
+    block = re.sub(r"\s+", " ", match.group(0)).strip()
+    return block[:1500]
+
+
 def probe_pcdiga(config: dict) -> dict:
     cat = next(item for item in config["category_urls"] if item["loja"] == "PCDiga")
-    out: dict = {"store": "PCDiga", "sitemaps": [], "history_product": []}
+    out: dict = {"store": "PCDiga", "sitemaps": [], "public_host_canaries": [], "history_product": []}
 
     robots_url = "https://www.pcdiga.com/robots.txt"
     robots, error = get(robots_url)
     out["robots"] = row_for(robots, error, robots_url)
-    if robots is not None and robots.status_code == 200:
-        for sitemap_url in declared_sitemaps(robots.text)[:1]:
-            sitemap, sitemap_error = get(sitemap_url)
-            info = row_for(sitemap, sitemap_error, sitemap_url)
-            if sitemap is not None and sitemap.status_code == 200:
-                urls, children = tracker.sitemap_parse(sitemap.content, sitemap.text, 80)
-                info.update({
-                    "urls": len(urls),
-                    "children": len(children),
-                    "child_examples": children[:6],
-                    "direct_product_urls": sum(1 for url in urls if tracker._looks_like_product_url(url, cat)),
-                })
-                child_rows = []
-                for child in children[:3]:
-                    child_response, child_error = get(child)
-                    child_info = row_for(child_response, child_error, child)
-                    if child_response is not None and child_response.status_code == 200:
-                        child_urls, _ = tracker.sitemap_parse(child_response.content, child_response.text, 20)
-                        products = [url for url in child_urls if tracker._looks_like_product_url(url, cat)]
-                        child_info.update({
-                            "urls": len(child_urls),
-                            "product_urls": len(products),
-                            "product_examples": products[:3],
-                        })
-                    child_rows.append(child_info)
-                info["child_rows"] = child_rows
-            out["sitemaps"].append(info)
+    declared = declared_sitemaps(robots.text) if robots is not None and robots.status_code == 200 else []
+    for sitemap_url in declared[:1]:
+        sitemap, sitemap_error = get(sitemap_url)
+        info = row_for(sitemap, sitemap_error, sitemap_url)
+        if sitemap is not None and sitemap.status_code == 200:
+            urls, children = tracker.sitemap_parse(sitemap.content, sitemap.text, 80)
+            info.update({
+                "urls": len(urls),
+                "children": len(children),
+                "child_examples": children[:6],
+                "direct_product_urls": sum(1 for url in urls if tracker._looks_like_product_url(url, cat)),
+            })
+        out["sitemaps"].append(info)
+
+    # Canários explícitos: estes hosts foram referências históricas/hipóteses de
+    # acesso público. Medimos em vez de assumir que continuam úteis.
+    for url in (
+        "https://public.pcdiga.com/robots.txt",
+        "https://public.pcdiga.com/sitemap/sitemap.xml",
+        "https://publojas.pcdiga.com/robots.txt",
+        "https://publojas.pcdiga.com/sitemap/sitemap.xml",
+    ):
+        response, canary_error = get(url)
+        out["public_host_canaries"].append(row_for(response, canary_error, url))
 
     # O histórico recente serve só para descobrir uma ficha canónica que sabemos
-    # ter existido. Tanto a ficha normal como o host público alternativo são
-    # novamente pedidos live; nenhum preço histórico é aceite por este probe.
+    # ter existido. Todas as variantes são novamente pedidas live.
     history = tracker.load_json(tracker.HISTORY_PATH)
     recent = []
     for entries in history.get("offers", {}).values():
@@ -96,24 +102,18 @@ def probe_pcdiga(config: dict) -> dict:
             if isinstance(entry, dict) and entry.get("loja") == "PCDiga" and entry.get("url"):
                 recent.append(entry)
     recent.sort(key=lambda item: str(item.get("timestamp") or ""), reverse=True)
-    for entry in recent[:2]:
+    for entry in recent[:1]:
         canonical = str(entry["url"])
         parsed = urlparse(canonical)
-        fallback = parsed._replace(netloc="publojas.pcdiga.com", query="", fragment="").geturl()
         product_row = {"timestamp": entry.get("timestamp"), "title": entry.get("titulo")}
-        for label, url in (("canonical", canonical), ("publojas", fallback)):
+        variants = (
+            ("canonical", canonical),
+            ("publojas", parsed._replace(netloc="publojas.pcdiga.com", query="", fragment="").geturl()),
+            ("public", parsed._replace(netloc="public.pcdiga.com", query="", fragment="").geturl()),
+        )
+        for label, url in variants:
             response, product_error = get(url)
-            info = row_for(response, product_error, url)
-            if response is not None and response.status_code == 200:
-                soup = tracker.BeautifulSoup(response.text, "html.parser")
-                evidence = tracker.page_price_evidence(soup, tracker.scraper)
-                info.update({
-                    "title": soup.title.get_text(" ", strip=True) if soup.title else None,
-                    "jsonld": len(soup.select('script[type="application/ld+json"]')),
-                    "price": evidence.get("price"),
-                    "price_confidence": evidence.get("confidence"),
-                })
-            product_row[label] = info
+            product_row[label] = row_for(response, product_error, url)
         out["history_product"].append(product_row)
     return out
 
@@ -137,7 +137,6 @@ def probe_worten(config: dict) -> dict:
 
     _urls, children = tracker.sitemap_parse(index.content, index.text, 160)
     out["index"]["children"] = len(children)
-    # Dois filhos bastam para confirmar se o padrão se repete sem gastar tráfego.
     candidate_urls: list[str] = []
     for child in children[:2]:
         response, child_error = get(child)
@@ -147,22 +146,14 @@ def probe_worten(config: dict) -> dict:
             products = [url for url in urls if tracker._looks_like_product_url(url, cat)]
             products.sort(key=tracker._sitemap_product_score, reverse=True)
             info.update({"urls": len(urls), "products": len(products), "examples": products[:3]})
+            if products:
+                info["first_product_xml"] = _xml_block_for_url(response.text, products[0])
             candidate_urls.extend(products[:2])
         out["children"].append(info)
 
-    for product_url in list(dict.fromkeys(candidate_urls))[:3]:
+    for product_url in list(dict.fromkeys(candidate_urls))[:2]:
         response, product_error = get(product_url)
-        info = row_for(response, product_error, product_url)
-        if response is not None and response.status_code == 200:
-            soup = tracker.BeautifulSoup(response.text, "html.parser")
-            evidence = tracker.page_price_evidence(soup, tracker.scraper)
-            info.update({
-                "title": soup.title.get_text(" ", strip=True) if soup.title else None,
-                "jsonld": len(soup.select('script[type="application/ld+json"]')),
-                "price": evidence.get("price"),
-                "price_confidence": evidence.get("confidence"),
-            })
-        out["products"].append(info)
+        out["products"].append(row_for(response, product_error, product_url))
     return out
 
 
