@@ -4,6 +4,9 @@ import re
 from urllib.parse import urlparse
 
 import promotion_value_guard as promotion_value
+import product_promotion_guard
+import price_change_alert_guard
+import ranking_history_guard
 
 
 def _canonical_url(value: object) -> str:
@@ -50,6 +53,11 @@ def install(tracker_module) -> None:
     servir apenas para garantir que uma alteração material de preço chega à
     avaliação. Se essa avaliação gerar uma notificação, acrescenta o Value de
     referência, o Value recalculado e o respetivo delta.
+
+    V9 beta.2 compõe aqui três guardas observacionais adicionais: promoções
+    explícitas na ficha/carrinho, alertas de alterações materiais de preço e
+    persistência das posições do ranking. Mantê-los nesta camada evita mexer no
+    cérebro e preserva a ordem dos guardas já estáveis da V9.
     """
     if getattr(tracker_module, "_PRICE_CHANGE_PRIORITY_GUARD_INSTALLED", False):
         return
@@ -220,3 +228,9 @@ def install(tracker_module) -> None:
     if callable(base_maybe_alert):
         tracker_module.maybe_alert = maybe_alert
     tracker_module._PRICE_CHANGE_PRIORITY_GUARD_INSTALLED = True
+
+    # Subcamadas V9 beta.2. Todas são neutras para o cérebro: observam páginas,
+    # histórico e alertas, mas não mudam a fórmula técnica de score.
+    product_promotion_guard.install(tracker_module)
+    price_change_alert_guard.install(tracker_module)
+    ranking_history_guard.install(tracker_module)
