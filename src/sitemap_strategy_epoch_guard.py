@@ -1,50 +1,24 @@
 from __future__ import annotations
 
 import copy
-from urllib.parse import urlparse
 
 
 # Recuperação conservadora das lojas que o GitHub Actions vê frequentemente
-# bloqueadas na categoria principal. Só reabre rotas públicas/sitemap; não tenta
-# contornar autenticação, checkout ou endpoints privados.
+# bloqueadas na categoria principal. Só usa fontes públicas; não tenta contornar
+# desafios, autenticação, checkout ou endpoints privados.
 _RECOVERY = {
     "PCDiga": {
-        "version": "pcdiga-public-sitemap-v2",
-        "force_sitemap": True,
-        "sitemap_probe_limit": 12,
-        "max_sitemaps": 10,
-        "sitemap_child_hints": [
-            "product",
-            "produto",
-            "catalog",
-            "portatil",
-            "laptop",
-            "computador",
-        ],
-        # robots.txt anuncia www.pcdiga.com/sitemap/sitemap.xml, mas esse URL
-        # redireciona para o host público. O runner deve ir diretamente à origem
-        # pública para não depender do redirecionamento do edge principal.
-        "fetch_rewrites": {
-            "https://www.pcdiga.com/sitemap/sitemap.xml":
-                "https://public.pcdiga.com/sitemap/sitemap.xml",
-        },
-        "extra_routes": [
-            {
-                "label": "computadores_laptop_public",
-                "url": "https://www.pcdiga.com/computadores-e-software/computadores-laptop",
-            },
-            {
-                "label": "lenovo_brand_public",
-                "url": "https://www.pcdiga.com/portateis-lenovo",
-            },
-        ],
-        # Rotas com filtros são explicitamente bloqueadas no robots da PCDiga e
-        # só gastavam requests nas Actions sem produzir candidatos.
-        "drop_route_markers": ["filter_by=", "hierarchicalmenu", "categories.level"],
+        # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria, sitemap
+        # oficial e host public.pcdiga.com devolvem Cloudflare 403. Enquanto não
+        # existir feed/fonte pública autorizada, não desperdiçar pedidos nesses
+        # caminhos. Mantemos apenas a categoria base para uma sonda barata.
+        "version": "pcdiga-cloud-edge-v3",
+        "sitemap_enabled": False,
+        "replace_extra_routes": [],
     },
     "PcComponentes": {
         "version": "pccomponentes-public-sitemap-v1",
-        "force_sitemap": True,
+        "sitemap_enabled": True,
         "sitemap_probe_limit": 6,
         "max_sitemaps": 8,
         "sitemap_child_hints": [
@@ -64,7 +38,7 @@ _RECOVERY = {
     },
     "CHIP7": {
         "version": "chip7-public-sitemap-v1",
-        "force_sitemap": True,
+        "sitemap_enabled": True,
         "sitemap_probe_limit": 6,
         "max_sitemaps": 8,
         "sitemap_child_hints": [
@@ -85,7 +59,7 @@ _RECOVERY = {
     "Worten": {
         "version": "worten-index-hints-v3-reopen",
         "replace_versions": {"", "legacy", "worten-index-hints-v2"},
-        "force_sitemap": True,
+        "sitemap_enabled": True,
         "sitemap_probe_limit": 6,
         "max_sitemaps": 12,
         "sitemap_child_hints": [
@@ -102,22 +76,12 @@ _RECOVERY = {
 }
 
 
-def _filter_routes(routes: list, policy: dict) -> list:
-    markers = tuple(str(value).lower() for value in policy.get("drop_route_markers", []) if value)
-    if not markers:
-        return [dict(route) if isinstance(route, dict) else route for route in routes]
-    out = []
-    for route in routes:
-        copied = dict(route) if isinstance(route, dict) else route
-        url = str(copied.get("url") if isinstance(copied, dict) else copied or "").lower()
-        if any(marker in url for marker in markers):
-            continue
-        out.append(copied)
-    return out
+def _copy_routes(routes: list) -> list:
+    return [dict(route) if isinstance(route, dict) else route for route in routes]
 
 
 def _recovery_cat(cat: dict) -> dict:
-    """Aplica apenas rotas públicas de recuperação, sem alterar o cérebro."""
+    """Aplica apenas política pública de acesso, sem alterar o cérebro."""
     store = str(cat.get("loja") or "")
     policy = _RECOVERY.get(store)
     if not policy:
@@ -129,32 +93,37 @@ def _recovery_cat(cat: dict) -> dict:
     if replace_versions is None or configured_version in replace_versions:
         out["sitemap_strategy_version"] = policy["version"]
 
-    if policy.get("force_sitemap"):
-        out["sitemap_enabled"] = True
-    out["sitemap_probe_limit"] = max(
-        int(out.get("sitemap_probe_limit", 0) or 0),
-        int(policy.get("sitemap_probe_limit", 0) or 0),
-    )
-    out["max_sitemaps"] = max(
-        int(out.get("max_sitemaps", 0) or 0),
-        int(policy.get("max_sitemaps", 0) or 0),
-    )
+    if "sitemap_enabled" in policy:
+        out["sitemap_enabled"] = bool(policy["sitemap_enabled"])
+    if "sitemap_probe_limit" in policy:
+        out["sitemap_probe_limit"] = max(
+            int(out.get("sitemap_probe_limit", 0) or 0),
+            int(policy.get("sitemap_probe_limit", 0) or 0),
+        )
+    if "max_sitemaps" in policy:
+        out["max_sitemaps"] = max(
+            int(out.get("max_sitemaps", 0) or 0),
+            int(policy.get("max_sitemaps", 0) or 0),
+        )
 
     configured_hints = [str(value) for value in out.get("sitemap_child_hints", []) if value]
     out["sitemap_child_hints"] = list(
         dict.fromkeys([*configured_hints, *policy.get("sitemap_child_hints", [])])
     )
 
-    routes = _filter_routes(list(out.get("extra_discovery_urls", [])), policy)
-    existing_urls = {
-        str(route.get("url"))
-        for route in routes
-        if isinstance(route, dict) and route.get("url")
-    }
-    for route in policy.get("extra_routes", []):
-        if str(route.get("url")) not in existing_urls:
-            routes.append(dict(route))
-            existing_urls.add(str(route.get("url")))
+    if "replace_extra_routes" in policy:
+        routes = _copy_routes(list(policy.get("replace_extra_routes", [])))
+    else:
+        routes = _copy_routes(list(out.get("extra_discovery_urls", [])))
+        existing_urls = {
+            str(route.get("url"))
+            for route in routes
+            if isinstance(route, dict) and route.get("url")
+        }
+        for route in policy.get("extra_routes", []):
+            if str(route.get("url")) not in existing_urls:
+                routes.append(dict(route))
+                existing_urls.add(str(route.get("url")))
     out["extra_discovery_urls"] = routes
     return out
 
@@ -180,42 +149,17 @@ def _archive_and_reset_sitemap_access(bucket: dict, previous_version: str) -> No
     methods.pop("sitemap", None)
 
 
-def _rewrite_fetch_url(store: str | None, method: str, url: str) -> str:
-    """Redireciona apenas URLs públicos conhecidos de discovery.
-
-    Não é um bypass de páginas de produto: serve para eliminar redirects que o
-    próprio robots.txt da loja anuncia e que falham nos runners cloud.
-    """
-    if method != "sitemap" or not store:
-        return url
-    policy = _RECOVERY.get(str(store), {})
-    rewrites = policy.get("fetch_rewrites", {})
-    return str(rewrites.get(str(url), url))
-
-
 def install(tracker_module) -> None:
-    """Recupera discovery público por loja e reabre estratégias de sitemap.
+    """Aplica política de discovery público e epochs de sitemap por loja.
 
-    A aprendizagem antiga é arquivada por versão. Quando a estratégia muda,
-    apenas o contexto HTTP de sitemap é reaberto; a aprendizagem global, scoring,
-    Value, tiers, matching, histórico de preços e NTFY ficam intactos.
+    Quando a estratégia muda, apenas o contexto HTTP de sitemap é reaberto. A
+    aprendizagem global, scoring, Value, tiers, matching, histórico de preços e
+    NTFY ficam intactos.
     """
     if getattr(tracker_module, "_SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED", False):
         return
 
     base_scan_store = tracker_module.scan_store
-    base_adaptive_fetch = tracker_module.adaptive_fetch
-
-    def adaptive_fetch(url: str, config: dict, timeout_s: float = 8.0, *, store=None, method="page"):
-        effective_store = store or tracker_module.store_for_url(url, config)
-        rewritten = _rewrite_fetch_url(effective_store, method, str(url))
-        return base_adaptive_fetch(
-            rewritten,
-            config,
-            timeout_s,
-            store=effective_store,
-            method=method,
-        )
 
     def scan_store(cat: dict, config: dict, settings: dict):
         working_cat = _recovery_cat(cat)
@@ -250,6 +194,5 @@ def install(tracker_module) -> None:
         stat["sitemap_recovery_policy"] = store in _RECOVERY
         return items, stat
 
-    tracker_module.adaptive_fetch = adaptive_fetch
     tracker_module.scan_store = scan_store
     tracker_module._SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED = True
