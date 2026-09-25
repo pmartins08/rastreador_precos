@@ -143,7 +143,7 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         self.assertEqual(module._bucket["methods"]["sitemap"], 11)
         self.assertNotIn("discovery_history", module._bucket)
         self.assertNotIn("access_context_history", module._bucket)
-        self.assertIs(module.last_cat["loja"], "Darty")
+        self.assertEqual(module.last_cat["loja"], "Darty")
 
 
 if __name__ == "__main__":
