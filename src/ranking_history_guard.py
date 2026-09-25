@@ -11,14 +11,31 @@ def _number(value: object) -> float | None:
 
 
 def _effective_fields(entry: dict) -> tuple[float, float, str | None]:
+    """Lê a decisão efetiva já calculada sem a reinterpretar.
+
+    O ranking é apenas observacional: nunca pode substituir `effective_*` pelo
+    tier/value bruto. Só usa promoção/base como fallback para históricos
+    legados que ainda não tenham Decision Truth efetivo.
+    """
+    effective_value = _number(entry.get("effective_value_score"))
+    effective_price = _number(entry.get("effective_price"))
+    effective_tier = entry.get("effective_tier")
+    if effective_value is not None and effective_price is not None and effective_tier:
+        return effective_value, effective_price, str(effective_tier)
+
     promo_price = _number(entry.get("promotion_checkout_price"))
     promo_value = _number(entry.get("promotion_value_score"))
     promo_tier = entry.get("promotion_tier")
     if promo_price is not None and promo_value is not None and promo_tier:
         return promo_value, promo_price, str(promo_tier)
-    value = _number(entry.get("value_score")) or 0.0
-    price = _number(entry.get("price")) or 99999.0
-    return value, price, entry.get("tier")
+
+    value = _number(entry.get("value_score"))
+    price = _number(entry.get("price"))
+    return (
+        value if value is not None else 0.0,
+        price if price is not None else 99999.0,
+        entry.get("tier"),
+    )
 
 
 def rank_observations(observations: list[dict]) -> list[dict]:
@@ -117,6 +134,8 @@ def install(tracker_module) -> None:
                 entry["store_ranking_position"] = row["store_ranking_position"]
                 entry["previous_ranking_position"] = row.get("previous_ranking_position")
                 entry["ranking_position_delta"] = row.get("ranking_position_delta")
+                # Estes valores são idênticos aos Decision Truth já existentes;
+                # persistimo-los apenas para que o snapshot seja autocontido.
                 entry["effective_price"] = row.get("effective_price")
                 entry["effective_value_score"] = row.get("effective_value_score")
                 entry["effective_tier"] = row.get("effective_tier")
