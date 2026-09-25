@@ -1,0 +1,52 @@
+name: Diagnosticar estrutura pública PcComponentes
+
+on:
+  push:
+    branches: [diag-pccomponentes-structure]
+    paths:
+      - '.github/workflows/diag_pccomponentes.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python -m pip install curl_cffi beautifulsoup4
+      - name: Testar rotas públicas PcComponentes
+        run: |
+          python - <<'PY'
+          from urllib.parse import urljoin
+          from bs4 import BeautifulSoup
+          from curl_cffi import requests
+
+          targets = [
+            ('category','https://www.pccomponentes.pt/categorias/computadores-portateis'),
+            ('legacy','https://www.pccomponentes.pt/categorias/portateis'),
+            ('brand','https://www.pccomponentes.pt/marcas/asus/portateis'),
+            ('affiliate','https://www.pccomponentes.pt/landings/afiliados-pt'),
+            ('robots','https://www.pccomponentes.pt/robots.txt'),
+            ('sitemap','https://www.pccomponentes.pt/sitemap.xml'),
+          ]
+          for label,url in targets:
+            print('\n===',label,'===')
+            try:
+              r=requests.get(url,impersonate='chrome131',timeout=12,allow_redirects=True)
+              print('status',r.status_code,'final',r.url,'type',r.headers.get('content-type'),'bytes',len(r.content))
+              if r.status_code < 400 and 'html' in str(r.headers.get('content-type','')).lower():
+                soup=BeautifulSoup(r.text,'html.parser')
+                hrefs=sorted({urljoin(r.url,a.get('href')) for a in soup.find_all('a',href=True)})
+                productish=[h for h in hrefs if any(x in h.lower() for x in ('/produto/','/product/','-portatil','portatil-'))]
+                print('hrefs',len(hrefs),'productish',len(productish))
+                for h in productish[:20]: print('LINK',h)
+                print('TEXT',soup.get_text(' ',strip=True)[:1000])
+              else:
+                print((r.text or '')[:1400].replace('\r',''))
+            except Exception as exc:
+              print('ERROR',type(exc).__name__,str(exc)[:400])
+          PY
