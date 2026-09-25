@@ -37,24 +37,13 @@ _RECOVERY = {
         ],
     },
     "CHIP7": {
-        "version": "chip7-public-sitemap-v1",
-        "sitemap_enabled": True,
-        "sitemap_probe_limit": 6,
-        "max_sitemaps": 8,
-        "sitemap_child_hints": [
-            "product",
-            "produto",
-            "catalog",
-            "portatil",
-            "laptop",
-            "computador",
-        ],
-        "extra_routes": [
-            {
-                "label": "landing_portateis_public",
-                "url": "https://chip7.pt/landing/portateis",
-            }
-        ],
+        # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria normal,
+        # variante index.php, gaming, robots.txt e sitemap devolvem Cloudflare
+        # 403. Mantemos apenas a categoria base como sonda barata e paramos as
+        # restantes rotas até surgir uma fonte pública estruturada/autorizada.
+        "version": "chip7-cloud-edge-v2",
+        "sitemap_enabled": False,
+        "replace_extra_routes": [],
     },
     "Worten": {
         "version": "worten-index-hints-v3-reopen",
