@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from urllib.parse import unquote, urlparse
 
 
 # Recuperação conservadora das lojas que o GitHub Actions vê frequentemente
@@ -88,6 +89,49 @@ _RECOVERY = {
     },
 }
 
+_WORTEN_SITEMAP_REJECT_MARKERS = (
+    "acessorio",
+    "adaptador",
+    "bateria",
+    "bolsa",
+    "cabo",
+    "capa",
+    "carregador",
+    "dock",
+    "fonte-alimentacao",
+    "mala",
+    "mochila",
+    "monitor",
+    "pelicula",
+    "rato",
+    "suporte",
+    "teclado",
+    # O projeto acompanha equipamento novo normal; não gastar detalhe live em
+    # páginas de outlet/caixa aberta que já seriam excluídas mais tarde.
+    "outlet",
+    "caixa-aberta",
+    "grade-a",
+    "grade-b",
+    "grade-c",
+    "recondicionado",
+    "refurbished",
+)
+
+
+def _worten_sitemap_product_url(url: str) -> bool:
+    """Aceita no sitemap Worten apenas URLs que parecem portáteis reais.
+
+    O sitemap contém acessórios e monitores cujos slugs referem modelos de
+    portáteis. A regra genérica via marca/família (TUF/LOQ/etc.) era demasiado
+    permissiva e fazia gastar probes de produto em páginas sem interesse.
+    """
+    path = unquote(urlparse(str(url)).path).lower()
+    if not path.startswith("/produtos/"):
+        return False
+    if any(marker in path for marker in _WORTEN_SITEMAP_REJECT_MARKERS):
+        return False
+    return any(marker in path for marker in ("portatil", "laptop", "macbook"))
+
 
 def _recovery_cat(cat: dict) -> dict:
     """Aplica apenas rotas públicas de recuperação, sem alterar o cérebro."""
@@ -161,7 +205,7 @@ def _archive_and_reset_sitemap_access(bucket: dict, previous_version: str) -> No
 
 
 def install(tracker_module) -> None:
-    """Reabre sitemap uma vez quando a estratégia configurada muda.
+    """Reabre sitemap quando a estratégia muda e aplica filtros de acesso.
 
     A aprendizagem antiga é arquivada por versão em `discovery_history`; apenas
     o estado ativo de `sitemap` começa fresco para a estratégia nova. Também é
@@ -176,6 +220,17 @@ def install(tracker_module) -> None:
         return
 
     base_scan_store = tracker_module.scan_store
+    base_product_url = getattr(tracker_module, "_looks_like_product_url", None)
+
+    if callable(base_product_url):
+        def looks_like_product_url(url: str, cat: dict) -> bool:
+            if not base_product_url(url, cat):
+                return False
+            if str(cat.get("loja") or "") == "Worten":
+                return _worten_sitemap_product_url(url)
+            return True
+
+        tracker_module._looks_like_product_url = looks_like_product_url
 
     def scan_store(cat: dict, config: dict, settings: dict):
         working_cat = _recovery_cat(cat)
