@@ -17,24 +17,13 @@ _RECOVERY = {
         "replace_extra_routes": [],
     },
     "PcComponentes": {
-        "version": "pccomponentes-public-sitemap-v1",
-        "sitemap_enabled": True,
-        "sitemap_probe_limit": 6,
-        "max_sitemaps": 8,
-        "sitemap_child_hints": [
-            "product",
-            "produto",
-            "catalog",
-            "portatil",
-            "laptop",
-            "computer",
-        ],
-        "extra_routes": [
-            {
-                "label": "portateis_public",
-                "url": "https://www.pccomponentes.pt/categorias/portateis",
-            }
-        ],
+        # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria, rota
+        # legacy, marca, landing de afiliados, robots.txt e sitemap devolvem
+        # Cloudflare 403. A fonte oficial estruturada disponível é o catálogo de
+        # afiliados Awin, já suportado pelo awin_feed_guard.
+        "version": "pccomponentes-awin-v2",
+        "sitemap_enabled": False,
+        "replace_extra_routes": [],
     },
     "CHIP7": {
         # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria normal,

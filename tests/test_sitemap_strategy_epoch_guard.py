@@ -102,26 +102,24 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         self.assertEqual(module.last_cat["extra_discovery_urls"], [])
         self.assertEqual(module.last_cat["sitemap_strategy_version"], "pcdiga-cloud-edge-v3")
 
-    def test_recovery_enables_pccomponentes_sitemap_and_public_route(self):
+    def test_pccomponentes_uses_feed_path_not_dead_html_routes(self):
         module = self._module()
         sitemap_strategy_epoch_guard.install(module)
         module.scan_store(
             {
                 "loja": "PcComponentes",
-                "sitemap_enabled": False,
-                "extra_discovery_urls": [],
+                "sitemap_enabled": True,
+                "extra_discovery_urls": [
+                    {"label": "legacy", "url": "https://www.pccomponentes.pt/categorias/portateis"},
+                    {"label": "asus", "url": "https://www.pccomponentes.pt/marcas/asus/portateis"},
+                ],
             },
             {},
             {},
         )
-        self.assertTrue(module.last_cat["sitemap_enabled"])
-        self.assertEqual(
-            module.last_cat["sitemap_strategy_version"],
-            "pccomponentes-public-sitemap-v1",
-        )
-        self.assertGreaterEqual(module.last_cat["sitemap_probe_limit"], 6)
-        urls = [route["url"] for route in module.last_cat["extra_discovery_urls"]]
-        self.assertIn("https://www.pccomponentes.pt/categorias/portateis", urls)
+        self.assertFalse(module.last_cat["sitemap_enabled"])
+        self.assertEqual(module.last_cat["extra_discovery_urls"], [])
+        self.assertEqual(module.last_cat["sitemap_strategy_version"], "pccomponentes-awin-v2")
 
     def test_chip7_disables_dead_sitemap_and_extra_routes(self):
         module = self._module()
