@@ -35,8 +35,8 @@ from promotion_runtime_guard import install as install_promotion_runtime_guard
 from radio_popular_card_guard import install as install_radio_popular_card_guard
 from rejection_guard import install as install_rejection_guard
 from sitemap_route_guard import install as install_sitemap_route_guard
-from sitemap_strategy_epoch_guard import install as install_sitemap_strategy_epoch_guard
 from state_refresh_guard import install as install_state_refresh_guard
+from store_access_guard import install as install_store_access_guard
 from tier_policy_guard import install as install_tier_policy_guard
 from version import VERSION
 from version_guard import install as install_version_guard
@@ -253,7 +253,7 @@ install_catalog_guard(tracker)
 install_promotion_engine_v3(tracker)
 install_awin_feed_guard(tracker)
 install_coverage_guard(tracker)
-install_sitemap_strategy_epoch_guard(tracker)
+install_store_access_guard(tracker)
 # Vê a prioridade final e acrescenta apenas um bónus quando o preço atual difere
 # materialmente do histórico.
 install_price_change_priority_guard(tracker)
