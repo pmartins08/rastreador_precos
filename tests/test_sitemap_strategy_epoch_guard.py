@@ -75,9 +75,7 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         module = self._module()
         old_category_context = module._bucket["contexts"]["category"]
         sitemap_strategy_epoch_guard.install(module)
-
         module.scan_store({"loja": "PCDiga"}, {}, {})
-
         self.assertNotIn("sitemap", module._bucket["contexts"])
         self.assertNotIn("sitemap", module._bucket["methods"])
         self.assertIs(module._bucket["contexts"]["category"], old_category_context)
@@ -102,10 +100,7 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         )
         self.assertFalse(module.last_cat["sitemap_enabled"])
         self.assertEqual(module.last_cat["extra_discovery_urls"], [])
-        self.assertEqual(
-            module.last_cat["sitemap_strategy_version"],
-            "pcdiga-cloud-edge-v3",
-        )
+        self.assertEqual(module.last_cat["sitemap_strategy_version"], "pcdiga-cloud-edge-v3")
 
     def test_recovery_enables_pccomponentes_sitemap_and_public_route(self):
         module = self._module()
@@ -128,21 +123,24 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         urls = [route["url"] for route in module.last_cat["extra_discovery_urls"]]
         self.assertIn("https://www.pccomponentes.pt/categorias/portateis", urls)
 
-    def test_recovery_adds_chip7_public_landing_without_duplicates(self):
+    def test_chip7_disables_dead_sitemap_and_extra_routes(self):
         module = self._module()
         sitemap_strategy_epoch_guard.install(module)
-        route = {
-            "label": "landing_portateis_public",
-            "url": "https://chip7.pt/landing/portateis",
-        }
         module.scan_store(
-            {"loja": "CHIP7", "extra_discovery_urls": [route]},
+            {
+                "loja": "CHIP7",
+                "sitemap_enabled": True,
+                "extra_discovery_urls": [
+                    {"label": "search", "url": "https://chip7.pt/?main.query=portatil"},
+                    {"label": "gaming", "url": "https://chip7.pt/computadores/portateis/portateis-gaming"},
+                ],
+            },
             {},
             {},
         )
-        urls = [entry["url"] for entry in module.last_cat["extra_discovery_urls"]]
-        self.assertEqual(urls.count("https://chip7.pt/landing/portateis"), 1)
-        self.assertTrue(module.last_cat["sitemap_enabled"])
+        self.assertFalse(module.last_cat["sitemap_enabled"])
+        self.assertEqual(module.last_cat["extra_discovery_urls"], [])
+        self.assertEqual(module.last_cat["sitemap_strategy_version"], "chip7-cloud-edge-v2")
 
     def test_same_strategy_keeps_learning_and_access_context(self):
         module = self._module()
