@@ -6,15 +6,18 @@ Este ficheiro é deliberadamente temporário e deve ser removido antes do merge.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from urllib.parse import urlparse
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 import requests
 
 import runner  # noqa: F401 - instala a composição real da V9
 import tracker
 
-ROOT = Path(__file__).resolve().parents[1]
 UA = "rastreador-precos/9.0 (+https://github.com/pmartins08/rastreador_precos)"
 
 
