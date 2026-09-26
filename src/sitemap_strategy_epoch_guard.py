@@ -4,6 +4,7 @@ import copy
 
 from search_index_guard import install as install_search_index_guard
 from search_index_identity_guard import install as install_search_index_identity_guard
+from search_index_live_validation_guard import install as install_search_index_live_validation_guard
 
 
 # Recuperação conservadora das lojas que o GitHub Actions vê frequentemente
@@ -25,7 +26,8 @@ _RECOVERY = {
     "PcComponentes": {
         # Brave é a fonte de maior rendimento. Duas queries por família 24 GB
         # preservam os candidatos atuais OMEN/LOQ e duas queries genéricas cobrem
-        # o resto do mercado. Tudo continua apenas INDEX_ONLY.
+        # o resto do mercado. Tudo continua apenas INDEX_ONLY até existir validação
+        # live forte de identidade + preço.
         "version": "pccomponentes-awin-v2",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
@@ -170,6 +172,7 @@ def install(tracker_module) -> None:
     if all(hasattr(tracker_module, name) for name in required):
         install_search_index_guard(tracker_module)
         install_search_index_identity_guard(tracker_module)
+        install_search_index_live_validation_guard(tracker_module)
     base_scan_store = tracker_module.scan_store
 
     def scan_store(cat: dict, config: dict, settings: dict):
