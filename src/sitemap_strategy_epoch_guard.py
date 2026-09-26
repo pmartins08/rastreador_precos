@@ -43,30 +43,31 @@ _RECOVERY = {
         "search_index_trigger_below": 6,
     },
     "CHIP7": {
-        # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria normal,
-        # variante index.php, gaming, robots.txt e sitemap devolvem Cloudflare
-        # 403. Mantemos apenas a categoria base como sonda barata e paramos as
-        # restantes rotas até surgir uma fonte pública estruturada/autorizada.
-        "version": "chip7-cloud-edge-v2",
+        # Categoria, pesquisa interna e sitemap devolvem Cloudflare 403 no runner.
+        # Índices públicos servem apenas para descobrir fichas já publicadas; o
+        # preço de snippet continua INDEX_ONLY e nunca entra no cérebro sozinho.
+        "version": "chip7-search-index-v3",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
+        "search_index_enabled": True,
+        "search_index_queries": ["portatil RTX 5070", "portatil RTX 5060"],
+        "search_index_engines": ["brave", "duckduckgo"],
+        "search_index_max_queries": 2,
+        "search_index_trigger_below": 6,
     },
     "Worten": {
-        "version": "worten-index-hints-v3-reopen",
-        "replace_versions": {"", "legacy", "worten-index-hints-v2"},
-        "sitemap_enabled": True,
-        "sitemap_probe_limit": 6,
-        "max_sitemaps": 12,
-        "sitemap_child_hints": [
-            "informatica",
-            "computador",
-            "portatil",
-            "laptop",
-            "product",
-            "produto",
-            "catalog",
-        ],
-        "extra_routes": [],
+        # A estratégia anterior percorreu 120 URLs de sitemap por run sem gerar
+        # candidatos. Substituímos esse custo por discovery de índice público;
+        # qualquer eventual promoção a candidato continua sujeita aos guards de
+        # identidade forte e preço live HIGH.
+        "version": "worten-search-index-v4",
+        "sitemap_enabled": False,
+        "replace_extra_routes": [],
+        "search_index_enabled": True,
+        "search_index_queries": ["portatil RTX 5070", "portatil RTX 5060"],
+        "search_index_engines": ["brave", "duckduckgo"],
+        "search_index_max_queries": 2,
+        "search_index_trigger_below": 6,
     },
 }
 
