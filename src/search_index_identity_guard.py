@@ -1,20 +1,45 @@
 from __future__ import annotations
 
+import re
+from urllib.parse import unquote, urlparse
+
 
 def _strong_url_identity(url: str, tracker_module) -> dict:
-    """Extrai apenas identificadores que o próprio runtime já valida pela URL."""
+    """Extrai apenas identificadores fortes que podem ser confirmados na ficha live."""
+    raw_url = str(url or "")
     extractor = getattr(tracker_module, "url_ean", None)
-    if not callable(extractor):
-        return {}
+    if callable(extractor):
+        try:
+            ean = extractor(raw_url)
+        except Exception:
+            ean = None
+        if ean:
+            return {
+                "ean": str(ean),
+                "identity_status": "STRONG_URL_EAN",
+                "identity_source": "product_url",
+            }
+
+    # A CHIP7 usa frequentemente a referência do fabricante como último segmento
+    # (ex.: /83je00c6pg). Aceitamos apenas formatos muito restritos de P/N de
+    # portáteis Lenovo/ASUS; slugs descritivos genéricos nunca viram identidade.
     try:
-        ean = extractor(str(url or ""))
+        parsed = urlparse(raw_url)
+        host = parsed.netloc.lower().removeprefix("www.")
+        slug = unquote(parsed.path.rstrip("/").split("/")[-1]).upper()
     except Exception:
         return {}
-    if not ean:
+    if host != "chip7.pt":
+        return {}
+    strong_mpn = bool(
+        re.fullmatch(r"8[23][A-Z0-9]{8}", slug)
+        or re.fullmatch(r"90NR[A-Z0-9]{3,10}-[A-Z0-9]{4,10}", slug)
+    )
+    if not strong_mpn:
         return {}
     return {
-        "ean": str(ean),
-        "identity_status": "STRONG_URL_EAN",
+        "mpn": slug,
+        "identity_status": "STRONG_URL_MPN",
         "identity_source": "product_url",
     }
 
@@ -38,21 +63,22 @@ def _annotate_search_index(items: list[dict], stat: dict, tracker_module) -> Non
         identity = _strong_url_identity(url, tracker_module)
         if not identity:
             continue
-        # A identidade é independente do price hint. O estado INDEX_ONLY não é
-        # alterado e esta camada nunca cria candidatos nem confirma preços.
         for key, value in identity.items():
             row.setdefault(key, value)
         identities_by_url[url] = identity
         strong += 1
 
-    # Se o search_index_guard já recuperou uma oferta através de histórico HIGH,
-    # podemos completar o EAN a partir da URL. Nunca adicionamos uma oferta nova.
+    # Só completa ofertas que já existem; esta camada nunca cria candidatos.
     for item in items:
-        if not isinstance(item, dict) or item.get("ean"):
+        if not isinstance(item, dict):
             continue
         identity = identities_by_url.get(str(item.get("url") or ""))
-        if identity and identity.get("ean"):
-            item["ean"] = identity["ean"]
+        if not identity:
+            continue
+        for field in ("ean", "mpn"):
+            if identity.get(field) and not item.get(field):
+                item[field] = identity[field]
+        if identity.get("identity_source"):
             item.setdefault("identity_source", identity["identity_source"])
 
     search["strong_identity"] = strong
