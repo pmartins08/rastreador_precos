@@ -1,62 +1,85 @@
-# V9 beta — análise e consolidação de 22/09/2026
+# V9 beta — estado operacional em 26/09/2026
 
-## Estado e âmbito
-Versão pública: **9.0.0-beta.1**. Consolida main V8.8.9 e a Fase 1 V9 desenvolvida no PR #41. Não declara concluído o roadmap completo V9. Preserva pesos, orçamento, histórico, aprendizagem, estado de alertas e STATE_EPOCH. Snapshot anterior ao deploy: run 35719795377, 22/09/2026 11:12 UTC.
+## Versão e política
 
-## Diagnóstico
-- Produção anterior: 366 candidatos, 300 avaliações (limite atingido), 187 aceites; 124 requests, 59 detalhes, 241 reutilizações de cache; 220,18 segundos; 0 alertas de oportunidade. Cinco lojas fornecem ofertas aceites, quatro continuam bloqueadas.
-- Distribuição anterior: 1 Diamante, 4 Ouro, 119 Prata, 63 Bronze. Estes números não são o Top3 da nova execução.
-- Darty já recebe 5 das 12 confirmações, RP 3 e UPTECHBOX 4. A distribuição entre lojas pedida anteriormente já foi implementada; não deve ser refeita.
-- UPTECHBOX perde 51 ofertas por falta de confirmação live de preço. Darty perde 16 pelo mesmo motivo. Aumentar cegamente o orçamento de requests não resolve a confiança.
-- Matching: 21 pares exatos e 15 pares contraditórios no resumo anterior. Mesmo EAN pode apresentar Value distinto por especificações/completude diferentes. Prioridade: reconciliação de evidência por campo, sem copiar hardware contraditório entre variantes.
-- Mercado: as campanhas e Diamantes de 13/09 não são ofertas atuais. Ranking só pode usar preço elegível observado nesta execução; quatro lojas ausentes impedem afirmar que é o melhor preço de todo o mercado português.
+Versão pública: **9.0.0-beta.6**. A V9 preserva o cérebro de scoring, pesos, `STATE_EPOCH`, histórico e política NTFY. Diamante continua dependente do Value configurado acima de 120 e os alertas normais continuam limitados a Ouro/Diamante.
 
-## Cada loja
-| Loja | Candidatos | Aceites | Requests | Limitação / rejeições |
-|---|---:|---:|---:|---|
-| CHIP7 | 0 | 0 | 2 | HTTP 403 |
-| Darty | 139 | 59 | 48 | {'live_price_confirmation_required': 16, 'ram_8gb': 5, 'score_rejected_other': 19} |
-| FNAC | 43 | 33 | 12 | {'ram_8gb': 5} |
-| Globaldata | 84 | 66 | 13 | {'ram_8gb': 4} |
-| PCDiga | 0 | 0 | 9 | HTTP 403 |
-| PcComponentes | 0 | 0 | 2 | HTTP 403 |
-| Radio Popular | 37 | 25 | 17 | {'ram_8gb': 6, 'score_rejected_other': 3} |
-| UPTECHBOX | 63 | 4 | 19 | {'live_price_confirmation_required': 51, 'ram_8gb': 4} |
-| Worten | 0 | 0 | 2 | HTTP 403 |
+O princípio operacional desta fase é simples: **discovery não é confirmação**. URLs ou preços encontrados por índices públicos podem ajudar a localizar produtos, mas ficam `INDEX_ONLY` até uma fonte suficientemente forte confirmar identidade e preço.
 
-## Melhorias nesta beta
-- Fonte comum de decisão base/promocional/efetiva em histórico, contagens, heartbeat, TOP e auditoria de alertas; promoção exige confirmação e desconto efetivo.
-- Integra toda a Fase 1 existente em v9/development, incluindo testes reais de composição e normalização de scores para floats persistíveis.
-- Configuração da Decision Truth lida uma vez por execução em vez de uma leitura por oferta aceite.
-- Um único CI por pull request, sem repetir testes num workflow V9 separado nem simultaneamente no push da mesma branch.
-- Produção mantém cron de 6 horas e validações; uma nova execução aguarda a atual terminar, evitando cancelar um processo entre envio de alertas e persistência.
-- Gate de coerência V9 em produção, derivado do benchmark E2E existente.
-- Retira stub de campanha antiga e configuração morta. Resumo excecional Top3 tem identificador explícito, recibo persistente e reserva antes do POST para impedir duplicados; não reutiliza ofertas antigas nem preenche com Prata.
-- Histórico Git e logs de Actions preservados para diagnóstico e rollback. Não se apagam runs falhadas para esconder regressões.
+## Última run completa de referência (beta.5)
 
-## Validação e limites
-- Benchmark prévio V9 35722147798: sucesso real, 333 candidatos, 272 avaliados, 153 aceites, 164 requests, 100 detalhes, 154,12 s. Não é um teste A/B: dados, cache e cobertura diferem da produção.
-- Suite local após consolidação e correção do limiar: 338 testes. CI e execução de produção são os gates finais; consultar Actions para resultados efetivos.
-- Esta versão mantém a política implementada: Value estritamente acima de 120 força Diamante; abaixo/equal preserva o cálculo existente. Não muda o cérebro de scoring.
-- O Top3 solicitado só é enviado após uma execução fresca bem-sucedida e validação de três configurações Ouro/Diamante. Reserva sem recibo significa entrega incerta e exige revisão manual antes de qualquer reenvio.
+Run de produção `36264887615`, concluída com sucesso:
 
-## Próximos passos por prioridade
-1. Confirmar três runs comparáveis da beta: aceites/request, tempo, cobertura por loja, divergências de tiers e alertas.
-2. UPTECHBOX/Darty: medir confirmações por request, cache HIGH válida e extração estruturada de preço; evitar confundir catálogo com evidência live suficiente.
-3. PCDiga/PcComponentes/CHIP7/Worten: feeds autorizados ou endpoints públicos sustentáveis. Awin já existe, mas feed não configurado não equivale a acesso resolvido.
-4. Matching forte EAN/MPN com conflitos por campo e harmonização de evidência técnica; depois métricas históricas 30/60/90 dias com amostra mínima.
-5. Só depois expandir Auchan/MEO e declarar V9 estável.
+| Métrica | Resultado |
+|---|---:|
+| Lojas configuradas | 9 |
+| Candidatos descobertos | 234 |
+| Avaliados | 234 |
+| Aceites | 115 |
+| Requests | 140 |
+| Detalhes live | 62 |
+| Cache reutilizada | 172 |
+| Runtime | 280,6 s |
+| Diamante | 0 |
+| Ouro | 0 |
+| Prata | 80 |
+| Bronze | 35 |
+| Alertas de oportunidade | 0 |
 
-Rollback: reverter o commit de integração e manter data/ e STATE_EPOCH. Não restaurar ficheiros de dados antigos da branch de desenvolvimento.
+O silêncio do NTFY nesta execução é esperado: não existiam oportunidades Ouro/Diamante confirmadas pelo runtime.
 
-## Resultado observado após publicação
-PR #41 integrado; run 35726150936 concluída com sucesso: 367 candidatos, 299 avaliados, 189 aceites, 120 requests, 54 detalhes, 246 reutilizações, 177,84 s. Gate V9 validado em produção, 0 alertas normais e heartbeat confirmado. Comparação indicativa com a execução anterior, não um benchmark controlado.
+## Estado por loja
 
-A auditoria posterior encontrou `official_store_guard` a substituir 120 por uma calibração antiga de 118. PR #42 remove essa substituição: o limiar configurado passa efetivamente a ser respeitado, sem alterar pesos. Teste de composição real cobre a regressão. O resumo excecional recalcula Value e tier usando o runtime corrigido e preços recentemente observados.
+| Loja | Estado operacional | Observação |
+|---|---|---|
+| Globaldata | **live útil** | cobertura e preços produtivos; 58 candidatos / 44 aceites na referência beta.5 |
+| Radio Popular | **live útil** | 35 candidatos / 23 aceites; promoções só têm efeito económico quando confirmadas |
+| Darty | **live útil** | 36 candidatos / 14 aceites; catálogo público complementa HTML |
+| UPTECHBOX | **live útil** | 61 candidatos; confirmação de preço continua conservadora |
+| FNAC | **live útil** | 44 candidatos / 33 aceites |
+| PCDiga | **discovery útil, ficha bloqueada** | search-index encontrou 24 URLs e 16 preços; 3 tentativas live receberam HTTP 403 |
+| PcComponentes | **discovery útil** | search-index encontrou 43 URLs e 26 preços; ainda sem identidade forte suficiente para promoção automática; Awin opcional preparado |
+| CHIP7 | **discovery útil** | beta.5 encontrou 27 URLs e 17 preços com 4 pedidos; beta.6 acrescenta identidade forte por MPN em formatos restritos |
+| Worten | **bloqueada / discovery improdutivo** | sitemap anterior gastava requests sem candidatos; search-index genérico beta.5 devolveu zero URLs úteis |
 
-O primeiro resumo foi entregue antes de a correção estar integrada (recibo OqLwMeMVsOn1); a mensagem de correção tem identificador separado e explica a divergência. Consultar `data/top3_summary_receipts.json` para confirmar a entrega; reserva não equivale a envio.
+## Search-index e validação live
 
-Pendência adicional: `scripts/history_audit.py` conta apenas nós com `points`; o esquema atual usa `identities` (394 séries na baseline), por isso o relatório de zero séries é um erro do auditor, não perda de histórico.
+A sequência atual é:
 
-## Correção do resumo confirmada
-A correção posterior permite resumir menos de três configurações elegíveis e torna os passos excecionais de notificação não bloqueantes. 339 testes locais aprovados. A mensagem corretiva foi entregue às 12:28:26 UTC de 22/09/2026, recibo ntfy `ezSaYh0fCMjO`: ASUS TUF A16 FA608UH-R72B55CS2 (1299 €, Value 116,7, Ouro) e ASUS Gaming V16 5050B (1299 €, Value 115,3, Ouro), ambos Globaldata. Eram as duas oportunidades elegíveis após recálculo no conjunto observado às 12:22 UTC; não foi inventado terceiro lugar. A run 35727351388 prossegue a validação operacional completa.
+`Search Index -> INDEX_ONLY -> identidade forte -> ficha live -> preço HIGH -> candidato`
+
+Regras:
+
+- `price_hint` de snippet nunca entra sozinho no scoring, tier, histórico económico ou NTFY;
+- PCDiga pode obter EAN forte diretamente de URLs que o runtime valida;
+- CHIP7 pode obter MPN forte apenas em padrões de referência Lenovo/ASUS muito restritos;
+- PcComponentes não recebe identificadores inventados a partir de slugs descritivos;
+- a ficha live tem de confirmar o mesmo EAN/MPN;
+- o `price_guard` exige confiança HIGH por pelo menos duas famílias independentes de sinais;
+- se existir hint indexado, o preço live tem de concordar dentro da tolerância;
+- HTTP 403/429, identidade divergente, preço MEDIUM/UNKNOWN ou conflito mantêm o produto em quarentena.
+
+## Matching e histórico
+
+Na referência beta.5 existiam 19 grupos cross-store, 23 pares exatos e 6 conflitos explícitos. Conflitos não são fundidos. O histórico é auditado antes das runs; observações recentes com preço/specs contraditórios são removidas em vez de contaminarem ranking e alertas.
+
+Os melhores Values históricos não devem ser tratados como ofertas atuais. Incluem campanhas já terminadas, produtos descontinuados e preços que deixaram de existir. A decisão atual exige preço recente e elegível.
+
+## Dívida/limitações conhecidas
+
+1. **PCDiga**: bom discovery, mas Cloudflare continua a bloquear a confirmação direta no GitHub runner.
+2. **PcComponentes**: discovery amplo; feed Awin oficial está preparado mas depende de `AWIN_DATAFEED_API_KEY` autorizada.
+3. **CHIP7**: discovery já funciona; a beta.6 tenta converter referências MPN fortes em validações live sem baixar a fasquia de confiança.
+4. **Worten**: é a principal loja ainda sem discovery produtivo na estratégia atual.
+5. O ranking técnico pode colocar ultrabooks baratos com iGPU acima de máquinas gaming quando o Value económico domina; a análise de compra deve considerar explicitamente o objetivo gaming além do ranking bruto.
+
+## Gates para V9 estável
+
+- manter CI e regressões verdes;
+- aumentar cobertura útil sem permitir `INDEX_ONLY` no cérebro;
+- estabilizar pelo menos uma rota sustentável adicional para lojas atualmente bloqueadas;
+- continuar a reduzir conflitos de identidade/matching sem falsos merges;
+- validar comportamento por várias runs comparáveis, não por um único snapshot;
+- manter documentação, versão pública e runtime sincronizados.
+
+O histórico detalhado das fases anteriores permanece no Git e em `CHANGELOG.md`; este ficheiro é deliberadamente um snapshot operacional e não um diário de desenvolvimento.
