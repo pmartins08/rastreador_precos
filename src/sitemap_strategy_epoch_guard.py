@@ -16,6 +16,10 @@ _RECOVERY = {
         "version": "pcdiga-cloud-edge-v3",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
+        "search_index_enabled": True,
+        "search_index_queries": ["portatil RTX 5070", "portatil RTX 5060"],
+        "search_index_engines": ["brave", "yahoo"],
+        "search_index_trigger_below": 6,
     },
     "PcComponentes": {
         # Diagnóstico limpo em GitHub Actions (2026-09-26): categoria, produto,
@@ -25,6 +29,10 @@ _RECOVERY = {
         "version": "pccomponentes-awin-v2",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
+        "search_index_enabled": True,
+        "search_index_queries": ["portatil RTX 5070", "portatil RTX 5060"],
+        "search_index_engines": ["brave", "yahoo"],
+        "search_index_trigger_below": 6,
     },
     "CHIP7": {
         # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria normal,
@@ -85,6 +93,15 @@ def _recovery_cat(cat: dict) -> dict:
             int(policy.get("max_sitemaps", 0) or 0),
         )
 
+    for key in (
+        "search_index_enabled",
+        "search_index_queries",
+        "search_index_engines",
+        "search_index_trigger_below",
+    ):
+        if key in policy:
+            out[key] = copy.deepcopy(policy[key])
+
     configured_hints = [str(value) for value in out.get("sitemap_child_hints", []) if value]
     out["sitemap_child_hints"] = list(
         dict.fromkeys([*configured_hints, *policy.get("sitemap_child_hints", [])])
@@ -133,12 +150,15 @@ def install(tracker_module) -> None:
 
     Quando a estratégia muda, apenas o contexto HTTP de sitemap é reaberto. A
     aprendizagem global, scoring, Value, tiers, matching, histórico de preços e
-    NTFY ficam intactos. No fim encadeia o fallback search-index, que é apenas
-    discovery e nunca promove um preço de snippet a confirmação live.
+    NTFY ficam intactos. Search-index é composto antes desta camada para receber
+    a configuração de recuperação já normalizada por loja.
     """
     if getattr(tracker_module, "_SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED", False):
         return
 
+    # O search index fica por dentro desta política. Em runtime recebe working_cat
+    # já limpo e com search_index_enabled apenas nas lojas escolhidas.
+    install_search_index_guard(tracker_module)
     base_scan_store = tracker_module.scan_store
 
     def scan_store(cat: dict, config: dict, settings: dict):
@@ -176,6 +196,3 @@ def install(tracker_module) -> None:
 
     tracker_module.scan_store = scan_store
     tracker_module._SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED = True
-    # Este install acontece aqui para ficar por fora de todas as estratégias de
-    # categoria/sitemap já compostas no runner, sem obrigar a alterar o cérebro.
-    install_search_index_guard(tracker_module)
