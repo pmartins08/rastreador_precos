@@ -5,6 +5,12 @@ from bs4 import BeautifulSoup
 from price_guard import page_price_evidence
 
 
+_STRONG_IDENTITIES = {
+    "STRONG_URL_EAN": "ean",
+    "STRONG_URL_MPN": "mpn",
+}
+
+
 def _close(left: float, right: float, settings: dict) -> bool:
     abs_tol = float(settings.get("price_confirmation_tolerance_eur", 5.0))
     pct_tol = float(settings.get("price_confirmation_tolerance_pct", 1.5)) / 100.0
@@ -15,15 +21,12 @@ def _close(left: float, right: float, settings: dict) -> bool:
 
 
 def _validate_row(row: dict, *, store: str, tracker_module, settings: dict) -> tuple[dict | None, str]:
-    """Confirma identidade + preço diretamente na ficha do produto.
-
-    Search-index nunca é autoridade de preço. Esta função só promove uma entrada
-    quando a própria ficha live confirma o mesmo EAN e o price_guard obtém preço
-    HIGH (>= 2 famílias independentes de sinais).
-    """
+    """Confirma identidade forte + preço diretamente na ficha do produto."""
     url = str(row.get("url") or "").strip()
-    expected_ean = str(row.get("ean") or "").strip()
-    if not url or not expected_ean or str(row.get("identity_status") or "") != "STRONG_URL_EAN":
+    identity_status = str(row.get("identity_status") or "")
+    identity_field = _STRONG_IDENTITIES.get(identity_status)
+    expected_identity = str(row.get(identity_field) or "").strip() if identity_field else ""
+    if not url or not identity_field or not expected_identity:
         return None, "identity_not_strong"
     if not tracker_module.budget_available(store) or not tracker_module.consume_request(store):
         return None, "request_budget_exhausted"
@@ -58,8 +61,11 @@ def _validate_row(row: dict, *, store: str, tracker_module, settings: dict) -> t
         identifiers = tracker_module.page_identifiers(soup) or {}
     except Exception:
         identifiers = {}
-    live_ean = str(identifiers.get("ean") or "").strip()
-    if not live_ean or live_ean != expected_ean:
+    live_identity = str(identifiers.get(identity_field) or "").strip()
+    if identity_field == "mpn":
+        live_identity = live_identity.upper()
+        expected_identity = expected_identity.upper()
+    if not live_identity or live_identity != expected_identity:
         return None, "identity_mismatch"
 
     evidence = page_price_evidence(soup, tracker_module.scraper, settings)
@@ -75,23 +81,24 @@ def _validate_row(row: dict, *, store: str, tracker_module, settings: dict) -> t
         except (TypeError, ValueError):
             return None, "invalid_hint"
 
-    return {
+    candidate = {
         "loja": store,
         "titulo": str(row.get("title") or "")[:260],
         "preco": live_price,
         "url": url,
-        "ean": expected_ean,
+        identity_field: expected_identity,
         "detail_source": "search_index_live_validation",
         "discovery_sources": ["search_index", "live_product_page"],
         "identity_source": "product_url+live_page",
         "identity_checked_at": tracker_module.now_iso() if hasattr(tracker_module, "now_iso") else None,
         "price_validation_sources": list(evidence.get("sources") or []),
         "price_page_confidence": "HIGH",
-    }, "validated"
+    }
+    return candidate, "validated"
 
 
 def install(tracker_module) -> None:
-    """Promove apenas search-index com EAN forte + ficha live HIGH confirmada."""
+    """Promove apenas search-index com identidade forte + ficha live HIGH confirmada."""
     if getattr(tracker_module, "_SEARCH_INDEX_LIVE_VALIDATION_GUARD_INSTALLED", False):
         return
 
@@ -117,7 +124,7 @@ def install(tracker_module) -> None:
         ordered = sorted(
             [row for row in watch if isinstance(row, dict)],
             key=lambda row: (
-                str(row.get("identity_status") or "") != "STRONG_URL_EAN",
+                str(row.get("identity_status") or "") not in _STRONG_IDENTITIES,
                 not bool(row.get("consensus")),
                 row.get("price_hint") is None,
                 float(row.get("price_hint") or 99999),
@@ -127,7 +134,11 @@ def install(tracker_module) -> None:
             if attempts >= limit:
                 break
             url = str(row.get("url") or "")
-            if not url or url in known or str(row.get("identity_status") or "") != "STRONG_URL_EAN":
+            if (
+                not url
+                or url in known
+                or str(row.get("identity_status") or "") not in _STRONG_IDENTITIES
+            ):
                 continue
             attempts += 1
             candidate, outcome = _validate_row(
