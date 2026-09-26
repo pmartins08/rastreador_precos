@@ -2,25 +2,26 @@ from __future__ import annotations
 
 import copy
 
+from search_index_guard import install as install_search_index_guard
+
 
 # Recuperação conservadora das lojas que o GitHub Actions vê frequentemente
 # bloqueadas na categoria principal. Só usa fontes públicas; não tenta contornar
 # desafios, autenticação, checkout ou endpoints privados.
 _RECOVERY = {
     "PCDiga": {
-        # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria, sitemap
-        # oficial e host public.pcdiga.com devolvem Cloudflare 403. Enquanto não
-        # existir feed/fonte pública autorizada, não desperdiçar pedidos nesses
-        # caminhos. Mantemos apenas a categoria base para uma sonda barata.
+        # Diagnóstico limpo em GitHub Actions (2026-09-26): categoria, sitemap
+        # oficial e fichas continuam Cloudflare 403. Mantemos a sonda barata e
+        # deixamos o search_index_guard recuperar discovery público por fora.
         "version": "pcdiga-cloud-edge-v3",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
     },
     "PcComponentes": {
-        # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria, rota
-        # legacy, marca, landing de afiliados, robots.txt e sitemap devolvem
-        # Cloudflare 403. A fonte oficial estruturada disponível é o catálogo de
-        # afiliados Awin, já suportado pelo awin_feed_guard.
+        # Diagnóstico limpo em GitHub Actions (2026-09-26): categoria, produto,
+        # marcas e sitemap continuam Cloudflare 403. Mantemos a sonda barata; o
+        # search_index_guard acrescenta discovery público sem confiar em snippets
+        # como preço live. Awin continua opcional, não é requisito desta via.
         "version": "pccomponentes-awin-v2",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
@@ -132,7 +133,8 @@ def install(tracker_module) -> None:
 
     Quando a estratégia muda, apenas o contexto HTTP de sitemap é reaberto. A
     aprendizagem global, scoring, Value, tiers, matching, histórico de preços e
-    NTFY ficam intactos.
+    NTFY ficam intactos. No fim encadeia o fallback search-index, que é apenas
+    discovery e nunca promove um preço de snippet a confirmação live.
     """
     if getattr(tracker_module, "_SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED", False):
         return
@@ -174,3 +176,6 @@ def install(tracker_module) -> None:
 
     tracker_module.scan_store = scan_store
     tracker_module._SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED = True
+    # Este install acontece aqui para ficar por fora de todas as estratégias de
+    # categoria/sitemap já compostas no runner, sem obrigar a alterar o cérebro.
+    install_search_index_guard(tracker_module)
