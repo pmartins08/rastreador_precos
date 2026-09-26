@@ -17,54 +17,43 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - run: python -m pip install requests curl_cffi beautifulsoup4
-      - name: Inspecionar HTML e dados públicos PCDiga
+      - run: python -m pip install requests beautifulsoup4
+      - name: Seguir robots e sitemaps oficiais PCDiga
         run: |
           python - <<'PY'
-          import json,re,time
-          from urllib.parse import urljoin
-          from bs4 import BeautifulSoup
+          import json,re
+          from urllib.parse import urlparse
+          import xml.etree.ElementTree as ET
           import requests
-          from curl_cffi import requests as curlrequests
 
-          targets=[
-            ('old_category','https://www.pcdiga.com/computadores/portateis'),
-            ('current_category','https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis'),
-            ('rtx50','https://www.pcdiga.com/portateis-geforce-rtx-50-series'),
-            ('lenovo','https://www.pcdiga.com/portateis-lenovo'),
-            ('robots','https://www.pcdiga.com/robots.txt'),
-            ('sitemap','https://www.pcdiga.com/sitemap.xml'),
-            ('known_product','https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis/portatil-gaming-acer-nitro-v-14-ai-14-5-anv14-62-r3jf-branco-nh-qw8eb-002-4711474900715'),
-          ]
-          headers={'Accept-Language':'pt-PT,pt;q=0.9,en;q=0.7','Accept':'text/html,application/xhtml+xml,application/json,*/*'}
-          for label,url in targets:
-            for client in ('requests','curl_cffi'):
-              try:
-                t=time.time()
-                if client=='requests':
-                  r=requests.get(url,headers={**headers,'User-Agent':'Mozilla/5.0'},timeout=15,allow_redirects=True)
-                else:
-                  r=curlrequests.get(url,headers=headers,impersonate='chrome131',timeout=15,allow_redirects=True)
-                text=r.text or ''; low=text.lower(); soup=BeautifulSoup(text,'html.parser')
-                hrefs=sorted({urljoin(str(r.url),a.get('href')) for a in soup.find_all('a',href=True)}) if '<html' in low else []
-                productish=[h for h in hrefs if any(x in h.lower() for x in ('/portatil','portatil-','computadores-portateis/'))]
-                ld=[]
-                for s in soup.find_all('script'):
-                  typ=(s.get('type') or '').lower()
-                  body=(s.string or s.get_text() or '').strip()
-                  if 'json' in typ or '__next_data__' in str(s.get('id') or '').lower() or 'application/ld+json' in typ:
-                    ld.append((typ,str(s.get('id') or ''),len(body),body[:300]))
-                print(json.dumps({
-                  'label':label,'client':client,'status':r.status_code,'final':str(r.url),'ctype':r.headers.get('content-type',''),
-                  'bytes':len(r.content),'ms':round((time.time()-t)*1000),'cloudflare':('just a moment' in low or 'cloudflare' in low),
-                  'anchors':len(hrefs),'productish':len(productish),'scripts_json':len(ld),
-                  'has_price':bool(re.search(r'\b\d{2,4}[,.]\d{2}\s*€',text)),'has_add':('adicionar' in low or 'carrinho' in low),
-                  'title':soup.title.get_text(' ',strip=True)[:160] if soup.title else ''
-                },ensure_ascii=False))
-                for h in productish[:12]: print('LINK',label,client,h)
-                for typ,sid,n,body in ld[:6]: print('JSON',label,client,typ,sid,n,re.sub(r'\s+',' ',body))
-                clean=re.sub(r'\s+',' ',soup.get_text(' ',strip=True) if '<html' in low else text)
-                print('SNIP',label,client,clean[:800])
-              except Exception as exc:
-                print(json.dumps({'label':label,'client':client,'error':type(exc).__name__+': '+str(exc)[:300]},ensure_ascii=False))
+          h={'User-Agent':'Mozilla/5.0','Accept':'application/xml,text/xml,text/plain,*/*'}
+          rr=requests.get('https://www.pcdiga.com/robots.txt',headers=h,timeout=15)
+          print('ROBOTS',rr.status_code,rr.url,len(rr.content))
+          sitemaps=[]
+          for line in rr.text.splitlines():
+            if line.lower().startswith('sitemap:'):
+              u=line.split(':',1)[1].strip(); sitemaps.append(u); print('DECLARED',u)
+
+          def locs(xml):
+            try:
+              root=ET.fromstring(xml)
+              return [x.text.strip() for x in root.iter() if x.tag.lower().endswith('loc') and x.text]
+            except Exception as exc:
+              print('XML_ERROR',type(exc).__name__,str(exc)[:200]); return []
+
+          for i,u in enumerate(sitemaps[:8]):
+            try:
+              r=requests.get(u,headers=h,timeout=15,allow_redirects=True)
+              txt=r.text or ''; ls=locs(txt) if r.status_code<400 else []
+              print(json.dumps({'level':0,'i':i,'url':u,'status':r.status_code,'final':r.url,'bytes':len(r.content),'locs':len(ls),'cloudflare':'just a moment' in txt.lower()},ensure_ascii=False))
+              for x in ls[:20]: print('LOC0',x)
+              children=[x for x in ls if x.endswith('.xml') or 'sitemap' in x.lower()]
+              for j,c in enumerate(children[:8]):
+                cr=requests.get(c,headers=h,timeout=15,allow_redirects=True); ct=cr.text or ''; cls=locs(ct) if cr.status_code<400 else []
+                print(json.dumps({'level':1,'parent':i,'j':j,'url':c,'status':cr.status_code,'final':cr.url,'bytes':len(cr.content),'locs':len(cls),'cloudflare':'just a moment' in ct.lower()},ensure_ascii=False))
+                productish=[x for x in cls if any(k in x.lower() for k in ('portatil','computadores-portateis','computadores-laptop'))]
+                print('PRODUCTISH_COUNT',len(productish))
+                for x in productish[:25]: print('PRODUCTISH',x)
+            except Exception as exc:
+              print('ERROR',u,type(exc).__name__,str(exc)[:300])
           PY
