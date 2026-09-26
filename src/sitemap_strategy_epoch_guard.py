@@ -17,8 +17,12 @@ _RECOVERY = {
         "sitemap_enabled": False,
         "replace_extra_routes": [],
         "search_index_enabled": True,
-        "search_index_queries": ["portatil RTX 5070 32GB", "portatil RTX 5060 32GB"],
-        "search_index_engines": ["brave", "yahoo"],
+        # RTX 5070 fica sem filtro de RAM para não perder configurações 24 GB;
+        # a pesquisa RTX 5060 mantém 32 GB para conter ruído e requests.
+        "search_index_queries": ["portatil RTX 5070", "portatil RTX 5060 32GB"],
+        # DDG mostrou melhor rendimento no diagnóstico do que Yahoo para URLs de
+        # produto e funciona com o mesmo curl_cffi usado no runtime.
+        "search_index_engines": ["brave", "duckduckgo"],
         "search_index_trigger_below": 6,
     },
     "PcComponentes": {
@@ -30,8 +34,8 @@ _RECOVERY = {
         "sitemap_enabled": False,
         "replace_extra_routes": [],
         "search_index_enabled": True,
-        "search_index_queries": ["portatil RTX 5070 32GB", "portatil RTX 5060 32GB"],
-        "search_index_engines": ["brave", "yahoo"],
+        "search_index_queries": ["portatil RTX 5070", "portatil RTX 5060 32GB"],
+        "search_index_engines": ["brave", "duckduckgo"],
         "search_index_trigger_below": 6,
     },
     "CHIP7": {
