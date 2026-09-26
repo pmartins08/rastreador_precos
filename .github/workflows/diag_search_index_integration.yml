@@ -5,6 +5,8 @@ on:
     branches: [v9-search-index-fallback]
     paths:
       - '.github/workflows/diag_search_index_integration.yml'
+      - 'src/search_index_guard.py'
+      - 'src/sitemap_strategy_epoch_guard.py'
 
 permissions:
   contents: read
@@ -66,10 +68,6 @@ jobs:
               print('STORE_RESULT', json.dumps(found[cat['loja']], ensure_ascii=False))
 
           assert set(found) == wanted, found
-          # O objetivo desta prova não é exigir um nº fixo de resultados de um
-          # motor externo, mas confirmar que a camada está de facto instalada,
-          # executa dentro do runtime real e mantém os índices separados do
-          # pipeline normal quando não há preço live verificado.
           for store, result in found.items():
               search = result.get('search_index') or {}
               assert 'status' in search, (store, result)
