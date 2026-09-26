@@ -2,28 +2,37 @@ from __future__ import annotations
 
 import copy
 
+from search_index_guard import install as install_search_index_guard
+
 
 # Recuperação conservadora das lojas que o GitHub Actions vê frequentemente
 # bloqueadas na categoria principal. Só usa fontes públicas; não tenta contornar
 # desafios, autenticação, checkout ou endpoints privados.
 _RECOVERY = {
     "PCDiga": {
-        # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria, sitemap
-        # oficial e host public.pcdiga.com devolvem Cloudflare 403. Enquanto não
-        # existir feed/fonte pública autorizada, não desperdiçar pedidos nesses
-        # caminhos. Mantemos apenas a categoria base para uma sonda barata.
+        # Diagnóstico limpo em GitHub Actions (2026-09-26): categoria, sitemap
+        # oficial e fichas continuam Cloudflare 403. Mantemos a sonda barata e
+        # deixamos o search_index_guard recuperar discovery público por fora.
         "version": "pcdiga-cloud-edge-v3",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
+        "search_index_enabled": True,
+        "search_index_queries": ["portatil RTX 5070 32GB", "portatil RTX 5060 32GB"],
+        "search_index_engines": ["brave", "yahoo"],
+        "search_index_trigger_below": 6,
     },
     "PcComponentes": {
-        # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria, rota
-        # legacy, marca, landing de afiliados, robots.txt e sitemap devolvem
-        # Cloudflare 403. A fonte oficial estruturada disponível é o catálogo de
-        # afiliados Awin, já suportado pelo awin_feed_guard.
+        # Diagnóstico limpo em GitHub Actions (2026-09-26): categoria, produto,
+        # marcas e sitemap continuam Cloudflare 403. Mantemos a sonda barata; o
+        # search_index_guard acrescenta discovery público sem confiar em snippets
+        # como preço live. Awin continua opcional, não é requisito desta via.
         "version": "pccomponentes-awin-v2",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
+        "search_index_enabled": True,
+        "search_index_queries": ["portatil RTX 5070 32GB", "portatil RTX 5060 32GB"],
+        "search_index_engines": ["brave", "yahoo"],
+        "search_index_trigger_below": 6,
     },
     "CHIP7": {
         # Diagnóstico limpo em GitHub Actions (2026-09-25): categoria normal,
@@ -84,6 +93,15 @@ def _recovery_cat(cat: dict) -> dict:
             int(policy.get("max_sitemaps", 0) or 0),
         )
 
+    for key in (
+        "search_index_enabled",
+        "search_index_queries",
+        "search_index_engines",
+        "search_index_trigger_below",
+    ):
+        if key in policy:
+            out[key] = copy.deepcopy(policy[key])
+
     configured_hints = [str(value) for value in out.get("sitemap_child_hints", []) if value]
     out["sitemap_child_hints"] = list(
         dict.fromkeys([*configured_hints, *policy.get("sitemap_child_hints", [])])
@@ -132,11 +150,20 @@ def install(tracker_module) -> None:
 
     Quando a estratégia muda, apenas o contexto HTTP de sitemap é reaberto. A
     aprendizagem global, scoring, Value, tiers, matching, histórico de preços e
-    NTFY ficam intactos.
+    NTFY ficam intactos. Search-index é composto antes desta camada para receber
+    a configuração de recuperação já normalizada por loja.
     """
     if getattr(tracker_module, "_SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED", False):
         return
 
+    # O runtime real tem estes componentes. A condição mantém este guard
+    # testável/independente quando usado com módulos mínimos nos testes unitários.
+    required = (
+        "scraper", "requests", "consume_request", "budget_available", "headers",
+        "record_learning", "record_discovery_yield", "LOGGER",
+    )
+    if all(hasattr(tracker_module, name) for name in required):
+        install_search_index_guard(tracker_module)
     base_scan_store = tracker_module.scan_store
 
     def scan_store(cat: dict, config: dict, settings: dict):
