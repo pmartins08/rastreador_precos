@@ -5,7 +5,7 @@ identifica a geração do estado persistente; quando muda, o runtime faz uma
 migração/refresh controlado sem perder a aprendizagem de acesso às lojas.
 """
 
-VERSION = "9.0.0-beta.2"
+VERSION = "9.0.0-beta.3"
 STATE_EPOCH = "8.8.8-refresh-1"
 
 COMPATIBLE_STATE_VERSIONS = frozenset(
@@ -27,5 +27,6 @@ COMPATIBLE_STATE_VERSIONS = frozenset(
         "8.8.9",
         "9.0.0-beta.1",
         "9.0.0-beta.2",
+        "9.0.0-beta.3",
     }
 )
