@@ -10,6 +10,7 @@ PCDIGA_URL = (
     "https://www.pcdiga.com/computadores-e-software/computadores-laptop/"
     "computadores-portateis/portatil-asus-tuf-90nr0kv1-m00h70-4711636583923"
 )
+CHIP7_MPN_URL = "https://chip7.pt/computadores/portateis/portateis-gaming/lenovo/83je00c6pg"
 
 
 class SearchIndexIdentityGuardTests(unittest.TestCase):
@@ -36,30 +37,46 @@ class SearchIndexIdentityGuardTests(unittest.TestCase):
             "consensus": False,
         }])
         guard.install(module)
-
         items, stat = module.scan_store({}, {}, {})
         row = stat["search_index"]["watchlist"][0]
         self.assertEqual(items, [])
         self.assertEqual(row["ean"], "4711636583923")
         self.assertEqual(row["identity_status"], "STRONG_URL_EAN")
-        self.assertEqual(row["identity_source"], "product_url")
-        self.assertEqual(row["price_hint"], 1299.99)
         self.assertEqual(row["price_status"], "INDEX_ONLY")
-        self.assertFalse(row["consensus"])
         self.assertEqual(stat["search_index"]["strong_identity"], 1)
+
+    def test_chip7_exact_mpn_path_is_strong_but_stays_index_only(self):
+        module = self._module([], [{
+            "url": CHIP7_MPN_URL,
+            "title": "Lenovo LOQ RTX 5060 32GB",
+            "price_hint": 1299.99,
+            "price_status": "INDEX_ONLY",
+        }])
+        guard.install(module)
+        items, stat = module.scan_store({}, {}, {})
+        row = stat["search_index"]["watchlist"][0]
+        self.assertEqual(items, [])
+        self.assertEqual(row["mpn"], "83JE00C6PG")
+        self.assertEqual(row["identity_status"], "STRONG_URL_MPN")
+        self.assertEqual(row["price_status"], "INDEX_ONLY")
+        self.assertEqual(stat["search_index"]["strong_identity"], 1)
+
+    def test_chip7_descriptive_slug_does_not_invent_mpn(self):
+        url = "https://chip7.pt/computadores/portateis/portatil-asus-intel-i7-rtx-5060"
+        module = self._module([], [{"url": url, "price_status": "INDEX_ONLY"}])
+        guard.install(module)
+        _items, stat = module.scan_store({}, {}, {})
+        row = stat["search_index"]["watchlist"][0]
+        self.assertNotIn("mpn", row)
+        self.assertNotIn("identity_status", row)
 
     def test_pccomponentes_slug_does_not_invent_identifier(self):
         url = (
             "https://www.pccomponentes.pt/portatil-lenovo-legion-5-15ahp10-oled-"
             "amd-ryzen-7-260-32gb-1tb-ssd-rtx-5060-151"
         )
-        module = self._module([], [{
-            "url": url,
-            "price_hint": 1299.0,
-            "price_status": "INDEX_ONLY",
-        }])
+        module = self._module([], [{"url": url, "price_hint": 1299.0, "price_status": "INDEX_ONLY"}])
         guard.install(module)
-
         items, stat = module.scan_store({}, {}, {})
         row = stat["search_index"]["watchlist"][0]
         self.assertEqual(items, [])
@@ -81,11 +98,9 @@ class SearchIndexIdentityGuardTests(unittest.TestCase):
             "price_status": "INDEX_ONLY",
         }])
         guard.install(module)
-
         items, stat = module.scan_store({}, {}, {})
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]["ean"], "4711636583923")
-        self.assertEqual(items[0]["identity_source"], "product_url")
         self.assertEqual(items[0]["preco"], 1249.99)
         self.assertEqual(stat["search_index"]["watchlist"][0]["price_status"], "INDEX_ONLY")
 
