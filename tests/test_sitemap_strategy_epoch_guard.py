@@ -60,13 +60,13 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
         module = self._module()
         sitemap_strategy_epoch_guard.install(module)
         _items, stat = module.scan_store(
-            {"loja": "Worten", "sitemap_strategy_version": "worten-index-hints-v2"}, {}, {}
+            {"loja": "Worten", "sitemap_strategy_version": "worten-index-hints-v3-reopen"}, {}, {}
         )
         active = module._bucket["discovery"]["sitemap"]
         archived = module._bucket["discovery_history"]["sitemap"]["legacy"]
         self.assertEqual(active["attempts"], 1)
         self.assertEqual(active["new_candidates"], 3)
-        self.assertEqual(active["strategy_version"], "worten-index-hints-v3-reopen")
+        self.assertEqual(active["strategy_version"], "worten-search-index-v4")
         self.assertEqual(archived["attempts"], 8)
         self.assertTrue(stat["sitemap_strategy_reset"])
         self.assertTrue(stat["sitemap_recovery_policy"])
@@ -94,12 +94,11 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
                     {"label": "gpu", "url": "https://www.pcdiga.com/x?filter_by=gpu"},
                     {"label": "brand", "url": "https://www.pcdiga.com/portateis-lenovo"},
                 ],
-            },
-            {},
-            {},
+            }, {}, {},
         )
         self.assertFalse(module.last_cat["sitemap_enabled"])
         self.assertEqual(module.last_cat["extra_discovery_urls"], [])
+        self.assertTrue(module.last_cat["search_index_enabled"])
         self.assertEqual(module.last_cat["sitemap_strategy_version"], "pcdiga-cloud-edge-v3")
 
     def test_pccomponentes_uses_feed_path_not_dead_html_routes(self):
@@ -113,15 +112,14 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
                     {"label": "legacy", "url": "https://www.pccomponentes.pt/categorias/portateis"},
                     {"label": "asus", "url": "https://www.pccomponentes.pt/marcas/asus/portateis"},
                 ],
-            },
-            {},
-            {},
+            }, {}, {},
         )
         self.assertFalse(module.last_cat["sitemap_enabled"])
         self.assertEqual(module.last_cat["extra_discovery_urls"], [])
+        self.assertTrue(module.last_cat["search_index_enabled"])
         self.assertEqual(module.last_cat["sitemap_strategy_version"], "pccomponentes-awin-v2")
 
-    def test_chip7_disables_dead_sitemap_and_extra_routes(self):
+    def test_chip7_replaces_dead_routes_with_search_index(self):
         module = self._module()
         sitemap_strategy_epoch_guard.install(module)
         module.scan_store(
@@ -132,17 +130,34 @@ class SitemapStrategyEpochGuardTests(unittest.TestCase):
                     {"label": "search", "url": "https://chip7.pt/?main.query=portatil"},
                     {"label": "gaming", "url": "https://chip7.pt/computadores/portateis/portateis-gaming"},
                 ],
-            },
-            {},
-            {},
+            }, {}, {},
         )
         self.assertFalse(module.last_cat["sitemap_enabled"])
         self.assertEqual(module.last_cat["extra_discovery_urls"], [])
-        self.assertEqual(module.last_cat["sitemap_strategy_version"], "chip7-cloud-edge-v2")
+        self.assertTrue(module.last_cat["search_index_enabled"])
+        self.assertEqual(module.last_cat["search_index_engines"], ["brave", "duckduckgo"])
+        self.assertEqual(module.last_cat["sitemap_strategy_version"], "chip7-search-index-v3")
+
+    def test_worten_stops_zero_yield_sitemap_and_uses_search_index(self):
+        module = self._module()
+        sitemap_strategy_epoch_guard.install(module)
+        module.scan_store(
+            {
+                "loja": "Worten",
+                "sitemap_enabled": True,
+                "sitemap_strategy_version": "worten-index-hints-v3-reopen",
+                "extra_discovery_urls": [{"label": "legacy", "url": "https://www.worten.pt/x"}],
+            }, {}, {},
+        )
+        self.assertFalse(module.last_cat["sitemap_enabled"])
+        self.assertEqual(module.last_cat["extra_discovery_urls"], [])
+        self.assertTrue(module.last_cat["search_index_enabled"])
+        self.assertEqual(module.last_cat["search_index_max_queries"], 2)
+        self.assertEqual(module.last_cat["sitemap_strategy_version"], "worten-search-index-v4")
 
     def test_same_strategy_keeps_learning_and_access_context(self):
         module = self._module()
-        version = "worten-index-hints-v3-reopen"
+        version = "worten-search-index-v4"
         module._bucket["discovery"]["sitemap"]["strategy_version"] = version
         sitemap_strategy_epoch_guard.install(module)
         module.scan_store({"loja": "Worten", "sitemap_strategy_version": version}, {}, {})
