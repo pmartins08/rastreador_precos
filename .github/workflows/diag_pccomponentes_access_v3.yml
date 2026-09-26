@@ -1,0 +1,93 @@
+name: Diagnosticar acesso público PcComponentes v3
+
+on:
+  push:
+    branches: [diag-pccomponentes-access-v3]
+    paths:
+      - '.github/workflows/diag_pccomponentes_access_v3.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests curl_cffi beautifulsoup4
+      - name: Testar vias públicas sem contornar desafios
+        run: |
+          python - <<'PY'
+          import json, re, time
+          from bs4 import BeautifulSoup
+          import requests as pyrequests
+          from curl_cffi import requests as curlrequests
+
+          PRODUCT = 'hp-omen-16-am0046np-intel-core-ultra-7-255h-24gb-1tb-ssd-rtx5070-16-pt'
+          targets = [
+              ('pt_category', 'https://www.pccomponentes.pt/categorias/computadores-portateis'),
+              ('pt_product', f'https://www.pccomponentes.pt/{PRODUCT}'),
+              ('pt_no_www', 'https://pccomponentes.pt/categorias/computadores-portateis'),
+              ('pt_search', 'https://www.pccomponentes.pt/buscar/?query=portatil'),
+              ('pt_category_page', 'https://www.pccomponentes.pt/categorias/computadores-portateis?page=1'),
+              ('pt_category_ajax', 'https://www.pccomponentes.pt/categorias/computadores-portateis?ajax=true'),
+              ('api_pt_search', 'https://www.pccomponentes.pt/api/search?query=portatil'),
+              ('api_host_com', 'https://api.pccomponentes.com/'),
+              ('api_host_pt', 'https://api.pccomponentes.pt/'),
+              ('cdn_root', 'https://cdn.pccomponentes.com/'),
+              ('awin_profile', 'https://ui.awin.com/merchant-profile/20983'),
+              ('jina_category', 'https://r.jina.ai/http://www.pccomponentes.pt/categorias/computadores-portateis'),
+              ('jina_product', f'https://r.jina.ai/http://www.pccomponentes.pt/{PRODUCT}'),
+          ]
+
+          headers = {
+              'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.7',
+              'Accept': 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
+              'Cache-Control': 'no-cache',
+          }
+
+          def classify(text, status, ctype):
+              low = (text or '').lower()
+              if status in (401, 403) and ('cloudflare' in low or 'just a moment' in low or 'challenge' in low):
+                  return 'cloudflare_block'
+              if status >= 400:
+                  return f'http_{status}'
+              if 'application/json' in (ctype or '').lower():
+                  return 'json_success'
+              productish = sum(x in low for x in ('rtx 5070','portátil','portatil','adicionar ao carrinho','1.499','1499'))
+              if productish:
+                  return 'product_content'
+              if status < 400 and len(text or '') > 1000:
+                  return 'html_or_text_success'
+              return 'thin_success'
+
+          def summarize(label, client, url):
+              started=time.time()
+              try:
+                  if client == 'requests':
+                      r=pyrequests.get(url, headers={**headers,'User-Agent':'Mozilla/5.0'}, timeout=15, allow_redirects=True)
+                  else:
+                      r=curlrequests.get(url, headers=headers, impersonate='chrome131', timeout=15, allow_redirects=True)
+                  text=r.text or ''
+                  ctype=r.headers.get('content-type','')
+                  outcome=classify(text, int(r.status_code), ctype)
+                  print(json.dumps({
+                      'label':label,'client':client,'status':int(r.status_code),'outcome':outcome,
+                      'final':str(r.url),'ctype':ctype,'bytes':len(r.content),
+                      'elapsed_ms':round((time.time()-started)*1000),
+                      'has_omen':'omen' in text.lower(),'has_rtx5070':'rtx 5070' in text.lower(),
+                      'title':(BeautifulSoup(text,'html.parser').title.string.strip()[:140] if '<html' in text.lower() and BeautifulSoup(text,'html.parser').title and BeautifulSoup(text,'html.parser').title.string else ''),
+                  }, ensure_ascii=False))
+                  if outcome in {'json_success','product_content','html_or_text_success'}:
+                      clean=re.sub(r'\s+',' ',BeautifulSoup(text,'html.parser').get_text(' ',strip=True) if '<html' in text.lower() else text)
+                      print('SNIP', label, client, clean[:700])
+              except Exception as exc:
+                  print(json.dumps({'label':label,'client':client,'outcome':'error','error':type(exc).__name__+': '+str(exc)[:240]}, ensure_ascii=False))
+
+          for label,url in targets:
+              for client in ('requests','curl_cffi'):
+                  summarize(label,client,url)
+          PY
