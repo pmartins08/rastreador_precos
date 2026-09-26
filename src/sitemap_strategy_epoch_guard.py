@@ -10,32 +10,32 @@ from search_index_guard import install as install_search_index_guard
 # desafios, autenticação, checkout ou endpoints privados.
 _RECOVERY = {
     "PCDiga": {
-        # Diagnóstico limpo em GitHub Actions (2026-09-26): categoria, sitemap
-        # oficial e fichas continuam Cloudflare 403. Mantemos a sonda barata e
-        # deixamos o search_index_guard recuperar discovery público por fora.
+        # PCDiga: Brave encontra preços e DDG acrescenta URLs; a pesquisa 5070
+        # sem filtro de RAM aumenta cobertura sem custo adicional de queries.
         "version": "pcdiga-cloud-edge-v3",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
         "search_index_enabled": True,
-        # RTX 5070 fica sem filtro de RAM para não perder configurações 24 GB;
-        # a pesquisa RTX 5060 mantém 32 GB para conter ruído e requests.
         "search_index_queries": ["portatil RTX 5070", "portatil RTX 5060 32GB"],
-        # DDG mostrou melhor rendimento no diagnóstico do que Yahoo para URLs de
-        # produto e funciona com o mesmo curl_cffi usado no runtime.
         "search_index_engines": ["brave", "duckduckgo"],
+        "search_index_max_queries": 2,
         "search_index_trigger_below": 6,
     },
     "PcComponentes": {
-        # Diagnóstico limpo em GitHub Actions (2026-09-26): categoria, produto,
-        # marcas e sitemap continuam Cloudflare 403. Mantemos a sonda barata; o
-        # search_index_guard acrescenta discovery público sem confiar em snippets
-        # como preço live. Awin continua opcional, não é requisito desta via.
+        # PcComponentes: Brave é a fonte com rendimento consistente. Separamos
+        # 24 GB e 32 GB na RTX 5070 para recuperar OMEN/LOQ 24 GB sem tornar a
+        # pesquisa demasiado genérica; preço continua sempre INDEX_ONLY.
         "version": "pccomponentes-awin-v2",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
         "search_index_enabled": True,
-        "search_index_queries": ["portatil RTX 5070", "portatil RTX 5060 32GB"],
-        "search_index_engines": ["brave", "duckduckgo"],
+        "search_index_queries": [
+            "portatil RTX 5070 32GB",
+            "portatil RTX 5070 24GB",
+            "portatil RTX 5060 32GB",
+        ],
+        "search_index_engines": ["brave"],
+        "search_index_max_queries": 3,
         "search_index_trigger_below": 6,
     },
     "CHIP7": {
@@ -101,6 +101,7 @@ def _recovery_cat(cat: dict) -> dict:
         "search_index_enabled",
         "search_index_queries",
         "search_index_engines",
+        "search_index_max_queries",
         "search_index_trigger_below",
     ):
         if key in policy:
