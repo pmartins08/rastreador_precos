@@ -1,0 +1,70 @@
+name: Diagnosticar acesso PCDiga v4
+
+on:
+  push:
+    branches: [diag-pcdiga-access-v4]
+    paths:
+      - '.github/workflows/diag_pcdiga_access_v4.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests curl_cffi beautifulsoup4
+      - name: Inspecionar HTML e dados públicos PCDiga
+        run: |
+          python - <<'PY'
+          import json,re,time
+          from urllib.parse import urljoin
+          from bs4 import BeautifulSoup
+          import requests
+          from curl_cffi import requests as curlrequests
+
+          targets=[
+            ('old_category','https://www.pcdiga.com/computadores/portateis'),
+            ('current_category','https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis'),
+            ('rtx50','https://www.pcdiga.com/portateis-geforce-rtx-50-series'),
+            ('lenovo','https://www.pcdiga.com/portateis-lenovo'),
+            ('robots','https://www.pcdiga.com/robots.txt'),
+            ('sitemap','https://www.pcdiga.com/sitemap.xml'),
+            ('known_product','https://www.pcdiga.com/computadores-e-software/computadores-laptop/computadores-portateis/portatil-gaming-acer-nitro-v-14-ai-14-5-anv14-62-r3jf-branco-nh-qw8eb-002-4711474900715'),
+          ]
+          headers={'Accept-Language':'pt-PT,pt;q=0.9,en;q=0.7','Accept':'text/html,application/xhtml+xml,application/json,*/*'}
+          for label,url in targets:
+            for client in ('requests','curl_cffi'):
+              try:
+                t=time.time()
+                if client=='requests':
+                  r=requests.get(url,headers={**headers,'User-Agent':'Mozilla/5.0'},timeout=15,allow_redirects=True)
+                else:
+                  r=curlrequests.get(url,headers=headers,impersonate='chrome131',timeout=15,allow_redirects=True)
+                text=r.text or ''; low=text.lower(); soup=BeautifulSoup(text,'html.parser')
+                hrefs=sorted({urljoin(str(r.url),a.get('href')) for a in soup.find_all('a',href=True)}) if '<html' in low else []
+                productish=[h for h in hrefs if any(x in h.lower() for x in ('/portatil','portatil-','computadores-portateis/'))]
+                ld=[]
+                for s in soup.find_all('script'):
+                  typ=(s.get('type') or '').lower()
+                  body=(s.string or s.get_text() or '').strip()
+                  if 'json' in typ or '__next_data__' in str(s.get('id') or '').lower() or 'application/ld+json' in typ:
+                    ld.append((typ,str(s.get('id') or ''),len(body),body[:300]))
+                print(json.dumps({
+                  'label':label,'client':client,'status':r.status_code,'final':str(r.url),'ctype':r.headers.get('content-type',''),
+                  'bytes':len(r.content),'ms':round((time.time()-t)*1000),'cloudflare':('just a moment' in low or 'cloudflare' in low),
+                  'anchors':len(hrefs),'productish':len(productish),'scripts_json':len(ld),
+                  'has_price':bool(re.search(r'\b\d{2,4}[,.]\d{2}\s*€',text)),'has_add':('adicionar' in low or 'carrinho' in low),
+                  'title':soup.title.get_text(' ',strip=True)[:160] if soup.title else ''
+                },ensure_ascii=False))
+                for h in productish[:12]: print('LINK',label,client,h)
+                for typ,sid,n,body in ld[:6]: print('JSON',label,client,typ,sid,n,re.sub(r'\s+',' ',body))
+                clean=re.sub(r'\s+',' ',soup.get_text(' ',strip=True) if '<html' in low else text)
+                print('SNIP',label,client,clean[:800])
+              except Exception as exc:
+                print(json.dumps({'label':label,'client':client,'error':type(exc).__name__+': '+str(exc)[:300]},ensure_ascii=False))
+          PY
