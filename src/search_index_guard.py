@@ -80,7 +80,8 @@ def _unwrap_url(href: str) -> str:
     except Exception:
         pass
 
-    # Yahoo embrulha o destino no próprio path: .../RU=<url>/RK=...
+    # Yahoo embrulha o destino no próprio path:
+    # .../RU=https%3a%2f%2fwww.loja.pt%2fproduto/RK=2/RS=...
     match = re.search(r"/RU=([^/]+)/R[KSV]=", href, re.I)
     if match:
         candidate = unquote(match.group(1))
@@ -94,12 +95,28 @@ def _canonical_target(url: str, domain: str) -> str | None:
         parsed = urlparse(_unwrap_url(url))
     except Exception:
         return None
+    normalized_domain = domain.lower().removeprefix("www.")
     host = parsed.netloc.lower().removeprefix("www.")
-    if host != domain.lower().removeprefix("www."):
+    if host != normalized_domain:
         return None
+
     path = parsed.path or "/"
-    if any(marker in path.lower() for marker in _BAD_PATH_MARKERS):
+    low = path.lower()
+    if any(marker in low for marker in _BAD_PATH_MARKERS):
         return None
+
+    # PcComponentes usa /portateis/<filtro> para páginas de categoria/facetas;
+    # as fichas que observámos estão na raiz (marca/modelo ou portatil-...).
+    if normalized_domain == "pccomponentes.pt" and low.startswith("/portateis/"):
+        return None
+
+    # Na PCDiga as fichas observadas terminam sempre num slug portatil-... e
+    # categorias/landings podem ter exatamente os mesmos termos RTX/brand.
+    if normalized_domain == "pcdiga.com":
+        slug = low.rstrip("/").split("/")[-1]
+        if not slug.startswith("portatil-"):
+            return None
+
     return parsed._replace(query="", fragment="").geturl()
 
 
@@ -112,8 +129,6 @@ def _result_context(anchor) -> str:
         if node is None:
             break
         text = re.sub(r"\s+", " ", node.get_text(" ", strip=True)).strip()
-        # Evita subir até ao documento inteiro. Um resultado individual costuma
-        # caber confortavelmente abaixo deste limite.
         if 20 <= len(text) <= 2600:
             best = text
             if _prices(text):
@@ -126,13 +141,33 @@ def _fallback_title(url: str) -> str:
     return re.sub(r"[-_]+", " ", slug).strip()
 
 
+def _eligible_title(candidates: list[str], tracker_module) -> str:
+    cleaned = []
+    for value in candidates:
+        text = re.sub(r"\s+", " ", str(value or "")).strip()
+        if text and text not in cleaned:
+            cleaned.append(text)
+    for text in cleaned:
+        try:
+            if tracker_module.scraper.eligible(text):
+                return text[:260]
+        except Exception:
+            break
+    return (cleaned[0] if cleaned else "")[:260]
+
+
 def _looks_like_laptop(url: str, title: str, tracker_module) -> bool:
     path = urlparse(url).path.lower()
     text = f"{title} {path}".lower()
-    if any(marker in text for marker in ("desktop", "monitor", "placa-grafica", "motherboard", "teclado-", "rato-")):
+    if any(marker in text for marker in (
+        "desktop", "monitor", "placa-grafica", "motherboard", "teclado-", "rato-",
+    )):
         return False
     explicit = any(marker in text for marker in ("portatil", "laptop", "notebook"))
-    family = bool(re.search(r"\b(?:tuf|rog|legion|loq|omen|victus|nitro|predator|cyborg|katana|aero|vivobook|ideapad)\b", text))
+    family = bool(re.search(
+        r"\b(?:tuf|rog|legion|loq|omen|victus|nitro|predator|cyborg|katana|aero|vivobook|ideapad)\b",
+        text,
+    ))
     gpu = bool(re.search(r"\brtx[-\s]?(?:50[567]0|40[567]0|30[567]0)\b", text))
     try:
         eligible = bool(tracker_module.scraper.eligible(title or _fallback_title(url)))
@@ -141,36 +176,63 @@ def _looks_like_laptop(url: str, title: str, tracker_module) -> bool:
     return eligible and (explicit or family or gpu)
 
 
+def _add_row(out: dict[str, dict], *, target: str, title: str, context: str, engine: str) -> None:
+    row = out.setdefault(target, {
+        "url": target,
+        "title": title,
+        "prices": [],
+        "engines": set(),
+        "snippets": [],
+    })
+    if len(title) > len(str(row.get("title") or "")):
+        row["title"] = title
+    row["engines"].add(engine)
+    for price in _prices(context):
+        if price not in row["prices"]:
+            row["prices"].append(price)
+    if context and context not in row["snippets"]:
+        row["snippets"].append(context[:700])
+
+
 def _parse_results(html: str, *, engine: str, domain: str, tracker_module) -> list[dict]:
     soup = BeautifulSoup(html or "", "html.parser")
     out: dict[str, dict] = {}
+
     for anchor in soup.find_all("a", href=True):
         target = _canonical_target(anchor.get("href", ""), domain)
         if not target:
             continue
-        title = re.sub(r"\s+", " ", anchor.get_text(" ", strip=True)).strip()
+        raw_title = re.sub(r"\s+", " ", anchor.get_text(" ", strip=True)).strip()
         context = _result_context(anchor)
-        if len(title) < 8:
-            # Search engines nem sempre colocam o título no mesmo <a> que contém
-            # o destino. O contexto do resultado é melhor que inventar um nome.
-            title = context[:260].strip() or _fallback_title(target)
+        fallback = _fallback_title(target)
+        # Em Brave/Yahoo alguns links usam apenas "PcComponentes"/"PCDIGA" como
+        # texto do anchor. O slug do produto é então muito melhor evidência.
+        title = _eligible_title([raw_title, fallback, context[:260]], tracker_module)
         if not _looks_like_laptop(target, title, tracker_module):
             continue
-        row = out.setdefault(target, {
-            "url": target,
-            "title": title,
-            "prices": [],
-            "engines": set(),
-            "snippets": [],
-        })
-        if len(title) > len(str(row.get("title") or "")):
-            row["title"] = title
-        row["engines"].add(engine)
-        for price in _prices(context):
-            if price not in row["prices"]:
-                row["prices"].append(price)
-        if context and context not in row["snippets"]:
-            row["snippets"].append(context[:700])
+        _add_row(out, target=target, title=title, context=context, engine=engine)
+
+    # Yahoo pode esconder o destino apenas dentro de /RU=<url>/RK=. Fazer uma
+    # segunda passagem ao HTML decodificado recupera URLs mesmo quando o anchor
+    # não foi interpretado de forma útil. Sem contexto associado, não inventamos
+    # preço: esta passagem serve só para discovery/corroborar a identidade.
+    if engine == "yahoo":
+        decoded = unquote(html or "")
+        normalized_domain = domain.lower().removeprefix("www.")
+        pattern = re.compile(
+            r"/RU=(https?://(?:www\.)?" + re.escape(normalized_domain) + r"/.+?)/R[KSV]=",
+            re.I,
+        )
+        for match in pattern.finditer(decoded):
+            target = _canonical_target(match.group(1), domain)
+            if not target or target in out:
+                continue
+            fallback = _fallback_title(target)
+            title = _eligible_title([fallback], tracker_module)
+            if not _looks_like_laptop(target, title, tracker_module):
+                continue
+            _add_row(out, target=target, title=title, context="", engine=engine)
+
     return list(out.values())
 
 
@@ -206,21 +268,23 @@ def _price_hint(evidence: dict, settings: dict) -> tuple[float | None, bool]:
         return None, False
 
     hard = float(settings.get("budget_hard", 1500.0))
-    # Snippets podem conter PVPR e prestações. Para discovery preferimos preços
-    # plausíveis perto do nosso universo, mas nunca os tratamos como live.
-    observations = [(engine, value) for engine, value in observations if 250.0 <= value <= hard + 500.0]
+    observations = [
+        (engine, value)
+        for engine, value in observations
+        if 250.0 <= value <= hard + 500.0
+    ]
     if not observations:
         return None, False
 
     tolerance_eur = float(settings.get("search_index_consensus_tolerance_eur", 8.0))
     tolerance_pct = float(settings.get("search_index_consensus_tolerance_pct", 1.5)) / 100.0
     for index, (engine, value) in enumerate(observations):
-        peers = [(other_engine, other) for other_engine, other in observations[index + 1:] if other_engine != engine]
-        for other_engine, other in peers:
+        for other_engine, other in observations[index + 1:]:
+            if other_engine == engine:
+                continue
             tolerance = max(tolerance_eur, max(value, other) * tolerance_pct)
             if abs(value - other) <= tolerance:
                 return round((value + other) / 2.0, 2), True
-    # Um único índice continua útil como pista, nunca como confirmação.
     return round(min(value for _engine, value in observations), 2), False
 
 
@@ -251,12 +315,11 @@ def _fresh_verified_history(previous: dict, hint: float | None, settings: dict) 
 
 
 def install(tracker_module) -> None:
-    """Descobre lojas bloqueadas através de índices públicos, sem confiar no preço do snippet.
+    """Discovery para lojas bloqueadas através de índices públicos.
 
-    O search index é uma fonte de *discovery*. Só volta a colocar um produto no
-    pipeline normal quando existe uma confirmação HIGH recente no próprio
-    histórico do LapIntel e o preço indexado ainda coincide dentro da tolerância.
-    Assim, snippets nunca conseguem criar Ouro/Diamante/NTFY por si só.
+    Preço de snippet fica sempre INDEX_ONLY. Um resultado só regressa ao pipeline
+    normal se o próprio histórico do LapIntel tiver uma confirmação HIGH recente
+    da mesma URL e o hint indexado ainda coincidir dentro da tolerância.
     """
     if getattr(tracker_module, "_SEARCH_INDEX_GUARD_INSTALLED", False):
         return
@@ -293,7 +356,11 @@ def install(tracker_module) -> None:
             )
             code = int(getattr(response, "status_code", 0) or 0)
             outcome = "http_success" if 200 <= code < 300 else f"http_{code}" if code else "no_response"
-            learning_outcome = "success" if outcome == "http_success" else "blocked" if code in {403, 429} else outcome
+            learning_outcome = (
+                "success" if outcome == "http_success"
+                else "blocked" if code in {403, 429}
+                else outcome
+            )
             tracker_module.record_learning(store, profile, learning_outcome, method)
             return response, outcome
         except Exception:
@@ -305,7 +372,10 @@ def install(tracker_module) -> None:
         if not cat.get("search_index_enabled"):
             return items, stat
 
-        threshold = max(0, int(cat.get("search_index_trigger_below", settings.get("search_index_trigger_below", 6))))
+        threshold = max(0, int(cat.get(
+            "search_index_trigger_below",
+            settings.get("search_index_trigger_below", 6),
+        )))
         if len(items) >= threshold > 0:
             return items, stat
         if not tracker_module.budget_available(cat.get("loja")):
@@ -316,8 +386,14 @@ def install(tracker_module) -> None:
         if not domain:
             return items, stat
 
-        raw_queries = list(cat.get("search_index_queries") or ["portatil RTX 5070", "portatil RTX 5060"])
-        max_queries = max(1, int(cat.get("search_index_max_queries", settings.get("search_index_max_queries_per_store", 2))))
+        raw_queries = list(cat.get("search_index_queries") or [
+            "portatil RTX 5070 32GB",
+            "portatil RTX 5060 32GB",
+        ])
+        max_queries = max(1, int(cat.get(
+            "search_index_max_queries",
+            settings.get("search_index_max_queries_per_store", 2),
+        )))
         engine_order = list(cat.get("search_index_engines") or ["brave", "yahoo"])
         max_engines = max(1, int(settings.get("search_index_max_engines_per_query", 2)))
         evidence: dict[str, dict] = {}
@@ -336,9 +412,18 @@ def install(tracker_module) -> None:
                 response, outcome = fetch_index(store, engine, query, settings)
                 rows: list[dict] = []
                 if response is not None and outcome == "http_success":
-                    rows = _parse_results(response.text, engine=engine, domain=domain, tracker_module=tracker_module)
+                    rows = _parse_results(
+                        response.text,
+                        engine=engine,
+                        domain=domain,
+                        tracker_module=tracker_module,
+                    )
                     _merge_evidence(evidence, rows)
-                info = engine_stats.setdefault(engine, {"requests": 0, "results": 0, "successes": 0})
+                info = engine_stats.setdefault(engine, {
+                    "requests": 0,
+                    "results": 0,
+                    "successes": 0,
+                })
                 info["requests"] += 1
                 info["results"] += len(rows)
                 info["successes"] += int(outcome == "http_success")
@@ -387,7 +472,10 @@ def install(tracker_module) -> None:
             row["title"],
         ))
         watch_limit = max(1, int(settings.get("search_index_watchlist_limit", 12)))
-        spent = max(0, int(tracker_module.REQUESTS_BY_STORE.get(store, 0)) - before_requests)
+        spent = max(
+            0,
+            int(tracker_module.REQUESTS_BY_STORE.get(store, 0)) - before_requests,
+        )
         tracker_module.record_discovery_yield(store, "search_index", spent, len(evidence))
         stat.setdefault("fontes_descoberta", {})["search_index"] = len(evidence)
         stat.setdefault("rendimento_descoberta", {})["search_index"] = {
