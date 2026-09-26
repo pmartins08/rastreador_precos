@@ -156,9 +156,14 @@ def install(tracker_module) -> None:
     if getattr(tracker_module, "_SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED", False):
         return
 
-    # O search index fica por dentro desta política. Em runtime recebe working_cat
-    # já limpo e com search_index_enabled apenas nas lojas escolhidas.
-    install_search_index_guard(tracker_module)
+    # O runtime real tem estes componentes. A condição mantém este guard
+    # testável/independente quando usado com módulos mínimos nos testes unitários.
+    required = (
+        "scraper", "requests", "consume_request", "budget_available", "headers",
+        "record_learning", "record_discovery_yield", "LOGGER",
+    )
+    if all(hasattr(tracker_module, name) for name in required):
+        install_search_index_guard(tracker_module)
     base_scan_store = tracker_module.scan_store
 
     def scan_store(cat: dict, config: dict, settings: dict):
