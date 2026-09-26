@@ -1,0 +1,89 @@
+name: Diagnosticar consenso search-index
+
+on:
+  push:
+    branches: [v9-beta3-search-index-consensus]
+    paths:
+      - '.github/workflows/diag_search_index_consensus.yml'
+      - 'src/search_index_guard.py'
+      - 'src/sitemap_strategy_epoch_guard.py'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: python -m pip install -r requirements.txt
+      - name: Medir Brave e DuckDuckGo no runtime real
+        env:
+          PYTHONPATH: src
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from collections import defaultdict
+
+          import runner
+          import tracker
+
+          config = tracker.load_json(tracker.CONFIG_PATH)
+          settings = dict(config.get('settings', {}))
+          settings['search_index_max_queries_per_store'] = 2
+          settings['search_index_max_engines_per_query'] = 2
+          settings['search_index_timeout_s'] = 8
+          settings['search_index_watchlist_limit'] = 30
+
+          tracker.RUN_STARTED = time.monotonic()
+          tracker.RUN_DEADLINE = tracker.RUN_STARTED + 360
+          tracker.REQUESTS_USED = 0
+          tracker.REQUESTS_BY_STORE = defaultdict(int)
+          tracker.DETAIL_FETCHES_USED = 0
+          tracker.MAX_REQUESTS = 48
+          tracker.MAX_REQUESTS_PER_STORE = 16
+          tracker.MAX_DETAIL_FETCHES = 0
+          tracker.LEARNING = tracker.load_learning()
+
+          wanted = {'PcComponentes', 'PCDiga'}
+          found = {}
+          for cat in config.get('category_urls', []):
+              store = cat.get('loja')
+              if store not in wanted:
+                  continue
+              items, stat = tracker.scan_store(cat, config, settings)
+              search = stat.get('search_index') or {}
+              watch = search.get('watchlist') or []
+              summary = {
+                  'store': store,
+                  'normal_items': len(items),
+                  'search_urls': search.get('urls', 0),
+                  'priced': search.get('priced', 0),
+                  'consensus': search.get('consensus_priced', 0),
+                  'reused': search.get('verified_history_reused', 0),
+                  'engines': search.get('engines', {}),
+                  'requests': tracker.REQUESTS_BY_STORE.get(store, 0),
+                  'watch': [
+                      {
+                          'title': row.get('title'),
+                          'price': row.get('price_hint'),
+                          'consensus': row.get('consensus'),
+                          'engines': row.get('engines'),
+                          'url': row.get('url'),
+                      }
+                      for row in watch[:15]
+                  ],
+              }
+              found[store] = summary
+              print('SEARCH_RESULT', json.dumps(summary, ensure_ascii=False))
+
+          assert set(found) == wanted, found
+          assert all(found[s]['search_urls'] > 0 for s in wanted), found
+          assert all(found[s]['requests'] <= 16 for s in wanted), found
+          PY
