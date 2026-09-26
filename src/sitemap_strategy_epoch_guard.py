@@ -22,20 +22,21 @@ _RECOVERY = {
         "search_index_trigger_below": 6,
     },
     "PcComponentes": {
-        # PcComponentes: Brave é a fonte com rendimento consistente. Separamos
-        # 24 GB e 32 GB na RTX 5070 para recuperar OMEN/LOQ 24 GB sem tornar a
-        # pesquisa demasiado genérica; preço continua sempre INDEX_ONLY.
+        # Brave é a fonte de maior rendimento. Duas queries por família 24 GB
+        # preservam os candidatos atuais OMEN/LOQ e duas queries genéricas cobrem
+        # o resto do mercado. Tudo continua apenas INDEX_ONLY.
         "version": "pccomponentes-awin-v2",
         "sitemap_enabled": False,
         "replace_extra_routes": [],
         "search_index_enabled": True,
         "search_index_queries": [
             "portatil RTX 5070 32GB",
-            "portatil RTX 5070 24GB",
+            "HP OMEN RTX 5070 24GB",
+            "Lenovo LOQ RTX 5070 24GB",
             "portatil RTX 5060 32GB",
         ],
         "search_index_engines": ["brave"],
-        "search_index_max_queries": 3,
+        "search_index_max_queries": 4,
         "search_index_trigger_below": 6,
     },
     "CHIP7": {
@@ -161,8 +162,6 @@ def install(tracker_module) -> None:
     if getattr(tracker_module, "_SITEMAP_STRATEGY_EPOCH_GUARD_INSTALLED", False):
         return
 
-    # O runtime real tem estes componentes. A condição mantém este guard
-    # testável/independente quando usado com módulos mínimos nos testes unitários.
     required = (
         "scraper", "requests", "consume_request", "budget_available", "headers",
         "record_learning", "record_discovery_yield", "LOGGER",
