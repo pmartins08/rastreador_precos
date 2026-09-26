@@ -1,0 +1,78 @@
+name: Diagnosticar search-index integrado
+
+on:
+  push:
+    branches: [v9-search-index-fallback]
+    paths:
+      - '.github/workflows/diag_search_index_integration.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: python -m pip install -r requirements.txt
+      - name: Validar composição e discovery público
+        env:
+          PYTHONPATH: src
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from collections import defaultdict
+
+          import runner  # instala a composição real V9
+          import tracker
+
+          config = tracker.load_json(tracker.CONFIG_PATH)
+          settings = dict(config.get('settings', {}))
+          settings['search_index_max_queries_per_store'] = 2
+          settings['search_index_max_engines_per_query'] = 2
+          settings['search_index_timeout_s'] = 7
+          settings['search_index_watchlist_limit'] = 20
+
+          tracker.RUN_STARTED = time.monotonic()
+          tracker.RUN_DEADLINE = tracker.RUN_STARTED + 360
+          tracker.REQUESTS_USED = 0
+          tracker.REQUESTS_BY_STORE = defaultdict(int)
+          tracker.DETAIL_FETCHES_USED = 0
+          tracker.MAX_REQUESTS = 40
+          tracker.MAX_REQUESTS_PER_STORE = 12
+          tracker.MAX_DETAIL_FETCHES = 0
+          tracker.LEARNING = tracker.load_learning()
+
+          wanted = {'PcComponentes', 'PCDiga'}
+          found = {}
+          for cat in config.get('category_urls', []):
+              if cat.get('loja') not in wanted:
+                  continue
+              items, stat = tracker.scan_store(cat, config, settings)
+              search = stat.get('search_index', {})
+              found[cat['loja']] = {
+                  'normal_items': len(items),
+                  'blocked': stat.get('bloqueada'),
+                  'category_access': (stat.get('acesso') or {}).get('resultado'),
+                  'search_index': search,
+                  'requests': tracker.REQUESTS_BY_STORE.get(cat['loja'], 0),
+              }
+              print('STORE_RESULT', json.dumps(found[cat['loja']], ensure_ascii=False))
+
+          assert set(found) == wanted, found
+          # O objetivo desta prova não é exigir um nº fixo de resultados de um
+          # motor externo, mas confirmar que a camada está de facto instalada,
+          # executa dentro do runtime real e mantém os índices separados do
+          # pipeline normal quando não há preço live verificado.
+          for store, result in found.items():
+              search = result.get('search_index') or {}
+              assert 'status' in search, (store, result)
+              assert search.get('requests', 0) > 0, (store, result)
+              assert result['requests'] <= 12, (store, result)
+          PY
