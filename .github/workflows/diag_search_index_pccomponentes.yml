@@ -1,0 +1,111 @@
+name: Diagnosticar search-index PcComponentes
+
+on:
+  push:
+    branches: [diag-search-index-pccomponentes]
+    paths:
+      - '.github/workflows/diag_search_index_pccomponentes.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests beautifulsoup4 curl_cffi
+      - name: Testar índices públicos para discovery
+        run: |
+          python - <<'PY'
+          import json, re, time
+          from urllib.parse import quote_plus, urlparse, parse_qs, unquote
+          from bs4 import BeautifulSoup
+          import requests
+          from curl_cffi import requests as curlrequests
+
+          stores={
+            'pccomponentes.pt':[
+              'site:pccomponentes.pt portatil RTX 5070 32GB',
+              'site:pccomponentes.pt HP OMEN 16 am0046np',
+              'site:pccomponentes.pt Lenovo LOQ RTX 5070',
+              'site:pccomponentes.pt portatil RTX 5060 32GB',
+            ],
+            'pcdiga.com':[
+              'site:pcdiga.com portatil RTX 5070 32GB',
+              'site:pcdiga.com Acer Nitro V14 RTX 5060',
+            ],
+          }
+          engines={
+            'bing_html': lambda q:f'https://www.bing.com/search?q={quote_plus(q)}&count=20',
+            'bing_rss': lambda q:f'https://www.bing.com/search?format=rss&q={quote_plus(q)}&count=20',
+            'ddg_html': lambda q:f'https://html.duckduckgo.com/html/?q={quote_plus(q)}',
+            'ddg_lite': lambda q:f'https://lite.duckduckgo.com/lite/?q={quote_plus(q)}',
+            'mojeek': lambda q:f'https://www.mojeek.com/search?q={quote_plus(q)}',
+            'brave': lambda q:f'https://search.brave.com/search?q={quote_plus(q)}&source=web',
+            'yahoo': lambda q:f'https://search.yahoo.com/search?p={quote_plus(q)}',
+          }
+          H={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36','Accept-Language':'pt-PT,pt;q=0.9,en;q=0.7'}
+          price_re=re.compile(r'(?<!\d)(\d{1,4}(?:[.,]\d{2})?)\s*€')
+          ref_re=re.compile(r'\b(?:RTX\s*50[567]0(?:\s*Ti)?|[A-Z0-9]{4,}-[A-Z0-9]{2,}|[A-Z]{1,4}\d[A-Z0-9-]{3,})\b',re.I)
+
+          def unwrap(href):
+            if not href: return ''
+            if href.startswith('//'): href='https:'+href
+            try:
+              u=urlparse(href)
+              qs=parse_qs(u.query)
+              for key in ('uddg','u','url','RU'):
+                if key in qs and qs[key]:
+                  cand=unquote(qs[key][0])
+                  if cand.startswith('http'): return cand
+            except Exception:
+              pass
+            return href
+
+          def fetch(url, client):
+            t=time.time()
+            if client=='requests':
+              r=requests.get(url,headers=H,timeout=18,allow_redirects=True)
+            else:
+              r=curlrequests.get(url,headers={'Accept-Language':H['Accept-Language']},impersonate='chrome131',timeout=18,allow_redirects=True)
+            return r,round((time.time()-t)*1000)
+
+          for domain,queries in stores.items():
+            for query in queries:
+              for engine,builder in engines.items():
+                for client in ('requests','curl_cffi'):
+                  try:
+                    r,ms=fetch(builder(query),client)
+                    text=r.text or ''; low=text.lower(); soup=BeautifulSoup(text,'html.parser')
+                    urls=[]
+                    for a in soup.find_all('a',href=True):
+                      h=unwrap(a.get('href',''))
+                      if domain in h.lower() and h.startswith('http'):
+                        urls.append(h.split('#',1)[0])
+                    # RSS links are regular XML nodes and BeautifulSoup still exposes link text.
+                    if 'xml' in (r.headers.get('content-type','').lower()) or '<rss' in low:
+                      for link in soup.find_all('link'):
+                        h=(link.get_text() or '').strip()
+                        if domain in h.lower() and h.startswith('http'):
+                          urls.append(h)
+                    urls=list(dict.fromkeys(urls))
+                    visible=' '.join(soup.stripped_strings)
+                    prices=list(dict.fromkeys(price_re.findall(visible)))[:12]
+                    refs=list(dict.fromkeys(x.group(0) for x in ref_re.finditer(visible)))[:16]
+                    blocked=any(x in low for x in ('captcha','unusual traffic','verify you are human','access denied','just a moment'))
+                    print(json.dumps({
+                      'domain':domain,'query':query,'engine':engine,'client':client,
+                      'status':int(r.status_code),'final':str(r.url),'ctype':r.headers.get('content-type',''),
+                      'bytes':len(r.content),'ms':ms,'blocked':blocked,
+                      'target_urls':len(urls),'prices':prices,'refs':refs,
+                    },ensure_ascii=False))
+                    for u in urls[:12]: print('FOUND',domain,engine,client,u)
+                    if urls:
+                      print('SNIP',domain,engine,client,re.sub(r'\s+',' ',visible)[:1400])
+                  except Exception as exc:
+                    print(json.dumps({'domain':domain,'query':query,'engine':engine,'client':client,'error':type(exc).__name__+': '+str(exc)[:280]},ensure_ascii=False))
+          PY
