@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 
 from search_index_guard import install as install_search_index_guard
+from search_index_identity_guard import install as install_search_index_identity_guard
 
 
 # Recuperação conservadora das lojas que o GitHub Actions vê frequentemente
@@ -168,6 +169,7 @@ def install(tracker_module) -> None:
     )
     if all(hasattr(tracker_module, name) for name in required):
         install_search_index_guard(tracker_module)
+        install_search_index_identity_guard(tracker_module)
     base_scan_store = tracker_module.scan_store
 
     def scan_store(cat: dict, config: dict, settings: dict):
