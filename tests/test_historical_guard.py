@@ -11,6 +11,135 @@ class HistoricalGuardTests(unittest.TestCase):
         self.assertEqual(historical_guard.identity_key(left), historical_guard.identity_key(right))
         self.assertEqual(historical_guard.identity_key(left)[1], "EXATO")
 
+    def test_upc_and_zero_prefixed_ean_share_canonical_history_identity(self):
+        upc = {"ean": "199271076309", "url": "https://pcdiga/item", "loja": "PCDiga"}
+        ean = {"ean": "0199271076309", "url": "https://globaldata/item", "loja": "Globaldata"}
+        self.assertEqual(
+            historical_guard.identity_key(upc),
+            ("ean:00199271076309", "EXATO"),
+        )
+        self.assertEqual(historical_guard.identity_key(upc), historical_guard.identity_key(ean))
+
+    def test_compact_migrates_legacy_gtin_aliases_without_losing_observations(self):
+        state = {
+            "schema_version": 1,
+            "updated_at": "2026-09-27T00:00:00Z",
+            "identities": {
+                "ean:199271076309": {
+                    "confidence": "EXATO",
+                    "ean": "199271076309",
+                    "mpn": "83JE00C6PG",
+                    "url": None,
+                    "title": "LOQ PCDiga",
+                    "first_seen": "2026-09-23T10:00:00Z",
+                    "last_seen": "2026-09-23T10:00:00Z",
+                    "days": {
+                        "2026-09-23": {
+                            "min": 1299.99,
+                            "max": 1299.99,
+                            "last": 1299.99,
+                            "sum": 1299.99,
+                            "samples": 1,
+                            "stores": ["PCDiga"],
+                        }
+                    },
+                },
+                "ean:0199271076309": {
+                    "confidence": "EXATO",
+                    "ean": "0199271076309",
+                    "mpn": "83JE00C6PG",
+                    "url": None,
+                    "title": "LOQ Globaldata",
+                    "first_seen": "2026-09-23T09:00:00Z",
+                    "last_seen": "2026-09-24T18:00:00Z",
+                    "days": {
+                        "2026-09-23": {
+                            "min": 1299.0,
+                            "max": 1299.0,
+                            "last": 1299.0,
+                            "sum": 1299.0,
+                            "samples": 1,
+                            "stores": ["Globaldata"],
+                        },
+                        "2026-09-24": {
+                            "min": 1299.0,
+                            "max": 1299.0,
+                            "last": 1299.0,
+                            "sum": 1299.0,
+                            "samples": 1,
+                            "stores": ["Globaldata"],
+                        },
+                    },
+                },
+            },
+        }
+        compacted = historical_guard.compact(state, today=date(2026, 9, 27))
+        identities = compacted["identities"]
+        self.assertEqual(list(identities), ["ean:00199271076309"])
+        entry = identities["ean:00199271076309"]
+        self.assertEqual(entry["gtin14"], "00199271076309")
+        self.assertEqual(entry["first_seen"], "2026-09-23T09:00:00Z")
+        self.assertEqual(entry["last_seen"], "2026-09-24T18:00:00Z")
+        day = entry["days"]["2026-09-23"]
+        self.assertEqual(day["min"], 1299.0)
+        self.assertEqual(day["max"], 1299.99)
+        self.assertEqual(day["samples"], 2)
+        self.assertEqual(day["sum"], 2598.99)
+        self.assertEqual(day["stores"], ["Globaldata", "PCDiga"])
+
+    def test_compact_does_not_double_count_overlapping_alias_store(self):
+        state = {
+            "schema_version": 1,
+            "identities": {
+                "ean:199271076309": {
+                    "confidence": "EXATO",
+                    "ean": "199271076309",
+                    "days": {
+                        "2026-09-23": {
+                            "min": 1299.99,
+                            "max": 1299.99,
+                            "last": 1299.99,
+                            "sum": 1299.99,
+                            "samples": 1,
+                            "stores": ["PCDiga"],
+                        }
+                    },
+                },
+                "ean:0199271076309": {
+                    "confidence": "EXATO",
+                    "ean": "0199271076309",
+                    "days": {
+                        "2026-09-23": {
+                            "min": 1299.99,
+                            "max": 1299.99,
+                            "last": 1299.99,
+                            "sum": 1299.99,
+                            "samples": 1,
+                            "stores": ["PCDiga"],
+                        }
+                    },
+                },
+            },
+        }
+        compacted = historical_guard.compact(state, today=date(2026, 9, 27))
+        day = compacted["identities"]["ean:00199271076309"]["days"]["2026-09-23"]
+        self.assertEqual(day["samples"], 1)
+        self.assertEqual(day["sum"], 1299.99)
+
+    def test_observe_preserves_original_first_seen_when_rebuilding(self):
+        state = {"schema_version": 1, "identities": {}}
+        item = {"ean": "0199271076309", "loja": "Globaldata", "titulo": "LOQ"}
+        historical_guard.observe(
+            state, item, 1299.0, observed_at="2026-09-23T06:23:21Z"
+        )
+        historical_guard.observe(
+            state, item, 1299.0, observed_at="2026-09-24T06:22:16Z"
+        )
+        key = historical_guard.identity_key(item)[0]
+        entry = state["identities"][key]
+        self.assertEqual(entry["first_seen"], "2026-09-23T06:23:21Z")
+        self.assertEqual(entry["last_seen"], "2026-09-24T06:22:16Z")
+
     def test_url_fallback_is_local(self):
         first = {"url": "https://a/item"}
         second = {"url": "https://b/item"}
