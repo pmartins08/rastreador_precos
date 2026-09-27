@@ -176,6 +176,9 @@ def enrich_exact_specs(records: list[dict], history: dict) -> dict:
 def install(tracker_module) -> None:
     if getattr(tracker_module, "_SPEC_TRUTH_GUARD_INSTALLED", False):
         return
+    required = ("apply_exact_market_price_evidence", "load_json", "HISTORY_PATH")
+    if not all(hasattr(tracker_module, name) for name in required):
+        return
 
     base_market = tracker_module.apply_exact_market_price_evidence
 
