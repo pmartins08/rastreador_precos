@@ -53,18 +53,44 @@ def install(tracker_module) -> None:
 
     def record_offer(history, item, spec, assessment, tier):
         previous, key = base_record_offer(history, item, spec, assessment, tier)
+        entries = history.get("offers", {}).get(key, [])
+        entry = entries[-1] if entries and isinstance(entries[-1], dict) else None
+
+        effective_value = assessment.get("value_score", 0.0)
+        effective_price = item.get("preco", 0.0)
+        effective_tier = tier
+        if entry is not None:
+            if entry.get("effective_value_score") is not None:
+                effective_value = entry["effective_value_score"]
+            elif entry.get("promotion_value_score") is not None:
+                effective_value = entry["promotion_value_score"]
+            elif entry.get("value_score") is not None:
+                effective_value = entry["value_score"]
+
+            if entry.get("effective_price") is not None:
+                effective_price = entry["effective_price"]
+            elif entry.get("promotion_checkout_price") is not None:
+                effective_price = entry["promotion_checkout_price"]
+            elif entry.get("price") is not None:
+                effective_price = entry["price"]
+
+            effective_tier = (
+                entry.get("effective_tier")
+                or entry.get("promotion_tier")
+                or entry.get("tier")
+                or tier
+            )
+
         details = assessment.get("detalhes") if isinstance(assessment.get("detalhes"), dict) else {}
         opportunity = calculate_opportunity(
-            float(assessment.get("value_score", 0.0) or 0.0),
+            float(effective_value or 0.0),
             float(details.get("Gaming", 0.0) or 0.0),
             assessment.get("historical_price"),
         )
         assessment["opportunity_score"] = opportunity["score"]
         assessment["opportunity_components"] = opportunity
 
-        entries = history.get("offers", {}).get(key, [])
-        if entries and isinstance(entries[-1], dict):
-            entry = entries[-1]
+        if entry is not None:
             entry["opportunity_score"] = opportunity["score"]
             entry["opportunity_components"] = opportunity
             _OBSERVATIONS.append({
@@ -72,9 +98,9 @@ def install(tracker_module) -> None:
                 "timestamp": entry.get("timestamp"),
                 "store": entry.get("loja"),
                 "title": entry.get("titulo"),
-                "price": float(entry.get("effective_price", entry.get("price", item.get("preco", 0.0))) or 0.0),
-                "value": float(entry.get("effective_value_score", entry.get("value_score", assessment.get("value_score", 0.0))) or 0.0),
-                "tier": entry.get("effective_tier", entry.get("tier", tier)),
+                "price": float(effective_price or 0.0),
+                "value": float(effective_value or 0.0),
+                "tier": effective_tier,
                 "stock": entry.get("stock"),
                 "score": opportunity["score"],
                 "gaming": opportunity["gaming"],
@@ -85,7 +111,14 @@ def install(tracker_module) -> None:
         _OBSERVATIONS.clear()
         run = base_main()
         eligible = [row for row in _OBSERVATIONS if row.get("stock") is not False]
-        eligible.sort(key=lambda row: (-float(row["score"]), -float(row["value"]), float(row["price"]), str(row.get("url") or "")))
+        eligible.sort(
+            key=lambda row: (
+                -float(row["score"]),
+                -float(row["value"]),
+                float(row["price"]),
+                str(row.get("url") or ""),
+            )
+        )
         positions = {
             (str(row.get("url") or ""), str(row.get("timestamp") or "")): index
             for index, row in enumerate(eligible, start=1)
@@ -124,7 +157,9 @@ def install(tracker_module) -> None:
             tracker_module.save_json(tracker_module.HISTORY_PATH, history)
         except Exception:
             if hasattr(tracker_module, "LOGGER"):
-                tracker_module.LOGGER.warning("Opportunity Rank calculado, mas não foi possível persistir posições")
+                tracker_module.LOGGER.warning(
+                    "Opportunity Rank calculado, mas não foi possível persistir posições"
+                )
 
         if isinstance(run, dict):
             run["opportunity_snapshot"] = snapshot
