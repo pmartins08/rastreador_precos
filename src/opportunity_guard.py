@@ -47,6 +47,9 @@ def calculate_opportunity(value: float, gaming: float, historical: dict | None =
 def install(tracker_module) -> None:
     if getattr(tracker_module, "_OPPORTUNITY_GUARD_INSTALLED", False):
         return
+    required = ("record_offer", "main", "load_json", "save_json", "HISTORY_PATH")
+    if not all(hasattr(tracker_module, name) for name in required):
+        return
 
     base_record_offer = tracker_module.record_offer
     base_main = tracker_module.main
