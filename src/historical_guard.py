@@ -8,6 +8,8 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
+from identity_utils import canonical_gtin
+
 
 SCHEMA_VERSION = 1
 WINDOW_DAYS = 90
@@ -52,10 +54,15 @@ def _normal_id(value: object) -> str:
 
 
 def identity_key(item: dict) -> tuple[str | None, str]:
-    """Identidade histórica: forte por EAN/MPN, local por URL como fallback."""
-    ean = _normal_id(item.get("ean"))
-    if ean:
-        return f"ean:{ean}", "EXATO"
+    """Identidade histórica: GTIN canónico/MPN forte, URL local como fallback."""
+    raw_ean = _normal_id(item.get("ean"))
+    canonical = canonical_gtin(item.get("ean"))
+    if canonical:
+        return f"ean:{canonical}", "EXATO"
+    if raw_ean:
+        # Compatibilidade conservadora: EAN legado inválido continua estável,
+        # mas nunca é "corrigido" para outro GTIN.
+        return f"ean:{raw_ean}", "EXATO"
     mpn = _normal_id(item.get("mpn"))
     if mpn:
         return f"mpn:{mpn}", "EXATO"
@@ -64,6 +71,97 @@ def identity_key(item: dict) -> tuple[str | None, str]:
         digest = hashlib.sha1(url.encode("utf-8"), usedforsecurity=False).hexdigest()[:20]
         return f"url:{digest}", "LOCAL"
     return None, "NONE"
+
+
+def _canonical_stored_key(key: str, entry: dict) -> tuple[str, str | None]:
+    """Migra chaves EAN/UPC legadas para GTIN-14 sem inventar identificadores."""
+    if not str(key).startswith("ean:"):
+        return str(key), None
+    suffix = str(key).split(":", 1)[1]
+    canonical = canonical_gtin(entry.get("ean") or suffix)
+    if not canonical:
+        return str(key), None
+    return f"ean:{canonical}", canonical
+
+
+def _iso_min(*values: object) -> str | None:
+    rows = [str(value) for value in values if value]
+    return min(rows) if rows else None
+
+
+def _iso_max(*values: object) -> str | None:
+    rows = [str(value) for value in values if value]
+    return max(rows) if rows else None
+
+
+def _merge_alias_day(left: dict, right: dict) -> dict:
+    """Consolida duas aliases da mesma identidade sem inflar retries.
+
+    Se as lojas do mesmo dia são disjuntas, são observações independentes e
+    somamos amostras. Se há sobreposição, usamos o maior contador/soma para não
+    duplicar a mesma observação durante uma migração/retry.
+    """
+    if not isinstance(left, dict):
+        left = {}
+    if not isinstance(right, dict):
+        right = {}
+    minima = [float(row["min"]) for row in (left, right) if row.get("min") is not None]
+    maxima = [float(row["max"]) for row in (left, right) if row.get("max") is not None]
+    left_stores = set(left.get("stores") or [])
+    right_stores = set(right.get("stores") or [])
+    disjoint = bool(left_stores and right_stores and left_stores.isdisjoint(right_stores))
+    if disjoint:
+        samples = int(left.get("samples", 0)) + int(right.get("samples", 0))
+        total = float(left.get("sum", 0.0)) + float(right.get("sum", 0.0))
+    else:
+        samples = max(int(left.get("samples", 0)), int(right.get("samples", 0)))
+        total = max(float(left.get("sum", 0.0)), float(right.get("sum", 0.0)))
+    latest = right if right else left
+    return {
+        "min": round(min(minima), 2) if minima else None,
+        "max": round(max(maxima), 2) if maxima else None,
+        "last": latest.get("last"),
+        "sum": round(total, 2),
+        "samples": samples,
+        "stores": sorted(left_stores | right_stores),
+    }
+
+
+def _merge_alias_entries(left: dict, right: dict, canonical: str | None) -> dict:
+    left = _clone(left) if isinstance(left, dict) else {}
+    right = _clone(right) if isinstance(right, dict) else {}
+    latest_is_right = str(right.get("last_seen") or "") >= str(left.get("last_seen") or "")
+    latest = right if latest_is_right else left
+    other = left if latest_is_right else right
+
+    out = dict(other)
+    out.update({k: v for k, v in latest.items() if k != "days" and v is not None})
+    out["first_seen"] = _iso_min(left.get("first_seen"), right.get("first_seen"))
+    out["last_seen"] = _iso_max(left.get("last_seen"), right.get("last_seen"))
+    out["confidence"] = "EXATO" if "EXATO" in {left.get("confidence"), right.get("confidence")} else (
+        latest.get("confidence") or other.get("confidence")
+    )
+    if out.get("confidence") == "EXATO":
+        out["url"] = None
+    if canonical:
+        out["gtin14"] = canonical
+        raw_candidates = [
+            str(value)
+            for value in (left.get("ean"), right.get("ean"))
+            if value
+        ]
+        if raw_candidates:
+            out["ean"] = max(raw_candidates, key=len)
+
+    days = {}
+    all_days = set((left.get("days") or {})) | set((right.get("days") or {}))
+    for raw_day in all_days:
+        days[raw_day] = _merge_alias_day(
+            (left.get("days") or {}).get(raw_day, {}),
+            (right.get("days") or {}).get(raw_day, {}),
+        )
+    out["days"] = days
+    return out
 
 
 def _day(value: str | None = None) -> date:
@@ -98,6 +196,9 @@ def _entry(state: dict, item: dict) -> tuple[str | None, str, dict | None]:
         entry["ean"] = item.get("ean") or entry.get("ean")
         entry["mpn"] = item.get("mpn") or entry.get("mpn")
         entry["url"] = None
+        canonical = canonical_gtin(item.get("ean"))
+        if canonical:
+            entry["gtin14"] = canonical
     entry["title"] = item.get("titulo") or entry.get("title")
     return key, confidence, entry
 
@@ -223,6 +324,8 @@ def observe(
         stores = set(stats.get("stores") or [])
         stores.add(store)
         stats["stores"] = sorted(stores)
+    if observed_at:
+        entry["first_seen"] = _iso_min(entry.get("first_seen"), observed_at)
     entry["last_seen"] = observed_at or now_iso()
     entry["confidence"] = "EXATO" if confidence == "EXATO" else entry.get("confidence", confidence)
     _prune_entry(entry, day, window_days)
@@ -249,8 +352,16 @@ def compact(state: dict, *, today: date | None = None, window_days: int = WINDOW
             continue
         entry = _clone(raw)
         _prune_entry(entry, day, window_days)
-        if entry.get("days"):
-            out["identities"][key] = entry
+        if not entry.get("days"):
+            continue
+        target_key, canonical = _canonical_stored_key(str(key), entry)
+        if canonical:
+            entry["gtin14"] = canonical
+        existing = out["identities"].get(target_key)
+        if isinstance(existing, dict):
+            out["identities"][target_key] = _merge_alias_entries(existing, entry, canonical)
+        else:
+            out["identities"][target_key] = entry
     return out
 
 
