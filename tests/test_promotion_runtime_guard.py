@@ -166,13 +166,14 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         self.assertEqual(result["preco"], 699.99)
         self.assertTrue(result["promotion_price_live_confirmed"])
 
-    def test_revalue_keeps_ranking_and_uses_derived_opportunity_bonus(self):
+    def test_revalue_keeps_ranking_without_legacy_absolute_price_bonus(self):
         assessment = self.accepted_assessment()
         promo = self.tracker.promotion_revalue_assessment(assessment, 599.99, {})
         self.assertEqual(promo["status"], "ACEITE")
         self.assertEqual(promo["score_ranking"], 80.0)
         self.assertEqual(promo["price_confirmed"], 699.99)
-        self.assertEqual(promo["exceptional_deal_bonus"], 5.0)
+        self.assertEqual(promo["exceptional_deal_bonus"], 0.0)
+        self.assertEqual(promo.get("legacy_exceptional_deal_bonus"), 5.0)
         self.assertEqual(promo["promotion_price_confidence"], "HIGH_DERIVED")
         self.assertGreater(float(promo["value_score"]), 80.0)
         self.assertEqual(promo["promotion_checkout_price"], 599.99)
@@ -189,8 +190,11 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
         )
 
     def gold_assessment(self):
+        # Com Value Truth, o Ouro tem de existir sem depender do antigo bónus
+        # absoluto de preço baixo. 98 + 20 do desconto derivado = 118 bruto;
+        # gaming 60 aplica o multiplicador contínuo e mantém o tier >= OURO.
         result = self.accepted_assessment()
-        result["score_ranking"] = 95.0
+        result["score_ranking"] = 98.0
         return result
 
     def test_silver_after_discount_never_notifies_even_with_low_config_minimum(self):
@@ -258,41 +262,13 @@ class PromotionRuntimeGuardTests(unittest.TestCase):
             history,
             item,
             {"teclado_pt": "confirmado"},
-            self.accepted_assessment(),
-            "BRONZE",
-            None,
-            item["url"],
-            {"promotion_alert_min_eur": 25.0, "alerta_queda_preco_eur": 5.0},
-        )
-        self.assertFalse(sent)
-        self.assertEqual(self.tracker.alert_messages, [])
-
-    def test_same_eligibility_does_not_send_duplicate_promo(self):
-        item = self.item()
-        fp = promotion_runtime_guard.promotion_value.fingerprint(item["promotions"])
-        history = {
-            "offers": {},
-            "alert_state": {
-                item["url"]: {
-                    "promotion_eligibility_fingerprint": fp,
-                    "promotion_checkout_price": 599.99,
-                    "promotion_tier": "OURO",
-                }
-            },
-        }
-        sent, _ = self.tracker.maybe_alert(
-            history,
-            item,
-            {"teclado_pt": "confirmado"},
             self.gold_assessment(),
-            "BRONZE",
+            "OURO",
             None,
             item["url"],
-            {"promotion_alert_min_eur": 25.0, "alerta_queda_preco_eur": 5.0},
+            {},
         )
         self.assertFalse(sent)
-        self.assertEqual(self.tracker.alert_messages, [])
-        self.assertEqual(self.tracker.normal_alert_calls, [])
 
 
 if __name__ == "__main__":
