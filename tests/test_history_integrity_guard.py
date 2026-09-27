@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 import history_integrity_guard
+from identity_utils import canonical_gtin
 
 
 class HistoryIntegrityGuardTests(unittest.TestCase):
@@ -68,6 +69,7 @@ class HistoryIntegrityGuardTests(unittest.TestCase):
         self.assertEqual(len(removed), 1)
 
     def test_rebuilt_price_history_cannot_keep_removed_false_minimum(self):
+        ean = "4711636091879"
         history = {
             "offers": {
                 "https://example.com/good": [
@@ -76,20 +78,20 @@ class HistoryIntegrityGuardTests(unittest.TestCase):
                         "loja": "Radio Popular",
                         "titulo": "ASUS VivoBook",
                         "price": 699.99,
-                        "ean": "4711636091879",
+                        "ean": ean,
                     },
                     {
                         "timestamp": "2026-09-13T12:00:00Z",
                         "loja": "Radio Popular",
                         "titulo": "ASUS VivoBook",
                         "price": 699.99,
-                        "ean": "4711636091879",
+                        "ean": ean,
                     },
                 ]
             }
         }
         state = history_integrity_guard.rebuild_price_history(history)
-        entry = state["identities"]["ean:4711636091879"]
+        entry = state["identities"][f"ean:{canonical_gtin(ean)}"]
         minima = [row["min"] for row in entry["days"].values()]
         self.assertEqual(min(minima), 699.99)
 
