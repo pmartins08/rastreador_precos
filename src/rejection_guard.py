@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
+from identity_truth_guard import install as install_identity_truth_guard
+from opportunity_guard import install as install_opportunity_guard
+from spec_truth_guard import install as install_spec_truth_guard
+
 
 _CURRENT_REJECTION_REASON: ContextVar[str | None] = ContextVar(
     "rejection_reason", default=None
@@ -245,3 +249,10 @@ def install(scraper_module, tracker_module) -> None:
         tracker_module.maybe_alert = maybe_alert
 
     tracker_module._REJECTION_GUARD_INSTALLED = True
+
+    # V9 beta.7: estas camadas são puramente observacionais/de identidade. Ficam
+    # depois de Matching/Historical e antes do último Promotion Budget Guard, que
+    # continua a ser o dono dos hard gates de preço.
+    install_identity_truth_guard(tracker_module)
+    install_spec_truth_guard(tracker_module)
+    install_opportunity_guard(tracker_module)
