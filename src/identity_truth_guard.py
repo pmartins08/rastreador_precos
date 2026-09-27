@@ -89,6 +89,14 @@ def install(tracker_module) -> None:
     if getattr(tracker_module, "_IDENTITY_TRUTH_GUARD_INSTALLED", False):
         return
 
+    required = (
+        "configuration_signature",
+        "match_configurations",
+        "apply_exact_market_price_evidence",
+    )
+    if not all(hasattr(tracker_module, name) for name in required):
+        return
+
     _patch_historical_identity()
     base_signature = tracker_module.configuration_signature
     base_match = tracker_module.match_configurations
