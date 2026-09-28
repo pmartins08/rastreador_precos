@@ -53,6 +53,7 @@ Principais travões de segurança: `price_guard`, `market_guard`, `matching_guar
 - equipamento novo; usados, recondicionados e outlet são excluídos;
 - `budget_soft`: 1.300 €;
 - limite normal: 1.500 €;
+- abaixo dos 1.300 €, a componente única de preço cresce 0,08 pontos por euro poupado, até mais 20 pontos (no máximo 6 pontos de Value); o antigo `exceptional_deal_bonus` continua fora do Value;
 - campanhas confirmadas podem tornar elegível um artigo acima do limite normal quando o checkout efetivo fica dentro do orçamento;
 - teclado português é informação valorizada, não gate obrigatório;
 - layouts explicitamente indesejados podem ser tratados na análise final sem adulterar o scoring técnico.
