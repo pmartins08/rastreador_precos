@@ -308,7 +308,12 @@ def install(tracker_module) -> None:
         if item.get("_catalog_force_opportunity_confirmation"):
             # Reserva candidatos fortes dentro do universo de avaliação; não é
             # score final nem altera Value/tier.
-            value += float(settings.get("catalog_opportunity_priority_bonus", 24.0))
+            # A fila de confirmações de preço tem poucos lugares por run. Uma
+            # alteração de preço noutro produto recebe +500 e anteriormente
+            # expulsava até os melhores candidatos do catálogo desta fila.
+            # Dar prioridade à confirmação; o preço continua sujeito à ficha
+            # live antes de entrar no ranking ou gerar notificações.
+            value += float(settings.get("catalog_opportunity_priority_bonus", 700.0))
         return round(value, 3)
 
     def needs_price_refresh(previous_meta, item, settings, **kwargs):
