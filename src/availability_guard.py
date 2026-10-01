@@ -97,7 +97,7 @@ def install(tracker):
     def score_offer(spec, price, weights, settings):
         data = spec.get('offer_availability')
         if isinstance(data, dict) and data.get('eligible') is not True:
-            from src.rejection_guard import _CURRENT_REJECTION_REASON
+            from rejection_guard import _CURRENT_REJECTION_REASON
             _CURRENT_REJECTION_REASON.set('availability_not_eligible')
             return {'status':'REJEITADO', 'alertas':['Disponibilidade elegível não confirmada: ' + str(data.get('status'))], 'offer_availability':data}
         return score(spec, price, weights, settings)

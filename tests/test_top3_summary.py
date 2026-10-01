@@ -38,6 +38,12 @@ class SummaryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             summary.top3(self.h, {}, datetime(2026, 9, 23, tzinfo=timezone.utc))
 
+    def test_unverified_store_only_never_fills_top_three(self):
+        self.h['offers']['0'][0]['offer_availability'] = {'eligible':False, 'status':'STORE_ONLY_UNVERIFIED'}
+        rows = summary.top3(self.h, {}, self.now, allow_partial=True)
+        self.assertEqual(len(rows), 2)
+        self.assertNotIn('https://test/0', [row['url'] for row in rows])
+
     def test_expired_promotion_does_not_inflate_value(self):
         row = self.h['offers']['1'][0]
         row.update(promotion_price_live_confirmed=True, promotion_tier='DIAMANTE', promotion_value_score=150, promotion_checkout_price=800, promotion_discount_eur=200, promotions=[{'valid_until': '2020-01-01'}])

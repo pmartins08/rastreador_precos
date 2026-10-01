@@ -41,8 +41,26 @@ assessment=runner.tracker.score_allow_unknown(spec,1138.20,config['weights'],con
 assert assessment['status']=='REJEITADO',assessment
 assert assessment.get('value_score') is None
 assert runner.tracker.rejection_reason(assessment)=='availability_not_eligible'
+assert __import__('rejection_guard')._CURRENT_REJECTION_REASON.get()=='availability_not_eligible'
 '''
         # rejection_reason is imported by the telemetry guard, not exported by tracker.
         code = code.replace('runner.tracker.rejection_reason', '__import__("rejection_guard").rejection_reason')
+        result = subprocess.run([sys.executable,'-c',code], cwd=Path(__file__).resolve().parents[1], capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+    def test_actual_brain_rewards_better_display_and_confirmed_power(self):
+        code = '''
+import json, runner
+config=json.load(open('config/config.json'))
+spec=runner.scraper.specs('Lenovo Legion i7-13650HX RTX 5060 32GB 1TB 16 FHD 144Hz')
+spec['teclado_pt']='confirmado'
+spec['offer_availability']={'eligible':True,'status':'AVAILABLE'}
+weak=dict(spec,tgp_w=60,ecra_brightness_nits=250,ecra_srgb_percent=65,ecra_painel='IPS')
+strong=dict(spec,tgp_w=100,ecra_brightness_nits=500,ecra_srgb_percent=100,ecra_painel='OLED')
+scores=[runner.tracker.score_allow_unknown(s,1400,config['weights'],config['settings']) for s in (weak,strong)]
+assert all(s['status']=='ACEITE' for s in scores),scores
+assert scores[1]['value_score']>scores[0]['value_score'],scores
+assert scores[1].get('brain_policy'),scores
+'''
         result = subprocess.run([sys.executable,'-c',code], cwd=Path(__file__).resolve().parents[1], capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)

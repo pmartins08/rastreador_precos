@@ -38,6 +38,11 @@ class MarketGuardV882Tests(unittest.TestCase):
                 "titulo": "Lenovo IdeaPad 5 2IN1 14AHP11-165",
                 "preco": float(price),
                 "ean": ean,
+                "stock": True,
+                "offer_availability": {
+                    "eligible": True, "status": "AVAILABLE", "source": "product_fulfilment",
+                    "checked_at": tracker.now_iso(),
+                },
             },
             "spec": spec,
         }
