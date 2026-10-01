@@ -23,7 +23,19 @@ class ProductPromotionGuardTests(unittest.TestCase):
             self.assertEqual(promotion_value.economics(promotion_value.parse_promotion_text(text), 1499.99)['effective_checkout_price'], price)
 
     def test_actual_runner_installs_product_probe(self):
-        code = "import runner; assert runner.tracker._PRODUCT_PROMOTION_GUARD_INSTALLED; assert runner.tracker.needs_price_refresh({'price':1499.99}, {'loja':'Darty', 'preco':1499.99}, {})"
+        code = '''
+import runner
+assert runner.tracker._PRODUCT_PROMOTION_GUARD_INSTALLED
+assert runner.tracker.needs_price_refresh({'price':1499.99}, {'loja':'Darty', 'preco':1499.99}, {})
+from unittest.mock import patch
+item = {'loja':'Darty', 'url':'https://darty.pt/products/acer', 'titulo':'Portátil Acer Nitro i9-13900H RTX 5060 32GB 1TB', 'preco':1399.99}
+cache = {item['url']: runner.scraper.specs(item['titulo'])}
+meta = {'tier':'DIAMANTE', 'value_score':120.5}
+with patch.object(runner.tracker, 'load_history', return_value={}), patch.object(runner.tracker, 'latest_offer_by_url', return_value={item['url']:meta}):
+    selected = runner.tracker.select_with_cache([item], cache, 1, {}, {})
+assert selected and item['url'] not in cache
+assert selected[0]['product_promotion_priority_probe']
+'''
         result = subprocess.run([sys.executable, '-c', code], cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

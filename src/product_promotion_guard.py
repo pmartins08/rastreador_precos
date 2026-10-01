@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from collections import Counter
 from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
@@ -132,6 +133,25 @@ def install(tracker_module) -> None:
     base_enrich = tracker_module.enrich
     base_needs_price_refresh = tracker_module.needs_price_refresh
     base_record_offer = tracker_module.record_offer
+    base_select = tracker_module.select_with_cache
+
+    def select_with_cache(items, spec_cache, limit, weights, settings):
+        selected = base_select(items, spec_cache, limit, weights, settings)
+        previous = tracker_module.latest_offer_by_url(tracker_module.load_history())
+        reserved = Counter()
+        # High-value cached offers must not depend on the small generic price
+        # refresh queue to discover a new checkout campaign. Bound per store.
+        for item in sorted(selected, key=lambda row: float((previous.get(row.get('url')) or {}).get('effective_value_score') or (previous.get(row.get('url')) or {}).get('value_score') or 0), reverse=True):
+            meta = previous.get(item.get('url'), {})
+            tier = str(meta.get('effective_tier') or meta.get('tier') or '').upper()
+            store = item.get('loja')
+            if tier in {'OURO', 'DIAMANTE'} and probe_due(meta, item, settings) and reserved[store] < int(settings.get('product_promotion_priority_probes_per_store', 3)):
+                if item.get('url') in spec_cache:
+                    spec_cache.pop(item['url'], None)
+                    item.pop('specs', None)
+                    item['product_promotion_priority_probe'] = True
+                    reserved[store] += 1
+        return selected
 
     def adaptive_fetch(url, config, timeout_s=8.0, *, store=None, method="page", **kwargs):
         response, profile, outcome = base_adaptive_fetch(
@@ -248,4 +268,5 @@ def install(tracker_module) -> None:
     tracker_module.enrich = enrich
     tracker_module.needs_price_refresh = needs_price_refresh
     tracker_module.record_offer = record_offer
+    tracker_module.select_with_cache = select_with_cache
     tracker_module._PRODUCT_PROMOTION_GUARD_INSTALLED = True
