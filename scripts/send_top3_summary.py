@@ -33,6 +33,9 @@ def top3(history, settings, now=None, evaluate=None, allow_partial=False):
         row = max(entries, key=lambda r: r.get('timestamp', ''))
         if not start <= timestamp(row['timestamp']) <= end or row.get('stock') is False:
             continue
+        availability = row.get('offer_availability') or (row.get('specs') or {}).get('offer_availability')
+        if isinstance(availability, dict) and availability.get('eligible') is not True:
+            continue
         row = dict(row)
         active = any(promotion_value_guard.is_active(p) for p in row.get('promotions', []))
         if not active:

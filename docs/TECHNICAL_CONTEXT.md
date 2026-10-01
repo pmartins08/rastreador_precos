@@ -1,4 +1,4 @@
-# Contexto técnico — beta.10
+# Cérebro técnico e disponibilidade — beta.11
 
 ## Correções
 
@@ -10,13 +10,21 @@
 - Scoring devolve `technical_context`, persiste-o nas specs e inclui ressalvas em `alertas`. Alertas individuais e resumos Top3 mostram contexto técnico.
 - Fronteira Diamante corrigida para Value **>= 120**, incluindo exatamente 120.0.
 
-## O que não mudou
+## Ponderação integrada
 
-O cérebro e os pesos históricos de Value foram preservados. A GPU nominal ainda não é corrigida numericamente por TGP; brilho/gama de cores não têm pesos numéricos novos. Esta camada corrige extração e apresentação, **não é uma recalibração de performance**.
+As dimensões conservam produtividade 50%, gaming 25%, longevidade 15% e portabilidade 10%. Dentro dos 10% globais já atribuídos ao ecrã, a resolução vale 4%, brilho SDR 2%, gamut 2%, painel 1% e área útil 1%. Não se acrescentam pesos por cima dos existentes.
 
-Converter 60/85/115 W em percentagens de FPS exigiria benchmarks comparáveis por GPU, modo de energia, memória e chassis. Uma curva arbitrária faria parecer que esse trabalho já foi realizado. Não foi.
+O TGP modula apenas a componente GPU do gaming, num multiplicador limitado entre 0,85 e 1. A curva de utilidade é não linear e satura no limite de referência por GPU: RTX 5050/5060/5070 100 W, 5070 Ti 115 W, 5080/5090 150 W, conforme os intervalos oficiais NVIDIA. Potências acima da referência não dão bónus. A amplitude máxima na pontuação global é inferior a 2,44 pontos. Isto não representa uma percentagem de FPS medida.
 
-Os avisos abaixo de 350 nits, 90% sRGB ou 15 polegadas são critérios de utilização autónoma, não testes eliminatórios nem alterações de tier. Não tornam uma oferta rejeitada aceite, não promovem INDEX_ONLY e não enfraquecem verificações de stock/preço.
+Brilho satura nos 500 nits SDR; pico HDR não substitui brilho normal. Dados desconhecidos recebem utilidade moderada (60/100 no ecrã), sem inventar especificações; TGP desconhecido usa multiplicador 0,9475. sRGB e DCI-P3 têm curvas próprias, sem conversão entre espaços. Campo ambíguo ou de família não constitui TGP confirmado. Uma ficha com 500 nits SDR e 1000 HDR preserva apenas os 500 SDR para scoring.
+
+As curvas são heurísticas explícitas de decisão, não benchmarks. FPS medidos, ruído, temperaturas e autonomia medida continuam por modelar. Os dados e componentes da ponderação ficam em `brain_policy` para auditoria.
+
+## Disponibilidade antes do Value
+
+Stock falso ou desconhecido exclui a oferta antes do scoring económico. Na Darty, `available=true` agregado pode significar apenas levantamento numa loja distante: é exigida evidência de entrega na ficha. Oferta apenas em loja permanece `STORE_ONLY_UNVERIFIED`, sem tier ou alerta, até existir confirmação de levantamento elegível. Evidência por URL expira ao fim de seis horas e não é transferida entre lojas pelo matching técnico.
+
+Referência de potência: https://www.nvidia.com/pt-br/geforce/laptops/compare/
 
 ## Evidência desta análise (2026-09-30)
 

@@ -18,7 +18,7 @@ def availability(item, html, tracker):
     if item.get('loja') == 'Darty':
         if re.search(r'entrega ao dom[ií]cilio indisponivel', text):
             return {'status':'STORE_ONLY_UNVERIFIED', 'eligible':False, 'source':'product_fulfilment', 'home_delivery':False}
-        if re.search(r'entrega ao dom[ií]cilio disponivel|entrega\s+(?:ao domicilio\s+)?(?:em|entre)\s+\d', text):
+        if re.search(r'entrega ao dom[ií]cilio disponivel|entrega\s+(?:ao domicilio\s+)?(?:(?:em|entre)\s+)?\d', text):
             return {'status':'AVAILABLE', 'eligible':True, 'source':'product_fulfilment', 'home_delivery':True}
         return {'status':'AVAILABILITY_UNCONFIRMED', 'eligible':False, 'source':'product_fulfilment_missing'}
     if item.get('stock') is True:
@@ -40,7 +40,7 @@ def install(tracker):
     if getattr(tracker, '_AVAILABILITY_GUARD_INSTALLED', False):
         return
     fetch, enrich = tracker.adaptive_fetch, tracker.enrich
-    select, apply, score = tracker.select_with_cache, tracker.apply_market_evidence, tracker.score_allow_unknown
+    select, apply, score = tracker.select_with_cache, tracker.apply_exact_market_price_evidence, tracker.score_allow_unknown
     record, needs = tracker.record_offer, tracker.needs_price_refresh
 
     def cached(item):
@@ -97,6 +97,8 @@ def install(tracker):
     def score_offer(spec, price, weights, settings):
         data = spec.get('offer_availability')
         if isinstance(data, dict) and data.get('eligible') is not True:
+            from src.rejection_guard import _CURRENT_REJECTION_REASON
+            _CURRENT_REJECTION_REASON.set('availability_not_eligible')
             return {'status':'REJEITADO', 'alertas':['Disponibilidade elegível não confirmada: ' + str(data.get('status'))], 'offer_availability':data}
         return score(spec, price, weights, settings)
 
@@ -112,7 +114,7 @@ def install(tracker):
         return (item.get('loja') == 'Darty' and not fresh(cached(item), settings)) or needs(previous, item, settings, **kwargs)
 
     tracker.adaptive_fetch, tracker.enrich = adaptive_fetch, enrich_offer
-    tracker.select_with_cache, tracker.apply_market_evidence = select_offers, apply_market
+    tracker.select_with_cache, tracker.apply_exact_market_price_evidence = select_offers, apply_market
     tracker.score_allow_unknown, tracker.record_offer = score_offer, record_offer
     tracker.needs_price_refresh = needs_refresh
     tracker._AVAILABILITY_GUARD_INSTALLED = True

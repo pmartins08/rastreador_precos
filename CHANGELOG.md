@@ -2,6 +2,14 @@
 
 Este ficheiro concentra o histórico funcional e arquitetural relevante. Detalhes de implementação continuam preservados no histórico Git e nas métricas das runs; relatórios temporários de validação não são mantidos indefinidamente no repositório.
 
+## 9.0.0-beta.11 — Disponibilidade obrigatória e ponderação técnica
+
+- Ofertas sem stock ou disponibilidade por confirmar são rejeitadas antes de calcular Value; não entram nos tiers, ranking nem alertas.
+- Na Darty, stock agregado não prova entrega: disponibilidade apenas em loja fica pendente de confirmação de levantamento elegível.
+- Brilho SDR, gamut, painel e área útil passam ao cérebro, dentro dos 10% já atribuídos ao ecrã; resolução conserva 4%, brilho e gamut 2% cada, painel e tamanho 1% cada.
+- TGP aplica uma curva limitada e não linear à componente GPU do gaming, com saturação na referência de cada GPU. Dados desconhecidos ou ambíguos não recebem a pontuação máxima.
+- Mantêm-se os pesos das quatro dimensões, orçamento 1.400/1.600 € e fórmula de preço. As curvas exprimem utilidade de decisão, não percentagens de FPS medidas.
+
 ## 9.0.0-beta.10 — Cobertura de marcas e contexto técnico
 
 - Expansão de 9 para 15 lojas: You Get, Tek4life, Auchan, MEO, Clickfiel e Novo Atalho. Catálogo público Tek4life e rotas públicas limitadas; lojas novas não são declaradas live antes de validação de produção.
