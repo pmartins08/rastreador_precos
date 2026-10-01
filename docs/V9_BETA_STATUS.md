@@ -4,7 +4,15 @@
 
 Versão desta revisão: **9.0.0-beta.11**. Preserva os pesos das quatro dimensões e `STATE_EPOCH`; integra TGP e qualidade do ecrã no cérebro. Disponibilidade elegível passa a requisito antes do Value: sem stock confirmado não existe tier nem alerta de oportunidade. Diamante usa Value >= 120. Detalhes e limitações em [TECHNICAL_CONTEXT.md](TECHNICAL_CONTEXT.md).
 
-Orçamento soft 1.400 € / hard 1.600 €, integrado pela PR #61. A PR #62 acrescenta You Get, Tek4life, Auchan, MEO, Clickfiel e Novo Atalho: 15 lojas configuradas. CI: 405 testes passaram.
+## Validação beta.11
+
+PR [#65](https://github.com/pmartins08/rastreador_precos/pull/65) integrada no commit `827ff76a`. CI: **421 testes**, sintaxe, configuração e auditorias passaram. Run [36842551276](https://github.com/pmartins08/rastreador_precos/actions/runs/36842551276), concluída com sucesso: 358 candidatos, 300 avaliações, 130 aceites no pipeline, 161 requests, 60 detalhes e 213,45 segundos. E2E passou; a publicação e heartbeat NTFY foram confirmados.
+
+Darty: 65 candidatos, 47 avaliações, **zero aceites**; as 47 rejeições registam `availability_not_eligible`. O Acer ANV15-52-923W não aparece no ranking nem no snapshot de oportunidades desta run, nem recebeu nova notificação. Isto não declara todo o catálogo sem stock: a ficha pública não confirmou disponibilidade elegível, e o stock agregado não substitui essa confirmação. Onze probes persistiram sete estados por confirmar e quatro sem stock; o Acer ficou por confirmar, sem nova prova de entrega.
+
+A auditoria após a run removeu quatro registos por conflito de preço, incluindo o AERO X16 da Globaldata, deixando 126 entradas económicas novas. Todas as 126 têm `offer_availability.eligible=true` e `brain_policy` preenchido. O snapshot anterior à auditoria (130 aceites, um Ouro) não deve servir isoladamente como recomendação de compra do AERO; esse conflito necessita de confirmação live de preço.
+
+Orçamento soft 1.400 € / hard 1.600 €, integrado pela PR #61. A PR #62 acrescenta You Get, Tek4life, Auchan, MEO, Clickfiel e Novo Atalho: 15 lojas configuradas. CI da expansão: 405 testes passaram.
 
 ## Validação live da expansão
 
