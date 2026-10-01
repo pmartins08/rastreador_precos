@@ -18,6 +18,8 @@ def _current_card_price(scraper_module, card) -> float | None:
 
 
 def _radio_popular_fallback(scraper_module, card, base_url: str, cat: dict) -> dict | None:
+    if any(marker in scraper_module.norm(card.get_text(" ", strip=True)) for marker in scraper_module.EXCLUDE):
+        return None
     hints = cat.get("product_path_hints", [])
     for anchor in card.find_all("a", href=True):
         full_url = urljoin(base_url, str(anchor.get("href") or ""))

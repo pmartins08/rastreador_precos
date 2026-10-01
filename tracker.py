@@ -1863,6 +1863,7 @@ def maybe_alert(
         f"Value: {assessment['value_score']:.1f} | Rank: {assessment['score_ranking']:.1f}\n"
         f"GPU: {spec.get('gpu_modelo') or spec.get('gpu_tipo')} | CPU: {spec.get('cpu_modelo') or '?'}\n"
         f"RAM: {spec.get('ram_gb') or '?'}GB | SSD: {spec.get('armazenamento_tb') or '?'}TB\n"
+        f"{technical_summary(spec)}\n"
         f"{item['url']}"
     )
     sent = ntfy_send(
@@ -1879,6 +1880,11 @@ def maybe_alert(
             "tier": tier,
         }
     return sent, False
+
+
+def technical_summary(spec: dict) -> str:
+    from src.technical_context_guard import summary
+    return summary(spec)
 
 
 def maybe_alert_cross_store(history: dict, group: dict, settings: dict) -> bool:

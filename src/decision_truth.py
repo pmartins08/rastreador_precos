@@ -36,7 +36,7 @@ def force_diamond_for_value(
     *,
     threshold: float = DEFAULT_DIAMOND_VALUE_THRESHOLD,
 ) -> str | None:
-    """Aplica a regra de produto: Value estritamente superior a 120 é DIAMANTE.
+    """Aplica a regra de produto: Value igual ou superior a 120 é DIAMANTE.
 
     A função não tenta reconstruir a lógica completa de tier abaixo do limiar;
     essa responsabilidade continua no cérebro/GPU guard. Aqui existe apenas a
@@ -46,7 +46,7 @@ def force_diamond_for_value(
     numeric_value = _score_or_none(value_score)
     if numeric_value is None:
         return normalized
-    if numeric_value > float(threshold):
+    if numeric_value >= float(threshold):
         return "DIAMANTE"
     return normalized
 

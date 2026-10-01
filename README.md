@@ -2,7 +2,7 @@
 
 **LapIntel PT** é um motor de inteligência de mercado para portáteis novos em Portugal. Descobre ofertas, interpreta hardware, valida preços, acompanha histórico, cruza configurações entre lojas e calcula Value sem deixar dados de baixa confiança entrarem no ranking.
 
-Versão pública atual: **9.0.0-beta.6**. O estado operacional detalhado está em [`docs/V9_BETA_STATUS.md`](docs/V9_BETA_STATUS.md).
+Versão desta revisão: **9.0.0-beta.10**. O estado operacional detalhado está em [`docs/V9_BETA_STATUS.md`](docs/V9_BETA_STATUS.md).
 
 ## Objetivo
 
@@ -17,15 +17,21 @@ A V8.8.9 permanece como baseline histórica do primeiro ciclo concluído. Os pre
 | Bronze | Value ≥ 70 |
 | Prata | Value ≥ 90 |
 | Ouro | Value ≥ 110 |
-| Diamante | **Value > 120** |
+| Diamante | **Value ≥ 120** |
 
 A política final de tier é protegida por guards próprios. Os alertas normais NTFY são enviados apenas para **Ouro** e **Diamante**; uma alteração material de preço obriga a recalcular Value/tier antes de qualquer alerta.
 
 ## Universo monitorizado
 
-Nove lojas estão configuradas:
+Marcas elegíveis: ASUS, Lenovo, HP, Acer e Gigabyte (incluindo as submarcas reconhecidas). Apple, usados e recondicionados continuam excluídos.
 
-**PCDiga · PcComponentes · Globaldata · Radio Popular · Darty · UPTECHBOX · CHIP7 · FNAC · Worten**
+O Value é nominal, não um benchmark. A [camada de contexto técnico](docs/TECHNICAL_CONTEXT.md) acompanha TGP, brilho, sRGB e as limitações não modeladas sem inventar FPS ou autonomia.
+
+Quinze lojas estão configuradas:
+
+**PCDiga · PcComponentes · Globaldata · Radio Popular · Darty · UPTECHBOX · CHIP7 · FNAC · Worten · You Get · Tek4life · Auchan · MEO · Clickfiel · Novo Atalho**
+
+As seis novas lojas usam categorias públicas e, na Tek4life, catálogo Shopify público. Cobertura configurada só passa a live útil depois de produzir candidatos e fichas válidas na execução. Até um terço da seleção pode ser reservado a candidatos novos, com até cinco por loja; o restante mantém o ranking existente. Limites: 420 requests, 140 detalhes e 10 minutos por run.
 
 O sistema distingue três níveis importantes:
 

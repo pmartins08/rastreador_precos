@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from technical_context_guard import summary as technical_summary
+
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from gpu_guard import TierAwareValue
@@ -324,6 +326,7 @@ def install(tracker_module) -> None:
                 f"Value normal: {assessment['value_score']:.1f} | Value promo: {promo_assessment['value_score']:.1f}\n"
                 f"Tier normal/promo: {tier or '—'} / {promo_tier or '—'}\n"
                 f"Layout teclado: {spec.get('teclado_pt', 'desconhecido')} (informativo)\n"
+                f"{technical_summary(spec)}\n"
                 f"{item['url']}"
             )
             sent = tracker_module.ntfy_send(
