@@ -66,9 +66,11 @@ config = json.load(open('config/config.json'))
 s = runner.scraper.specs('ASUS Ryzen 7 260 RTX 5060')
 s.update(ram_gb=32, armazenamento_tb=.5, ecra_res='fhd+', ecra_hz=144,
          bateria_wh=70, peso_kg=2.2, ram_expansivel=True, ssd_expansivel=True,
-         fontes={'ram':'table'}, ecra_brightness_nits=300, ecra_srgb_percent=100)
+         fontes={'ram':'table'})
+baseline = runner.tracker.score_allow_unknown(s, 1424.99, config['weights'], config['settings'])
+s.update(ecra_brightness_nits=300, ecra_srgb_percent=100)
 a = runner.tracker.score_allow_unknown(s, 1424.99, config['weights'], config['settings'])
-assert float(a['value_score']) == 106.9, a
+assert float(a['value_score']) == float(baseline['value_score']), (baseline, a)
 assert a['technical_context']['value_basis'] == 'legacy_nominal_not_benchmark'
 assert a['technical_context']['warnings']
 assert s['technical_context'] == a['technical_context']
