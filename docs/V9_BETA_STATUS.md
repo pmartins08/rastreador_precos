@@ -4,7 +4,24 @@
 
 Versão desta revisão: **9.0.0-beta.10**. Preserva cérebro, pesos e `STATE_EPOCH`; acrescenta Acer/Gigabyte e contexto técnico explícito (TGP/brilho/sRGB). Diamante usa Value >= 120; alertas continuam limitados a Ouro/Diamante. Detalhes e limitações em [TECHNICAL_CONTEXT.md](TECHNICAL_CONTEXT.md).
 
-Orçamento soft 1.400 € / hard 1.600 €, integrado pela PR #61. Esta revisão acrescenta You Get, Tek4life, Auchan, MEO, Clickfiel e Novo Atalho: 15 lojas configuradas. As novas lojas precisam de validação live no runner; configuração não prova cobertura.
+Orçamento soft 1.400 € / hard 1.600 €, integrado pela PR #61. A PR #62 acrescenta You Get, Tek4life, Auchan, MEO, Clickfiel e Novo Atalho: 15 lojas configuradas. CI: 405 testes passaram.
+
+## Validação live da expansão
+
+Run [36836800757](https://github.com/pmartins08/rastreador_precos/actions/runs/36836800757), commit `e8767bb9`, concluída com sucesso em 01/10/2026. Consulta: 518,14 s; 334 candidatos, 300 avaliados, 194 aceites, 254 requests, 137 detalhes live e 165 reutilizações de cache. E2E passou. Distribuição: 1 Diamante, 9 Ouros, 124 Pratas e 59 Bronzes; um aceite ficou sem tier, produzindo aviso de contagem (194 vs. 193), que não deve ser confundido com falha de execução.
+
+| Nova loja | Candidatos | Avaliados | Aceites | Estado nesta run |
+|---|---:|---:|---:|---|
+| You Get | 0 | 0 | 0 | bloqueada |
+| Tek4life | 37 | 31 | 25 | catálogo público e fichas live |
+| Auchan | 11 | 11 | 9 | discovery e fichas live |
+| Clickfiel | 23 | 21 | 15 | categoria e fichas live |
+| MEO | 18 | 14 | 13 | categoria e fichas live |
+| Novo Atalho | 2 | 2 | 2 | sitemap e fichas live; cobertura estreita |
+
+As novas fontes acrescentaram 91 candidatos e 64 aceites. Todas as 15 lojas foram consultadas, incluindo as fontes anteriores; o limite de 300 avaliações deixou 34 candidatos por avaliar. Não se trata de cobertura integral dos catálogos. NTFY: 5 oportunidades e 1 heartbeat; confirmação de publicação após deploy também respondeu HTTP 200.
+
+PCDiga, PcComponentes, CHIP7 e Worten continuaram sem candidatos elegíveis. A expansão compensou parcialmente estes bloqueios; não os resolveu. A RP caiu de 4 para 2 candidatos nesta comparação após a exclusão de artigos de exposição; esta run isolada não permite atribuir toda a diferença a esse filtro. Resultados de uma execução não certificam acesso futuro, stock no checkout nem todas as variantes.
 
 Última execução anterior à expansão: `36829492861`, beta.9, sucesso em 223,62 s; 220 candidatos, 220 avaliados, 112 aceites, 141 requests, 64 detalhes live; 0 Diamantes / 4 Ouros. Auditoria NTFY: 1 oportunidade e 1 heartbeat. PCDIGA, PcComponentes, CHIP7 e Worten sem candidatos elegíveis nessa execução.
 
