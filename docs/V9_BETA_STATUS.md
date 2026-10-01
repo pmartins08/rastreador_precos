@@ -1,8 +1,14 @@
-# V9 beta — estado operacional em 26/09/2026
+# V9 beta — expansão de cobertura em 01/10/2026
 
 ## Versão e política
 
-Versão pública: **9.0.0-beta.6**. A V9 preserva o cérebro de scoring, pesos, `STATE_EPOCH`, histórico e política NTFY. Diamante continua dependente do Value configurado acima de 120 e os alertas normais continuam limitados a Ouro/Diamante.
+Versão desta revisão: **9.0.0-beta.10**. Preserva cérebro, pesos e `STATE_EPOCH`; acrescenta Acer/Gigabyte e contexto técnico explícito (TGP/brilho/sRGB). Diamante usa Value >= 120; alertas continuam limitados a Ouro/Diamante. Detalhes e limitações em [TECHNICAL_CONTEXT.md](TECHNICAL_CONTEXT.md).
+
+Orçamento soft 1.400 € / hard 1.600 €, integrado pela PR #61. Esta revisão acrescenta You Get, Tek4life, Auchan, MEO, Clickfiel e Novo Atalho: 15 lojas configuradas. As novas lojas precisam de validação live no runner; configuração não prova cobertura.
+
+Última execução anterior à expansão: `36829492861`, beta.9, sucesso em 223,62 s; 220 candidatos, 220 avaliados, 112 aceites, 141 requests, 64 detalhes live; 0 Diamantes / 4 Ouros. Auditoria NTFY: 1 oportunidade e 1 heartbeat. PCDIGA, PcComponentes, CHIP7 e Worten sem candidatos elegíveis nessa execução.
+
+As métricas da tabela abaixo são históricas de 26/09. Os testes locais não certificam acesso live às lojas. A expansão aumenta os limites para 420 requests e 140 detalhes, preserva 10 minutos e dá espaço de avaliação aos novos candidatos por loja.
 
 O princípio operacional desta fase é simples: **discovery não é confirmação**. URLs ou preços encontrados por índices públicos podem ajudar a localizar produtos, mas ficam `INDEX_ONLY` até uma fonte suficientemente forte confirmar identidade e preço.
 

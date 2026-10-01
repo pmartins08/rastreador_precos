@@ -2,6 +2,19 @@
 
 Este ficheiro concentra o histórico funcional e arquitetural relevante. Detalhes de implementação continuam preservados no histórico Git e nas métricas das runs; relatórios temporários de validação não são mantidos indefinidamente no repositório.
 
+## 9.0.0-beta.10 — Cobertura de marcas e contexto técnico
+
+- Expansão de 9 para 15 lojas: You Get, Tek4life, Auchan, MEO, Clickfiel e Novo Atalho. Catálogo público Tek4life e rotas públicas limitadas; lojas novas não são declaradas live antes de validação de produção.
+- Reserva limitada de seleção para novas ofertas por loja, mantendo gates de preço e alertas.
+- Cartões de artigos de exposição são excluídos, incluindo o fallback da Rádio Popular.
+- Limites de 420 requests e 140 detalhes, orçamento 1.400/1.600 €; duração continua limitada a 10 minutos.
+- Acer e Gigabyte deixam de ser excluídas pela elegibilidade de marca.
+- Contexto técnico acompanha TGP, brilho/sRGB e ressalvas de utilização autónoma; os pesos/Value históricos não são recalibrados por uma curva de FPS não validada.
+- Potências contraditórias e brilho HDR de pico não são promovidos a especificações inequívocas.
+- Alertas individuais, promocionais, de preço e resumo Top3 mostram ressalvas técnicas.
+- Fronteira Diamante passa a >= 120; instalação da política fica idempotente por runtime, em vez de global.
+- Sem mudanças de estado, preços embutidos ou notificações enviadas durante os testes.
+
 ## 9.0.0-beta.1 — Decision Truth e consolidação operacional
 
 - Integra Fase 1 V9: decisão efetiva coerente em histórico, resumos, heartbeat e auditoria.

@@ -22,12 +22,17 @@ EXCLUDE = {
     "grade c",
     "seminovo",
     "open box",
+    "open-box",
+    "artigo de exposicao",
+    "segunda mao",
 }
 
 BRANDS = {
     "asus": {"rog", "tuf", "vivobook", "zenbook", "expertbook", "proart"},
     "lenovo": {"legion", "loq", "ideapad", "thinkpad", "thinkbook", "yoga"},
     "hp": {"omen", "victus", "omnibook", "elitebook", "probook", "envy", "pavilion"},
+    "acer": {"nitro", "predator", "swift", "aspire", "travelmate"},
+    "gigabyte": {"aero", "aorus"},
 }
 
 KPT = [
@@ -209,7 +214,7 @@ ALIASES = {
         "integrated gpu",
     ],
     "vram": ["memoria grafica", "graphics memory", "video memory", "vram"],
-    "tgp": ["tgp", "total graphics power", "potencia grafica"],
+    "tgp": ["tgp", "total graphics power", "potencia grafica", "maximum graphics power", "potencia grafica maxima"],
     "cpu": ["processador", "cpu", "processor", "modelo do processador"],
     "ram": ["memoria ram", "ram", "system memory", "memory", "memoria instalada"],
     "ram_type": ["tipo de memoria", "memory type", "tipo ram", "ram type"],
@@ -1068,6 +1073,8 @@ def candidate_from_card(card: BeautifulSoup, base_url: str, cat: dict) -> dict |
     title = _title(card, anchor)
     if not url or not title or not eligible(title):
         return None
+    if any(marker in norm(card.get_text(" ", strip=True)) for marker in EXCLUDE):
+        return None
     price = best_product_price(_card_prices(card, cat))
     if price is None or not price_is_plausible_for_title(title, price):
         return None
@@ -1150,6 +1157,8 @@ def discover_category(html: str, cat: dict, limit: int) -> list[dict]:
                 price = best_product_price(prices(parent.get_text(" ", strip=True)))
                 if price is None:
                     continue
+                if any(marker in norm(parent.get_text(" ", strip=True)) for marker in EXCLUDE):
+                    break
                 _add_candidate(
                     out,
                     seen,

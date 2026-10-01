@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from technical_context_guard import summary as technical_summary
+
 import re
 
 import promotion_value_guard as promotion_value
@@ -202,6 +204,7 @@ def install(tracker_module) -> None:
             [
                 f"Value atual: {current_value:.1f} | Tier: {current_tier}",
                 f"Alteração: preço {direction}",
+                technical_summary(spec),
                 str(item.get("url") or ""),
             ]
         )

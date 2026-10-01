@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 from decision_truth_runtime_guard import _truth_from_entry
 import promotion_value_guard
+from technical_context_guard import summary as technical_summary
 
 
 def timestamp(value):
@@ -48,7 +49,8 @@ def top3(history, settings, now=None, evaluate=None, allow_partial=False):
         if not math.isfinite(value) or not float(settings.get('preco_minimo_global', 250)) <= price <= float(settings.get('budget_hard', 1500)):
             continue
         candidate = dict(title=row['titulo'], store=row['loja'], url=row['url'], price=price,
-                         value=value, tier=truth['effective_tier'], observed_at=row['timestamp'])
+                         value=value, tier=truth['effective_tier'], observed_at=row['timestamp'],
+                         technical_summary=technical_summary(row.get('specs') or {}))
         identity = row.get('configuration_key') or row.get('ean') or row['url']
         old = choices.get(identity)
         if old is None or (value, -price) > (old['value'], -old['price']):
@@ -106,7 +108,7 @@ def main():
     receipts[args.request_id] = {'status': 'reserved', 'top3': rows, 'reserved_at': datetime.now(timezone.utc).isoformat()}
     persist(path, receipts)
     from curl_cffi import requests
-    message = '\n\n'.join(f"{i}. {r['tier']} | {r['title']}\n{r['store']} | {r['price']:.2f}€ | Value {r['value']:.1f}\n{r['url']}" for i, r in enumerate(rows, 1))
+    message = '\n\n'.join(f"{i}. {r['tier']} | {r['title']}\n{r['store']} | {r['price']:.2f}€ | Value {r['value']:.1f}\n{r['technical_summary']}\n{r['url']}" for i, r in enumerate(rows, 1))
     if args.request_id.endswith('-correction'):
         message = 'Corrige o resumo anterior: uma calibração antiga substituía o limiar Diamante de 120 por 118. Segue o resumo recalculado com o limiar correto.\n\n' + message
     if len(rows) < 3:

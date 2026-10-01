@@ -38,6 +38,8 @@ from sitemap_route_guard import install as install_sitemap_route_guard
 from sitemap_strategy_epoch_guard import install as install_sitemap_strategy_epoch_guard
 from state_refresh_guard import install as install_state_refresh_guard
 from tier_policy_guard import install as install_tier_policy_guard
+from technical_context_guard import install as install_technical_context_guard
+from store_expansion_guard import install as install_store_expansion_guard
 from version import VERSION
 from version_guard import install as install_version_guard
 
@@ -262,6 +264,8 @@ install_rejection_guard(scraper, tracker)
 # passar apenas candidatos acima do hard cujo checkout promocional foi confirmado
 # live como <= hard. Restaura o preço bruto antes do pré-ranking e do histórico.
 install_promotion_budget_guard(tracker)
+install_technical_context_guard(scraper, tracker)
+install_store_expansion_guard(scraper, tracker)
 
 
 def _safe_page_price(soup, structured_price: float | None = None) -> float | None:

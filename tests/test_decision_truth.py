@@ -18,8 +18,9 @@ class DecisionTruthTests(unittest.TestCase):
         self.assertEqual(force_diamond_for_value(120.1, "OURO"), "DIAMANTE")
         self.assertEqual(force_diamond_for_value(135.0, "PRATA"), "DIAMANTE")
 
-    def test_value_equal_to_120_preserves_existing_tier_logic(self):
-        self.assertEqual(force_diamond_for_value(120.0, "OURO"), "OURO")
+    def test_value_equal_to_120_is_diamond(self):
+        self.assertEqual(force_diamond_for_value(120.0, "OURO"), "DIAMANTE")
+        self.assertEqual(force_diamond_for_value(119.9, "OURO"), "OURO")
 
     def test_unconfirmed_promotion_never_replaces_base_decision(self):
         view = decision_truth(
