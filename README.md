@@ -51,8 +51,8 @@ Principais travões de segurança: `price_guard`, `market_guard`, `matching_guar
 ## Orçamento e elegibilidade
 
 - equipamento novo; usados, recondicionados e outlet são excluídos;
-- `budget_soft`: 1.300 €;
-- limite normal: 1.500 €;
+- `budget_soft`: 1.400 €;
+- `budget_hard` (limite normal): 1.600 €;
 - campanhas confirmadas podem tornar elegível um artigo acima do limite normal quando o checkout efetivo fica dentro do orçamento;
 - teclado português é informação valorizada, não gate obrigatório;
 - layouts explicitamente indesejados podem ser tratados na análise final sem adulterar o scoring técnico.
