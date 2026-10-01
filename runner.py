@@ -32,6 +32,7 @@ from promotion_engine_v3 import install as install_promotion_engine_v3
 from promotion_guard import install as install_promotion_guard
 from promotion_live_guard import install as install_promotion_live_guard
 from promotion_runtime_guard import install as install_promotion_runtime_guard
+from product_promotion_guard import install as install_product_promotion_guard
 from radio_popular_card_guard import install as install_radio_popular_card_guard
 from rejection_guard import install as install_rejection_guard
 from sitemap_route_guard import install as install_sitemap_route_guard
@@ -301,6 +302,7 @@ def _safe_page_price(soup, structured_price: float | None = None) -> float | Non
 
 
 tracker.preferred_page_price = _safe_page_price
+install_product_promotion_guard(tracker)
 
 main = tracker.main
 merge_cli = tracker.merge_cli

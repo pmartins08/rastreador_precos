@@ -207,13 +207,26 @@ def parse_promotion_text(text: str, *, source: str = "page", eligibility: str = 
             "cap_eur": _number(cap_match.group(1)) if cap_match else None,
         })
 
-    cart = re.search(r"(?:-|menos\s*)?(\d+(?:[.,]\d+)?)\s*€\s*(?:de\s*)?(?:desconto\s*)?extra\s+(?:no\s+)?carrinho", lower)
+    cart = re.search(r"(?:-|menos\s*)?(\d+(?:[.,]\d+)?)\s*€\s*(?:de\s*)?(?:desconto\s*)?extra\s+(?:(?:no|em)\s+)?carrinho", lower)
     if cart:
         out.append({**common, "kind": "DIRECT_DISCOUNT", "title": f"{cart.group(1)}€ extra no carrinho", "value_eur": _number(cart.group(1))})
 
-    cart_percent = re.search(r"(\d{1,2}(?:[.,]\d+)?)\s*%\s*(?:de\s*)?(?:desconto\s*)?extra\s+(?:no\s+)?carrinho", lower)
+    cart_percent = re.search(r"(\d{1,2}(?:[.,]\d+)?)\s*%\s*(?:de\s*)?(?:desconto\s*)?extra\s+(?:(?:no|em)\s+)?carrinho", lower)
     if cart_percent:
         out.append({**common, "kind": "DIRECT_DISCOUNT", "title": f"{cart_percent.group(1)}% extra no carrinho", "percent": _number(cart_percent.group(1))})
+
+    # IVA is removed by division, never a flat 23% discount. Require the
+    # product-specific advertised equation and validate its arithmetic.
+    iva = re.search(r"o valor final deste produto no carrinho [ée]\s*:\s*([\d.,]+)\s*€\s*/\s*(1[.,]\d{1,2})\s*=\s*([\d.,]+)\s*€", lower)
+    if iva and re.search(r"desconto\s+(?:do|igual ao)\s+iva", lower):
+        def pt_amount(raw):
+            try:
+                return float(raw.replace('.', '').replace(',', '.')) if ',' in raw else float(raw)
+            except ValueError:
+                return float('nan')
+        gross, divisor, checkout = map(pt_amount, iva.groups())
+        if 1.04 <= divisor <= 1.30 and 0 < checkout < gross and abs(gross / divisor - checkout) <= .02:
+            out.append({**common, "kind": "DIRECT_DISCOUNT", "title": "Desconto do IVA extra em carrinho", "percent": 100 * (1 - 1 / divisor), "advertised_checkout_price": checkout, "advertised_gross_price": gross})
 
     percent_code = re.search(r"(\d{1,2}(?:[.,]\d+)?)\s*%\s*(?:de\s*)?(?:desconto\s*)?extra.{0,100}?(?:c[oó]digo|cup[aã]o)\s*[:\-]?\s*([A-Z0-9_-]{3,20})", clean, re.I)
     if percent_code:
