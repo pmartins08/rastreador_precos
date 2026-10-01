@@ -13,6 +13,7 @@ if str(SRC) not in sys.path:
 import price_guard as price_guard_module
 import scraper
 from awin_feed_guard import install as install_awin_feed_guard
+from availability_guard import install as install_availability_guard
 from brain_guard import install as install_brain_guard
 from catalog_guard import install as install_catalog_guard
 from coverage_guard import install as install_coverage_guard
@@ -303,6 +304,7 @@ def _safe_page_price(soup, structured_price: float | None = None) -> float | Non
 
 tracker.preferred_page_price = _safe_page_price
 install_product_promotion_guard(tracker)
+install_availability_guard(tracker)
 
 main = tracker.main
 merge_cli = tracker.merge_cli

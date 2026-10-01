@@ -27,13 +27,24 @@ def enrich(spec, pairs, scraper):
         if key == "tgp" or (key == "gpu" and re.search(r"\b(?:tgp|dynamic boost)\b", text)) or re.search(r"potencia grafica|max.*graphics power", label_text):
             power.update(float(v.replace(",", ".")) for v in re.findall(r"(\d{2,3}(?:[.,]\d+)?)\s*w\b", text))
         if key in {"screen", "brightness", "panel"}:
-            # A combined SDR/HDR field is deliberately left for verification.
-            if not re.search(r"\b(?:hdr|peak|pico)\b", text):
+            typical = re.findall(r'(\d{2,4}(?:[.,]\d+)?)\s*(?:nits|cd/m[²2])\s*\(?\s*(?:sdr(?:\s+typical)?|typical|tipic[oa])', text)
+            if typical:
+                brightness.update(float(v.replace(',', '.')) for v in typical)
+            elif not re.search(r"\b(?:hdr|peak|pico)\b", text):
                 brightness.update(float(v.replace(",", ".")) for v in re.findall(r"(\d{2,4}(?:[.,]\d+)?)\s*(?:nits|cd/m[²2])", text))
             elif re.search(r"nits|cd/m[²2]", text):
                 peak_brightness = True
             for pattern in (r"(\d{1,3}(?:[.,]\d+)?)\s*%\s*srgb", r"srgb\s*[:=]?\s*(\d{1,3}(?:[.,]\d+)?)\s*%"):
                 srgb.update(float(v.replace(",", ".")) for v in re.findall(pattern, text))
+            panel = re.search(r'\b(oled|ips|va|tn)\b', text)
+            if panel:
+                spec['ecra_painel'] = panel.group(1).upper()
+            dci = re.findall(r'(\d{1,3}(?:[.,]\d+)?)\s*%\s*dci[ -]?p3', text)
+            if dci and len(set(dci)) == 1:
+                spec['ecra_dci_p3_percent'] = _number(dci[0].replace(',', '.'), 1, 100)
+            size = re.search(r'(\d{1,2}(?:[.,]\d+)?)\s*(?:"|\x27\x27|polegadas)', text)
+            if size:
+                spec['ecra_tamanho'] = _number(size.group(1).replace(',', '.'), 8, 22)
     power = {v for v in power if _number(v, 10, 250) is not None}
     if peak_brightness and not brightness:
         spec["ecra_brightness_nits"] = None
@@ -80,14 +91,14 @@ def technical_context(spec):
         warnings.append("Ecrã abaixo de 15 polegadas: menos área física para trabalho sem monitor.")
     return {
         "schema": 1,
-        "value_basis": "legacy_nominal_not_benchmark",
+        "value_basis": "weighted_technical_utility_not_benchmark",
         "tgp_w": tgp,
         "tgp_status": power_status,
         "tgp_candidates_w": spec.get("tgp_candidates_w", []),
         "brightness_nits": brightness,
         "srgb_percent": gamut,
         "screen_inches": size,
-        "unmodelled": ["tgp_performance", "brightness", "colour_gamut", "thermals", "noise", "measured_battery_life"],
+        "unmodelled": ["measured_fps", "thermals", "noise", "measured_battery_life"],
         "warnings": warnings,
     }
 
@@ -97,7 +108,7 @@ def summary(spec):
     power = f"{context['tgp_w']:g} W" if context["tgp_w"] is not None else "por confirmar"
     light = f"{context['brightness_nits']:g} nits" if context["brightness_nits"] is not None else "? nits"
     gamut = f"{context['srgb_percent']:g}% sRGB" if context["srgb_percent"] is not None else "? sRGB"
-    return f"TGP: {power} | Ecrã: {light}, {gamut}. Value nominal; não prevê FPS/autonomia."
+    return f"TGP: {power} | Ecrã: {light}, {gamut}. Incluídos no Value; sem previsão de FPS/autonomia."
 
 
 def install(scraper, tracker):
