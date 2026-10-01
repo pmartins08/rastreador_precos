@@ -19,6 +19,8 @@ def rejection_reason(assessment: dict | None) -> str:
 
     alerts = " | ".join(str(value or "") for value in assessment.get("alertas", []))
     text = alerts.lower()
+    if 'disponibilidade elegível' in text:
+        return 'availability_not_eligible'
     if "fallback histórico" in text or "fallback historico" in text:
         return "live_price_confirmation_required"
     if "teclado não é português" in text or "teclado nao e portugues" in text:

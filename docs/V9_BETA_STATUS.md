@@ -2,7 +2,7 @@
 
 ## Versão e política
 
-Versão desta revisão: **9.0.0-beta.10**. Preserva cérebro, pesos e `STATE_EPOCH`; acrescenta Acer/Gigabyte e contexto técnico explícito (TGP/brilho/sRGB). Diamante usa Value >= 120; alertas continuam limitados a Ouro/Diamante. Detalhes e limitações em [TECHNICAL_CONTEXT.md](TECHNICAL_CONTEXT.md).
+Versão desta revisão: **9.0.0-beta.11**. Preserva os pesos das quatro dimensões e `STATE_EPOCH`; integra TGP e qualidade do ecrã no cérebro. Disponibilidade elegível passa a requisito antes do Value: sem stock confirmado não existe tier nem alerta de oportunidade. Diamante usa Value >= 120. Detalhes e limitações em [TECHNICAL_CONTEXT.md](TECHNICAL_CONTEXT.md).
 
 Orçamento soft 1.400 € / hard 1.600 €, integrado pela PR #61. A PR #62 acrescenta You Get, Tek4life, Auchan, MEO, Clickfiel e Novo Atalho: 15 lojas configuradas. CI: 405 testes passaram.
 

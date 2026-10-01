@@ -2,7 +2,7 @@
 
 **LapIntel PT** é um motor de inteligência de mercado para portáteis novos em Portugal. Descobre ofertas, interpreta hardware, valida preços, acompanha histórico, cruza configurações entre lojas e calcula Value sem deixar dados de baixa confiança entrarem no ranking.
 
-Versão desta revisão: **9.0.0-beta.10**. O estado operacional detalhado está em [`docs/V9_BETA_STATUS.md`](docs/V9_BETA_STATUS.md).
+Versão desta revisão: **9.0.0-beta.11**. O estado operacional detalhado está em [`docs/V9_BETA_STATUS.md`](docs/V9_BETA_STATUS.md).
 
 ## Objetivo
 
@@ -25,7 +25,7 @@ A política final de tier é protegida por guards próprios. Os alertas normais 
 
 Marcas elegíveis: ASUS, Lenovo, HP, Acer e Gigabyte (incluindo as submarcas reconhecidas). Apple, usados e recondicionados continuam excluídos.
 
-O Value é nominal, não um benchmark. A [camada de contexto técnico](docs/TECHNICAL_CONTEXT.md) acompanha TGP, brilho, sRGB e as limitações não modeladas sem inventar FPS ou autonomia.
+O [cérebro técnico](docs/TECHNICAL_CONTEXT.md) pondera TGP, brilho SDR, gamut, painel e área útil dentro das dimensões existentes. A pontuação é uma utilidade de decisão, não uma previsão de FPS ou autonomia. Disponibilidade confirmada é obrigatória antes do Value: sem stock ou com disponibilidade por confirmar, não há tier, ranking ou alerta de oportunidade.
 
 Quinze lojas estão configuradas:
 
@@ -48,7 +48,7 @@ O pipeline separa responsabilidades:
 1. **Discovery** — categorias, paginação, campanhas, catálogos públicos, sitemaps, feeds autorizados opcionais e search-index conservador.
 2. **Identity** — EAN/MPN/SKU e matching cross-store com veto explícito a conflitos de hardware.
 3. **Price Truth** — confirmação de preço, deteção de outliers, consenso de mercado e quarentena de valores suspeitos.
-4. **Brain** — scoring técnico base preservado e guards de hardware/GPU/display.
+4. **Brain** — scoring técnico ponderado, disponibilidade elegível e guards de hardware/GPU/display.
 5. **Decision Truth** — preço efetivo, Value, tier, ranking e política de alerta coerentes.
 6. **History** — séries compactas, ranking histórico, integridade e aprendizagem de acesso.
 

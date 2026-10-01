@@ -36,8 +36,9 @@ class TechnicalContextTests(unittest.TestCase):
 
     def test_hdr_peak_is_not_sdr_brightness(self):
         spec = enrich({"ecra_brightness_nits": 1000}, [("screen", "Display", "OLED 500nits typical / 1000nits HDR peak", "table")], scraper)
-        self.assertIsNone(spec["ecra_brightness_nits"])
-        self.assertEqual(spec["ecra_brightness_nits_evidence_status"], "peak_or_combined")
+        self.assertEqual(spec["ecra_brightness_nits"], 500)
+        peak = enrich({'ecra_brightness_nits':1000}, [('screen', 'Display', 'OLED 1000 nits HDR peak', 'table')], scraper)
+        self.assertIsNone(peak['ecra_brightness_nits'])
 
     def test_conflicting_brightness_stays_unknown(self):
         spec = enrich({}, [("screen", "Display", "300 nits / 400 nits", "table")], scraper)
@@ -70,8 +71,8 @@ s.update(ram_gb=32, armazenamento_tb=.5, ecra_res='fhd+', ecra_hz=144,
 baseline = runner.tracker.score_allow_unknown(s, 1424.99, config['weights'], config['settings'])
 s.update(ecra_brightness_nits=300, ecra_srgb_percent=100)
 a = runner.tracker.score_allow_unknown(s, 1424.99, config['weights'], config['settings'])
-assert float(a['value_score']) == float(baseline['value_score']), (baseline, a)
-assert a['technical_context']['value_basis'] == 'legacy_nominal_not_benchmark'
+assert float(a['value_score']) > float(baseline['value_score']), (baseline, a)
+assert a['technical_context']['value_basis'] == 'weighted_technical_utility_not_benchmark'
 assert a['technical_context']['warnings']
 assert s['technical_context'] == a['technical_context']
 from gpu_guard import TierAwareValue

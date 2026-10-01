@@ -840,7 +840,10 @@ def score(spec: dict, price_value: float, weights: dict, settings: dict) -> dict
     else:
         p_ssd_long = 50
 
-    feup = p_ram * 0.20 + autonomy * 0.30 + p_ssd * 0.15 + p_res * 0.20 + p_cpu * 0.15
+    from technical_scoring import factors
+    technical = factors(spec, p_res)
+    p_gpu *= technical['tgp_multiplier']
+    feup = p_ram * 0.20 + autonomy * 0.30 + p_ssd * 0.15 + technical['display_score'] * 0.20 + p_cpu * 0.15
     gaming = p_gpu * 0.65 + p_cpu * 0.20 + p_hz * 0.10 + p_ram * 0.05
     longevity = p_ram_long * 0.35 + p_ssd_long * 0.25 + autonomy * 0.20 + p_cpu * 0.20
     final = feup * 0.50 + gaming * 0.25 + longevity * 0.15 + p_weight * 0.10
@@ -853,6 +856,7 @@ def score(spec: dict, price_value: float, weights: dict, settings: dict) -> dict
         "score_final": round(final, 1),
         "score_ranking": ranking,
         "value_score": value,
+        "brain_policy": technical,
         "qualidade_dados": quality_label,
         "confianca_percentual": f"{int(confidence * 100)}%",
         "fontes_extraidas": spec.get("fontes", {}),
