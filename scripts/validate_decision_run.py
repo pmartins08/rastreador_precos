@@ -53,6 +53,7 @@ for entries in (data.get('offers', {}) or {}).values():
         if previous is None or stamp >= parse_time(previous.get('timestamp')):
             recent[url] = entry
 
+threshold = float(json.loads(Path('config/config.json').read_text())['settings'].get('diamante_value_min', 120.0))
 counts = {'DIAMANTE': 0, 'OURO': 0, 'PRATA': 0, 'BRONZE': 0}
 for entry in recent.values():
     if entry.get('decision_truth_schema') != 1:
@@ -61,9 +62,9 @@ for entry in recent.values():
     value = float(entry.get('effective_value_score') or 0.0)
     if tier in counts:
         counts[tier] += 1
-    if value > 120.0 and tier != 'DIAMANTE':
+    if value >= threshold and tier != 'DIAMANTE':
         raise SystemExit(
-            f'invariante Value>120 quebrada: {value} => {tier} ({entry.get("url")})'
+            f'invariante Value>=limiar quebrada: {value} => {tier} ({entry.get("url")})'
         )
 
 if counts != effective_tiers:

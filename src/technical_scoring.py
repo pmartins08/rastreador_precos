@@ -33,6 +33,11 @@ def factors(spec, resolution_score):
     if srgb is None and dci is not None:
         # Separate DCI-P3 utility; never pretend this is an sRGB conversion.
         gamut = curve(dci, [(50, 45), (75, 75), (90, 95), (100, 100)])
+    if srgb is None and dci is None:
+        ntsc = number(spec.get('ecra_ntsc_percent'), 1, 100)
+        if ntsc is not None:
+            # Own utility curve: no fabricated conversion to sRGB.
+            gamut = curve(ntsc, [(45, 45), (72, 95), (100, 100)])
     panel_text = str(spec.get('ecra_painel') or '').lower()
     panel = 100 if re.search(r'\boled\b', panel_text) else 85 if re.search(r'\bips\b', panel_text) else 70 if re.search(r'\bva\b', panel_text) else 40 if re.search(r'\btn\b', panel_text) else 60
     size = curve(number(spec.get('ecra_tamanho'), 8, 22), [(10, 30), (13.3, 55), (14, 70), (15, 85), (16, 100), (17, 90), (18, 80)])

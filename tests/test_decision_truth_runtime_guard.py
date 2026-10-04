@@ -19,7 +19,7 @@ class _Logger:
 
 
 class DecisionTruthRuntimeGuardTests(unittest.TestCase):
-    def _tracker(self):
+    def _tracker(self, heartbeat=True):
         logger = _Logger()
         tracker = SimpleNamespace()
         tracker.LOGGER = logger
@@ -99,7 +99,8 @@ class DecisionTruthRuntimeGuardTests(unittest.TestCase):
                 "total_accepted": 2,
                 "tiers": {"DIAMANTE": 0, "OURO": 2, "PRATA": 0, "BRONZE": 0},
             }
-            run["heartbeat_sent"] = tracker.send_heartbeat(run)
+            tracker.finalize_run(run)
+            run["heartbeat_sent"] = tracker.send_heartbeat(run) if heartbeat else False
             run["history_for_test"] = history
             return run
 
@@ -133,6 +134,17 @@ class DecisionTruthRuntimeGuardTests(unittest.TestCase):
         self.assertEqual(promo_entry["decision_truth_schema"], 1)
 
         self.assertEqual(tracker.heartbeat_seen["tiers"], run["tiers"])
+
+    def test_silent_run_finalizes_decision_before_persistence(self):
+        tracker = self._tracker(heartbeat=False)
+        install(tracker)
+        run = tracker.main()
+        self.assertFalse(run["heartbeat_sent"])
+        self.assertIsNone(tracker.heartbeat_seen)
+        self.assertEqual(run["effective_tiers"]["DIAMANTE"], 1)
+        self.assertEqual(run["tiers"], run["effective_tiers"])
+        self.assertEqual(run["decision_truth"]["accepted_count"], 2)
+        self.assertTrue(run["effective_top"])
 
     def test_unconfirmed_promotion_stays_base_decision(self):
         tracker = self._tracker()

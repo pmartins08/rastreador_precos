@@ -195,6 +195,7 @@ CPU_PAT = [
 ]
 
 ALIASES = {
+    "os": ["sistema operativo", "sistema operacional", "operating system"],
     "gpu": [
         "gpu",
         "placa grafica",
@@ -548,6 +549,8 @@ def specs(text: str) -> dict:
         if any(marker in value for marker in KPT)
         else "desconhecido"
     )
+    from purchase_policy import enrich_purchase_specs
+    enrich_purchase_specs(out, text, [], norm)
     return out
 
 
@@ -719,6 +722,8 @@ def extract(title: str, soup: BeautifulSoup) -> dict:
         ):
             out["teclado_pt"] = "nao_pt"
             out["fontes"]["teclado_pt"] = "contexto_texto"
+    from purchase_policy import enrich_purchase_specs
+    enrich_purchase_specs(out, title, pairs(soup), norm)
     return out
 
 
@@ -755,7 +760,10 @@ def price_score(price_value: float, settings: dict) -> float:
     soft = float(settings.get("budget_soft", 1300.0))
     hard = float(settings.get("budget_hard", 1500.0))
     if price_value <= soft:
-        return 150.0
+        saving = max(0.0, soft - float(price_value))
+        per_eur = max(0.0, float(settings.get("below_soft_price_points_per_eur", 0.08)))
+        cap = max(0.0, float(settings.get("below_soft_price_points_cap", 20.0)))
+        return 150.0 + min(cap, saving * per_eur)
     if price_value <= hard:
         return 150.0 - 50.0 * ((price_value - soft) / max(1.0, hard - soft))
     penalty = min(30.0, (price_value - hard) / max(1.0, hard) * 100.0)

@@ -39,6 +39,9 @@ def enrich(spec, pairs, scraper):
             panel = re.search(r'\b(oled|ips|va|tn)\b', text)
             if panel:
                 spec['ecra_painel'] = panel.group(1).upper()
+            ntsc = re.findall(r'(\d{1,3}(?:[.,]\d+)?)\s*%\s*ntsc', text)
+            if ntsc and len(set(ntsc)) == 1:
+                spec['ecra_ntsc_percent'] = _number(ntsc[0].replace(',', '.'), 1, 100)
             dci = re.findall(r'(\d{1,3}(?:[.,]\d+)?)\s*%\s*dci[ -]?p3', text)
             if dci and len(set(dci)) == 1:
                 spec['ecra_dci_p3_percent'] = _number(dci[0].replace(',', '.'), 1, 100)
@@ -108,7 +111,8 @@ def summary(spec):
     power = f"{context['tgp_w']:g} W" if context["tgp_w"] is not None else "por confirmar"
     light = f"{context['brightness_nits']:g} nits" if context["brightness_nits"] is not None else "? nits"
     gamut = f"{context['srgb_percent']:g}% sRGB" if context["srgb_percent"] is not None else "? sRGB"
-    return f"TGP: {power} | Ecrã: {light}, {gamut}. Incluídos no Value; sem previsão de FPS/autonomia."
+    os_note = f" Instalação Windows: +{spec.get('installation_cost_eur', 0):.2f}€ no Value/orçamento." if spec.get("installation_cost_eur") else ""
+    return f"TGP: {power} | Ecrã: {light}, {gamut}. Incluídos no Value; sem previsão de FPS/autonomia.{os_note}"
 
 
 def install(scraper, tracker):

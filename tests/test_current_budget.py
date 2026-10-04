@@ -22,7 +22,7 @@ class CurrentBudgetTests(unittest.TestCase):
                 self.assertEqual(view["fits_hard_budget"], expected)
                 self.assertEqual(view["checkout_price"], price)
 
-    def test_soft_budget_bonus_uses_updated_anchor(self):
+    def test_legacy_duplicate_bonus_is_disabled(self):
         self.assertEqual(price_guard.exceptional_deal_bonus(1400.0, "HIGH", self.settings), 0.0)
-        self.assertEqual(price_guard.exceptional_deal_bonus(1200.0, "HIGH", self.settings), 4.0)
+        self.assertEqual(price_guard.exceptional_deal_bonus(1200.0, "HIGH", self.settings), 0.0)
         self.assertEqual(price_guard.exceptional_deal_bonus(1200.0, "UNKNOWN", self.settings), 0.0)

@@ -1,3 +1,5 @@
+> **Documento histórico de planeamento.** Não descreve o estado atual. Consultar [ROADMAP.md](ROADMAP.md) e [CLOSEOUT.md](CLOSEOUT.md).
+
 # LapIntel PT — V9 Development Plan
 
 ## Baseline

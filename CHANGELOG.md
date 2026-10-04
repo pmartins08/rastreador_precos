@@ -2,6 +2,16 @@
 
 Este ficheiro concentra o histórico funcional e arquitetural relevante. Detalhes de implementação continuam preservados no histórico Git e nas métricas das runs; relatórios temporários de validação não são mantidos indefinidamente no repositório.
 
+## 9.0.0-beta.12 — Fecho da compra e manutenção silenciosa
+
+- Ciclo de desenvolvimento concluído; README, roadmap e operação atualizados, sem declarar cobertura total ou release estável.
+- NTFY apenas Diamante; heartbeat principal desligado e envios redundantes/deploy/falha/Top 3 removidos.
+- Finalização das métricas separada do heartbeat; contagens de aceites e sem tier explícitas.
+- Value/Opportunity unificados, preço progressivo abaixo do soft budget e bónus duplicado desligado.
+- +110 € para sem SO/FreeDOS no Value e orçamento, incluindo checkout promocional; espanhol explícito excluído.
+- Histórico 30/60/90 dias; mínimo de três dias para bónus. NTSC recebe curva própria sem conversão fictícia para sRGB.
+- Auditoria E2E usa o limiar configurado com igualdade. Estado económico e aprendizagem preservados.
+
 ## 9.0.0-beta.11 — Disponibilidade obrigatória e ponderação técnica
 
 - Ofertas sem stock ou disponibilidade por confirmar são rejeitadas antes de calcular Value; não entram nos tiers, ranking nem alertas.
