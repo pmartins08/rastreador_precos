@@ -1,73 +1,58 @@
-# LapIntel PT — Laptop Market Intelligence Engine
+# LapIntel PT
 
-**LapIntel PT** é um motor de inteligência de mercado para portáteis novos em Portugal. Descobre ofertas, interpreta hardware, valida preços, acompanha histórico, cruza configurações entre lojas e calcula Value sem deixar dados de baixa confiança entrarem no ranking.
+**Inteligência de mercado para escolher um portátil em Portugal.**
 
-Versão desta revisão: **9.0.0-beta.11**. O estado operacional detalhado está em [`docs/V9_BETA_STATUS.md`](docs/V9_BETA_STATUS.md).
+[![CI](https://github.com/pmartins08/rastreador_precos/actions/workflows/ci.yml/badge.svg)](https://github.com/pmartins08/rastreador_precos/actions/workflows/ci.yml)
+[![Monitorização](https://github.com/pmartins08/rastreador_precos/actions/workflows/tracker.yml/badge.svg)](https://github.com/pmartins08/rastreador_precos/actions/workflows/tracker.yml)
 
-## Objetivo
+Descobre ofertas, confirma preço e disponibilidade, identifica configurações entre lojas e calcula um Value adaptado a universidade, engenharia e gaming.
 
-O sistema foi criado para apoiar uma compra real de portátil para utilização diária universitária/engenharia e gaming. O cérebro técnico avalia quatro dimensões — produtividade, gaming, longevidade e portabilidade — e combina o resultado com o preço num `value_score`.
+**Objetivo de compra concluído · 9.0.0-beta.12 · manutenção silenciosa**
 
-A V8.8.9 permanece como baseline histórica do primeiro ciclo concluído. Os preços e rankings dessa fase são histórico, não recomendações atuais.
+O objetivo inicial desta fase está concluído. O projeto fica preparado para manutenção e futura retoma; resultados históricos não constituem recomendações ou promoções atuais.
 
-## Política de decisão
+A monitorização continua **a cada seis horas**, com notificações **apenas Diamante**. Heartbeats, avisos de deploy/falha no NTFY e resumos extraordinários estão desligados/removidos. Falhas continuam visíveis no GitHub Actions. O desenvolvimento ativo fica em pausa; as limitações de cobertura mantêm a designação beta.
 
-| Tier | Regra base |
-|---|---:|
-| Bronze | Value ≥ 70 |
-| Prata | Value ≥ 90 |
-| Ouro | Value ≥ 110 |
-| Diamante | **Value ≥ 120** |
+## Como decide
 
-A política final de tier é protegida por guards próprios. Os alertas normais NTFY são enviados apenas para **Ouro** e **Diamante**; uma alteração material de preço obriga a recalcular Value/tier antes de qualquer alerta.
+1. **Descobrir** — categorias, catálogos públicos, sitemaps e feeds autorizados opcionais.
+2. **Confirmar** — identidade EAN/MPN, preço live, condição nova e disponibilidade elegível.
+3. **Avaliar** — produtividade, gaming, longevidade, portabilidade e custo total.
+4. **Comparar** — Value unificado, campanhas confirmadas e histórico verificável.
+5. **Notificar** — oportunidades Diamante novas ou com alterações materiais, com deduplicação.
 
-## Universo monitorizado
+| Política | Regra atual |
+|---|---|
+| Orçamento | 1.400 € preferencial; 1.600 € máximo, incluindo instalação quando aplicável |
+| Sem SO / FreeDOS explícito | +110 € no custo usado pelo Value e no limite de compra |
+| SO desconhecido | Não presumir Windows nem custo zero confirmado; sinalizar incerteza |
+| Teclado | PT não obrigatório; espanhol explicitamente identificado é excluído |
+| Disponibilidade | Sem stock ou por confirmar: sem tier, ranking ou alerta |
+| Marcas | ASUS, Lenovo, HP, Acer e Gigabyte; incluindo submarcas reconhecidas |
+| Condição | Apenas novos; exclui usados, recondicionados e exposição |
 
-Marcas elegíveis: ASUS, Lenovo, HP, Acer e Gigabyte (incluindo as submarcas reconhecidas). Apple, usados e recondicionados continuam excluídos.
+O Value unifica o anterior Opportunity Rank: **0,80 × Value base + 0,30 × Gaming + histórico**, limitado a 150. O preço melhora progressivamente abaixo do orçamento preferencial, com contribuição limitada. O antigo bónus duplicado por preço baixo está desligado. O histórico só pode contribuir quando há pelo menos três dias observados; o bónus máximo é cinco pontos.
 
-O [cérebro técnico](docs/TECHNICAL_CONTEXT.md) pondera TGP, brilho SDR, gamut, painel e área útil dentro das dimensões existentes. A pontuação é uma utilidade de decisão, não uma previsão de FPS ou autonomia. Disponibilidade confirmada é obrigatória antes do Value: sem stock ou com disponibilidade por confirmar, não há tier, ranking ou alerta de oportunidade.
+TGP, brilho SDR, gamut, painel, área útil, bateria e peso fazem parte da avaliação técnica. Dados desconhecidos não são substituídos por especificações de outra variante. Estas pontuações são utilidade de decisão, não previsões de FPS ou autonomia.
 
-Quinze lojas estão configuradas:
+| Tier | Value mínimo | NTFY |
+|---|---:|:---:|
+| Bronze | 70 | — |
+| Prata | 90 | — |
+| Ouro | 110 | — |
+| **Diamante** | **120, inclusive** | **Sim** |
 
-**PCDiga · PcComponentes · Globaldata · Radio Popular · Darty · UPTECHBOX · CHIP7 · FNAC · Worten · You Get · Tek4life · Auchan · MEO · Clickfiel · Novo Atalho**
+## Cobertura e limites
 
-As seis novas lojas usam categorias públicas e, na Tek4life, catálogo Shopify público. Cobertura configurada só passa a live útil depois de produzir candidatos e fichas válidas na execução. Até um terço da seleção pode ser reservado a candidatos novos, com até cinco por loja; o restante mantém o ranking existente. Limites: 420 requests, 140 detalhes e 10 minutos por run.
+Quinze lojas configuradas: **PCDiga, PcComponentes, Globaldata, Rádio Popular, Darty, UPTECHBOX, CHIP7, FNAC, Worten, You Get, Tek4life, Auchan, MEO, Clickfiel e Novo Atalho**.
 
-O sistema distingue três níveis importantes:
+Configuração não equivale a cobertura integral. PCDiga, PcComponentes, CHIP7, Worten e You Get tiveram acesso bloqueado ou improdutivo nas últimas validações documentadas. A ASUS eStore tem adaptador, mas não é anunciada como fonte live ativa. Snippets de pesquisa servem apenas para descoberta: nunca bastam para preço, Value ou alertas.
 
-- **live** — preço/identidade confirmados diretamente por uma fonte suficientemente forte;
-- **discovery** — o sistema consegue encontrar fichas/produtos, mas ainda não lhes dá autoridade económica;
-- **blocked** — não existe neste momento uma rota pública produtiva suficiente.
+Por execução: até **420 requests, 140 fichas, 300 avaliações e 10 minutos**. Não há garantia de observar todos os produtos ou todas as campanhas. Consultar o [estado operacional](docs/V9_BETA_STATUS.md).
 
-Índices de pesquisa públicos podem ser usados como camada de discovery para lojas bloqueadas. Um preço encontrado num snippet fica sempre `INDEX_ONLY`: não pode entrar no scoring, histórico económico ou NTFY sozinho. A promoção a candidato exige identidade forte (EAN/MPN, conforme a loja) e confirmação live de preço com confiança HIGH.
+## Executar e validar
 
-## Arquitetura
-
-O pipeline separa responsabilidades:
-
-1. **Discovery** — categorias, paginação, campanhas, catálogos públicos, sitemaps, feeds autorizados opcionais e search-index conservador.
-2. **Identity** — EAN/MPN/SKU e matching cross-store com veto explícito a conflitos de hardware.
-3. **Price Truth** — confirmação de preço, deteção de outliers, consenso de mercado e quarentena de valores suspeitos.
-4. **Brain** — scoring técnico ponderado, disponibilidade elegível e guards de hardware/GPU/display.
-5. **Decision Truth** — preço efetivo, Value, tier, ranking e política de alerta coerentes.
-6. **History** — séries compactas, ranking histórico, integridade e aprendizagem de acesso.
-
-Principais travões de segurança: `price_guard`, `market_guard`, `matching_guard`, `history_integrity_guard`, `coverage_guard`, `tier_policy_guard`, `search_index_identity_guard` e `search_index_live_validation_guard`.
-
-## Orçamento e elegibilidade
-
-- equipamento novo; usados, recondicionados e outlet são excluídos;
-- `budget_soft`: 1.400 €;
-- `budget_hard` (limite normal): 1.600 €;
-- campanhas confirmadas podem tornar elegível um artigo acima do limite normal quando o checkout efetivo fica dentro do orçamento;
-- teclado português é informação valorizada, não gate obrigatório;
-- layouts explicitamente indesejados podem ser tratados na análise final sem adulterar o scoring técnico.
-
-## Operação
-
-A produção corre em GitHub Actions de forma periódica e pode ser executada manualmente. O estado persistente fica em `data/` e é atualizado com merge concorrente controlado.
-
-Para uma execução completa é necessário `NTFY_TOPIC`. `AWIN_DATAFEED_API_KEY` é opcional: quando ausente, o suporte Awin é um no-op e nenhum feed é inventado.
+Python 3.11; o workflow usa o secret `NTFY_TOPIC`. `AWIN_DATAFEED_API_KEY` é opcional.
 
 ```bash
 python -m pip install -r requirements.txt
@@ -76,39 +61,18 @@ PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py' -v
 python runner.py
 ```
 
-## Estrutura
-
-```text
-.
-├── runner.py
-├── tracker.py
-├── scraper.py
-├── version.py
-├── src/
-├── config/config.json
-├── data/
-├── tests/
-├── scripts/
-├── docs/
-└── .github/workflows/
-```
+`runner.py` compõe o pipeline; `scraper.py` extrai e pontua; `tracker.py` orquestra. `src/` contém validações e integrações, `config/` a política, `tests/` regressões e `data/` o estado persistente. Executar o runner com NTFY configurado pode enviar oportunidades.
 
 ## Documentação
 
-- [`docs/V9_BETA_STATUS.md`](docs/V9_BETA_STATUS.md) — estado operacional atual;
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — arquitetura;
-- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — operação e diagnóstico;
-- [`docs/STORE_ACCESS.md`](docs/STORE_ACCESS.md) — estratégias de acesso;
-- [`docs/GPU_CALIBRATION.md`](docs/GPU_CALIBRATION.md) — calibração GPU/iGPU;
-- [`docs/PROJECT_STORY.md`](docs/PROJECT_STORY.md) — evolução histórica do projeto;
-- [`CHANGELOG.md`](CHANGELOG.md) — histórico funcional consolidado.
-
-## Estado do projeto
-
-A V9 beta está ativa e continua conservadora por desenho: **mais cobertura nunca justifica reduzir a confiança necessária para um preço influenciar uma decisão**. O próximo salto para V9 estável depende sobretudo de converter discovery das lojas bloqueadas em validação live sustentável e de continuar a melhorar o matching sem falsos merges.
+- [Fecho e revisão das pendências](docs/CLOSEOUT.md)
+- [Operação e retoma](docs/OPERATIONS.md)
+- [Arquitetura](docs/ARCHITECTURE.md) · [Cérebro técnico](docs/TECHNICAL_CONTEXT.md)
+- [Acesso às lojas](docs/STORE_ACCESS.md) · [Estado da V9](docs/V9_BETA_STATUS.md)
+- [História](docs/PROJECT_STORY.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 ## Créditos
 
 **Pedro Martins** — ideia, requisitos, decisões de produto, validação e desenvolvimento.
 
-**ChatGPT (OpenAI)** — co-desenvolvimento técnico assistido: arquitetura, implementação, debugging, testes, análise das runs e documentação.
+**ChatGPT (OpenAI)** — co-desenvolvimento técnico assistido: arquitetura, implementação, testes, análise e documentação.

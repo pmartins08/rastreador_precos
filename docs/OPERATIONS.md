@@ -1,4 +1,4 @@
-# Operação do Rastreador
+# Operação do LapIntel PT — beta.12
 
 ## Execução automática
 
@@ -25,11 +25,11 @@ python runner.py
 
 Os limites correntes são fusíveis de segurança:
 
-- `RUN_MAX_MINUTES=8`;
-- `RUN_MAX_REQUESTS=300`;
+- `RUN_MAX_MINUTES=10`;
+- `RUN_MAX_REQUESTS=420`;
 - `RUN_MAX_REQUESTS_PER_STORE=60`;
-- `RUN_MAX_DETAIL_FETCHES=90`;
-- `max_evaluated_per_run=240`.
+- `RUN_MAX_DETAIL_FETCHES=140`;
+- `max_evaluated_per_run=300`.
 
 Não são metas de consumo; o sistema deve gastar menos quando cache e aprendizagem o permitem.
 
@@ -37,13 +37,11 @@ Não são metas de consumo; o sistema deve gastar menos quando cache e aprendiza
 
 O secret `NTFY_TOPIC` é obrigatório no workflow de produção.
 
-Existem três mecanismos separados:
+Apenas oportunidades **DIAMANTE (Value ≥120)** são enviadas. O custo total e o tier são recalculados antes dos alertas normais, promocionais e de alteração material de preço. Alterações sem oportunidade elegível não produzem mensagens.
 
-1. alertas de oportunidade — por defeito a partir de OURO;
-2. heartbeat principal enviado pelo tracker;
-3. heartbeat redundante do workflow se a execução terminar mas o heartbeat principal não ficar confirmado.
+`heartbeat_ntfy=false`: heartbeat principal desligado. Os passos redundantes, os envios de deploy/falha e os resumos Top 3 antigos foram removidos do workflow. Falhas ficam nos logs e no estado do GitHub Actions.
 
-Se o pipeline falhar, o workflow tenta ainda enviar uma notificação de falha.
+O hook `finalize_run` prepara contagens, tiers e ranking antes da persistência, independentemente de existir heartbeat. Para reativar o heartbeat principal numa futura retoma, alterar `heartbeat_ntfy` para `true`; não é necessário recuperar os envios redundantes. Para voltar a incluir Ouro, ajustar `alerta_min_tier` e `min_value_score_alerta`, bem como a auditoria Diamante do workflow.
 
 ## Feeds Awin
 
@@ -116,11 +114,11 @@ Confirmar:
 
 ### Heartbeat ausente
 
-Verificar `heartbeat_sent` na última run. Se o tracker falhar antes de o enviar, o workflow tenta o canal redundante.
+É o comportamento esperado nesta fase. Consultar a última run no GitHub Actions para verificar operação e erros.
 
 ## CI
 
-`.github/workflows/ci.yml` corre em pull requests para `main`, branches de trabalho configuradas e execução manual.
+`.github/workflows/ci.yml` corre em pull requests para `main` e execução manual.
 
 Valida:
 

@@ -436,6 +436,10 @@ def install(tracker_module) -> None:
         entries = history.get("offers", {}).get(key, [])
         if entries and isinstance(entries[-1], dict):
             entries[-1]["historical_price"] = context
+            entries[-1]["historical_windows"] = {
+                str(days): historical_context(_BASELINE_STATE, item, float(item["preco"]), window_days=days)
+                for days in (30, 60, 90)
+            }
             entries[-1]["price_history_key"] = context.get("identity")
         observe(_STATE, item, float(item["preco"]))
         return previous, key

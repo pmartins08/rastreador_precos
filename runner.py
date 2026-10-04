@@ -57,6 +57,8 @@ _LINEAR_LABELS = {
     "refresh rate": "refresh",
     "processador": "cpu",
     "memoria ram": "ram",
+    "sistema operativo": "os",
+    "operating system": "os",
     "tipo memoria": "ram_type",
     "placa(s) grafica(s)": "gpu",
     "placa grafica": "gpu",

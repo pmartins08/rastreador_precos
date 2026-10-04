@@ -1,3 +1,11 @@
+# Estado atual — beta.12 em manutenção silenciosa
+
+Ciclo de desenvolvimento concluído. NTFY apenas Diamante; heartbeat desligado. Monitorização a cada seis horas. Ver [fecho e pendências](CLOSEOUT.md) para mudanças e limitações desta revisão.
+
+As métricas abaixo são **referências históricas**, não resultados da beta.12 nem prova de stock atual.
+
+---
+
 # V9 beta — expansão de cobertura em 01/10/2026
 
 ## Versão e política

@@ -1,9 +1,9 @@
 # LapIntel PT — A história do projeto
 
-**V1 → V8.8.9 → V9**
+**V1 → V8.8.9 → V9 beta.12 → manutenção silenciosa**
 
 > Começou com uma pergunta: “Onde consigo comprar este ASUS TUF ao melhor preço?”  
-> Terminou, nesta primeira grande etapa, com o próprio sistema a descobrir que o melhor candidato era um Lenovo Legion 5.
+> A primeira etapa ajudou a comparar alternativas; a V9 ampliou a cobertura e a consistência das decisões.
 
 ## 1. O início: um portátil, várias lojas
 
@@ -308,3 +308,7 @@ Co-desenvolvimento técnico assistido: arquitetura, implementação, debugging, 
 ---
 
 **LapIntel PT não nasceu como um exercício abstrato. Nasceu para responder a uma compra real. O melhor sinal de sucesso é simples: o sistema encontrou uma resposta e o portátil vai ser comprado.**
+
+## Fecho real — outubro de 2026
+
+A beta.12 consolidou as pendências de Value, custo total e notificações. O desenvolvimento ativo fica em pausa, com histórico preservado e monitorização apenas para Diamantes. Detalhes em [CLOSEOUT.md](CLOSEOUT.md).

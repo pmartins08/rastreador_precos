@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from gpu_guard import TierAwareValue
+from purchase_policy import installation_cost, total_cost
 
 
 _OBSERVATIONS: list[dict] = []
@@ -10,6 +11,8 @@ _OBSERVATIONS: list[dict] = []
 
 def historical_bonus(context: dict | None) -> float:
     if not isinstance(context, dict) or not context.get("available"):
+        return 0.0
+    if "days_observed" in context and int(context["days_observed"]) < 3:
         return 0.0
     if context.get("new_low"):
         return 5.0
@@ -25,11 +28,10 @@ def historical_bonus(context: dict | None) -> float:
 
 
 def calculate_opportunity(value: float, gaming: float, historical: dict | None = None) -> dict:
-    """Ranking de compra separado do Value/tier.
+    """Unified purchase utility, also retained as the legacy Opportunity API.
 
-    Value continua a ser o sinal principal (80%). Gaming entra explicitamente
-    (20%) e o histórico acrescenta apenas um bónus pequeno e verificável. Não há
-    bónus genérico por um preço absoluto baixo: o preço já faz parte do Value.
+    Base Value contributes 80%, Gaming 20% after scaling to 150; verified
+    history can add at most five points. Never apply this twice to Value.
     """
     raw_value = max(0.0, min(150.0, float(value)))
     gaming_score = max(0.0, min(100.0, float(gaming)))
@@ -47,7 +49,7 @@ def calculate_opportunity(value: float, gaming: float, historical: dict | None =
     }
 
 
-def normalize_value_truth(assessment: dict) -> dict:
+def normalize_value_truth(assessment: dict, *, unified: bool = False) -> dict:
     """Remove do Value o antigo bónus absoluto de preço baixo.
 
     O cérebro base já recompensa preço através de `price_score`. A camada V8.8
@@ -72,18 +74,23 @@ def normalize_value_truth(assessment: dict) -> dict:
         legacy_bonus = 0.0
     details = assessment.get("detalhes") if isinstance(assessment.get("detalhes"), dict) else {}
     gaming = float(details.get("Gaming", 0.0) or 0.0)
-    wrapped = TierAwareValue(base_value, gaming_score=gaming)
+    components = calculate_opportunity(base_value, gaming, assessment.get("historical_price"))
+    final_value = components["score"] if unified else base_value
+    wrapped = final_value if unified else TierAwareValue(base_value, gaming_score=gaming)
+    if unified:
+        assessment["unified_value_components"] = components
+        assessment["value_truth_schema"] = 2
 
     assessment["value_score"] = wrapped
     assessment["value_score_sem_bonus"] = round(base_value, 1)
     assessment["legacy_exceptional_deal_bonus"] = round(legacy_bonus, 1)
     assessment["exceptional_deal_bonus"] = 0.0
-    assessment["value_truth_schema"] = 1
+    assessment["value_truth_schema"] = 2 if unified else 1
     assessment["gpu_tier_influence"] = {
-        "raw_value": round(base_value, 3),
-        "gaming_score": round(wrapped.gaming_score, 3),
-        "multiplier": round(wrapped.tier_multiplier, 6),
-        "tier_score": round(wrapped.tier_score, 3),
+        "raw_value": round(final_value, 3),
+        "gaming_score": round(gaming, 3),
+        "multiplier": round(getattr(wrapped, "tier_multiplier", 1.0), 6),
+        "tier_score": round(getattr(wrapped, "tier_score", final_value), 3),
     }
     return assessment
 
@@ -174,7 +181,45 @@ def install(tracker_module) -> None:
     base_main = tracker_module.main
 
     def score_allow_unknown(spec, price, weights, settings):
-        return normalize_value_truth(base_score_allow_unknown(spec, price, weights, settings))
+        if spec.get("keyboard_layout") == "es":
+            return {"status": "REJEITADO", "alertas": ["Teclado espanhol confirmado."]}
+        result = base_score_allow_unknown(spec, price, weights, settings)
+        if result.get("status") != "ACEITE":
+            return result
+        cost = installation_cost(spec, settings)
+        spec["installation_cost_eur"] = cost
+        result["installation_cost_eur"] = cost
+        result["purchase_total_eur"] = total_cost(price, cost)
+        item = spec.get("_purchase_item") or {}
+        checkout = float(price)
+        if item.get("promotion_price_live_confirmed") is True:
+            from promotion_value_guard import economics
+            checkout = economics(item.get("promotions") or [], checkout)["effective_checkout_price"]
+        if total_cost(checkout, cost) > float(settings.get("budget_hard", 1600.0)):
+            return {"status": "REJEITADO", "alertas": ["Custo total com instalação excede orçamento."], "purchase_total_eur": total_cost(checkout, cost)}
+        if cost:
+            value_fn = getattr(tracker_module.scraper, "_PRICE_GUARD_ORIGINALS", {}).get("value_score", tracker_module.scraper.value_score)
+            result["value_score_sem_bonus"] = float(value_fn(result["score_ranking"], total_cost(price, cost), settings))
+        if spec.get("os_status") in {"unknown", "conflict"}:
+            result.setdefault("alertas", []).append("Sistema operativo por confirmar; custo de instalação não presumido.")
+        import historical_guard
+        result["historical_price"] = historical_guard.historical_context(historical_guard._BASELINE_STATE, item, float(price)) if item else {}
+        result["_purchase_item"] = item
+        return normalize_value_truth(result, unified=bool(settings.get("unified_value_enabled", False)))
+
+    if hasattr(tracker_module, "apply_exact_market_price_evidence"):
+        base_apply_market = tracker_module.apply_exact_market_price_evidence
+        def apply_market(records, settings):
+            result = base_apply_market(records, settings)
+            for row in records:
+                spec, item = row.get("spec"), row.get("item", {})
+                if isinstance(spec, dict):
+                    if "os_status" not in spec:
+                        from purchase_policy import enrich_purchase_specs
+                        enrich_purchase_specs(spec, item.get("titulo", ""), [], tracker_module.scraper.norm)
+                    spec["_purchase_item"] = {key: item[key] for key in ("url", "loja", "ean", "mpn", "promotions", "promotion_price_live_confirmed") if key in item}
+            return result
+        tracker_module.apply_exact_market_price_evidence = apply_market
 
     tracker_module.score_allow_unknown = score_allow_unknown
 
@@ -188,9 +233,18 @@ def install(tracker_module) -> None:
             base_promo_revalue = promotion_runtime._revalue_from_accepted
 
             def _revalue_from_accepted(module, assessment, checkout_price, settings):
-                return normalize_value_truth(
-                    base_promo_revalue(module, assessment, checkout_price, settings)
-                )
+                result = base_promo_revalue(module, assessment, checkout_price, settings)
+                cost = float(assessment.get("installation_cost_eur", 0.0))
+                result["purchase_total_eur"] = total_cost(checkout_price, cost)
+                if result["purchase_total_eur"] > float(settings.get("budget_hard", 1600.0)):
+                    return {"status": "REJEITADO", "alertas": ["Checkout com instalação excede orçamento."]}
+                if cost and result.get("status") == "ACEITE":
+                    value_fn = getattr(module.scraper, "_PRICE_GUARD_ORIGINALS", {}).get("value_score", module.scraper.value_score)
+                    result["value_score_sem_bonus"] = float(value_fn(result["score_ranking"], result["purchase_total_eur"], settings))
+                import historical_guard
+                item = assessment.get("_purchase_item") or {}
+                result["historical_price"] = historical_guard.historical_context(historical_guard._BASELINE_STATE, item, checkout_price) if item else {}
+                return normalize_value_truth(result, unified=bool(settings.get("unified_value_enabled", False)))
 
             promotion_runtime._revalue_from_accepted = _revalue_from_accepted
             promotion_runtime._VALUE_TRUTH_PATCHED = True
@@ -233,10 +287,17 @@ def install(tracker_module) -> None:
             float(details.get("Gaming", 0.0) or 0.0),
             assessment.get("historical_price"),
         )
+        if assessment.get("value_truth_schema") == 2:
+            # Compatibility field: never apply the same formula twice.
+            opportunity = dict(assessment.get("unified_value_components") or opportunity)
+            opportunity["score"] = float(effective_value or 0.0)
         assessment["opportunity_score"] = opportunity["score"]
         assessment["opportunity_components"] = opportunity
 
         if entry is not None:
+            entry["installation_cost_eur"] = assessment.get("installation_cost_eur", 0.0)
+            entry["purchase_total_eur"] = total_cost(effective_price, entry["installation_cost_eur"])
+            entry["unified_value_components"] = assessment.get("unified_value_components")
             entry["opportunity_score"] = opportunity["score"]
             entry["opportunity_components"] = opportunity
             entry["value_truth_schema"] = assessment.get("value_truth_schema", 1)

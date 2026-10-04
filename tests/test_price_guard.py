@@ -133,8 +133,8 @@ class PriceGuardV88Tests(unittest.TestCase):
     def test_no_exceptional_bonus_without_high_price_confidence(self):
         unknown = dict(self.settings, _price_confidence="UNKNOWN")
         high = dict(self.settings, _price_confidence="HIGH")
-        self.assertEqual(scraper.value_score(75.0, 499.0, unknown), 113.2)
-        self.assertEqual(scraper.value_score(75.0, 499.0, high), 128.2)
+        self.assertEqual(scraper.value_score(75.0, 499.0, unknown), 119.2)
+        self.assertEqual(scraper.value_score(75.0, 499.0, high), 134.2)
 
     def test_old_hard_floor_is_runtime_suspicion_not_rejection(self):
         self.assertTrue(scraper.price_is_plausible_for_title("ASUS ROG RTX 5090", 499.0))

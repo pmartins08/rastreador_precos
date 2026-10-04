@@ -112,9 +112,12 @@ def install(tracker_module) -> None:
             )
         return previous, key
 
-    def send_heartbeat(run: dict) -> bool:
+    base_finalize = getattr(tracker_module, "finalize_run", lambda run: None)
+
+    def finalize_run(run: dict) -> None:
+        base_finalize(run)
         if state["active"]:
-            base_tiers = dict(run.get("tiers") or state["base_tiers"])
+            base_tiers = dict(state["base_tiers"])
             effective_tiers = dict(state["effective_tiers"])
             run["base_tiers"] = base_tiers
             run["effective_tiers"] = effective_tiers
@@ -122,7 +125,8 @@ def install(tracker_module) -> None:
             run["tiers"] = effective_tiers
             run["decision_truth"] = {
                 "schema_version": 1,
-                "accepted_count": sum(effective_tiers.values()),
+                "accepted_count": len(state["records"]),
+                "untiered_count": len(state["records"]) - sum(effective_tiers.values()),
                 "promotion_applied_count": int(state["promotion_applied"]),
                 "base_tiers": base_tiers,
                 "effective_tiers": effective_tiers,
@@ -144,6 +148,9 @@ def install(tracker_module) -> None:
                 }
                 for row in top
             ]
+
+    def send_heartbeat(run: dict) -> bool:
+        finalize_run(run)
         return base_send_heartbeat(run)
 
     def info(message, *args, **kwargs):
@@ -172,7 +179,7 @@ def install(tracker_module) -> None:
             run = base_main(*args, **kwargs)
             effective_tiers = dict(state["effective_tiers"])
             accepted = int(run.get("total_accepted", 0)) if isinstance(run, dict) else 0
-            observed = sum(effective_tiers.values())
+            observed = len(state["records"])
             if accepted != observed:
                 tracker_module.LOGGER.warning(
                     "V9 Decision Truth mismatch | aceites=%d | tiers_efetivos=%d",
@@ -208,6 +215,7 @@ def install(tracker_module) -> None:
             state["active"] = False
 
     tracker_module.record_offer = record_offer
+    tracker_module.finalize_run = finalize_run
     tracker_module.send_heartbeat = send_heartbeat
     tracker_module.LOGGER.info = info
     tracker_module.main = main

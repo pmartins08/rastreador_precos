@@ -66,16 +66,6 @@ jobs:
       - name: Guardar estado de alertas antes da run
         run: cp data/history.json /tmp/history-before-run.json
 
-      - name: Corrigir resumo solicitado após ajuste do limiar
-        continue-on-error: true
-        if: success() && github.event_name == 'push'
-        env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          python scripts/send_top3_summary.py --request-id pedro-v9-beta-2026-09-22-correction
-
       - name: Executar rastreador
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
@@ -113,17 +103,19 @@ jobs:
               base_tier = str(value.get('tier') or '').upper()
               promo_tier = str(value.get('promotion_tier') or '').upper()
               effective_tier = value.get("effective_tier") or promo_tier or base_tier
-              if effective_tier and effective_tier not in {'OURO', 'DIAMANTE'}:
+              if effective_tier != 'DIAMANTE':
                   forbidden.append((key, base_tier or '—', promo_tier or '—'))
           if forbidden:
               raise SystemExit(
-                  'ERRO: alertas com tier efetivo abaixo de OURO registados nesta run: '
+                  'ERRO: alertas com tier efetivo diferente de DIAMANTE registados nesta run: '
                   f'{forbidden}'
               )
 
           runs = (after.get('learning', {}) or {}).get('runs', []) or []
           latest = runs[-1] if runs and isinstance(runs[-1], dict) else {}
           heartbeat = int(bool(latest.get('heartbeat_sent')))
+          if heartbeat:
+              raise SystemExit("ERRO: heartbeat enviado em modo silencioso")
           opportunities = len(changed)
           total = opportunities + heartbeat
           print(
@@ -131,131 +123,6 @@ jobs:
               f'heartbeat={heartbeat} | total={total}'
           )
           PY
-
-      - name: Confirmar publicação NTFY após deploy/manual
-        if: success() && github.event_name != 'schedule'
-        env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          GITHUB_SHA_SHORT: ${{ github.sha }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          from curl_cffi import requests
-          from version import VERSION
-
-          topic = os.environ.get('NTFY_TOPIC', '').strip()
-          if not topic:
-              raise SystemExit('NTFY_TOPIC vazio')
-
-          data = json.loads(Path('data/history.json').read_text(encoding='utf-8'))
-          run = (data.get('learning', {}).get('runs', []) or [{}])[-1]
-          tiers = run.get('tiers', {}) or {}
-          stores = run.get('stores', {}) or {}
-          healthy = sum(
-              1 for value in stores.values()
-              if isinstance(value, dict) and value.get('access_status') in {'discovery_available', 'live_available'}
-          )
-          message = (
-              f"Deploy V{run.get('runner_version', VERSION)} confirmado no GitHub Actions.\n"
-              f"Lojas: {len(stores)} | acesso útil: {healthy} | "
-              f"descobertos: {run.get('total_candidates', '?')} | avaliados: {run.get('total_evaluated', '?')}\n"
-              f"D/O/P/B: {tiers.get('DIAMANTE', 0)}/{tiers.get('OURO', 0)}/"
-              f"{tiers.get('PRATA', 0)}/{tiers.get('BRONZE', 0)}"
-          )
-          payload = {
-              'topic': topic,
-              'title': f'✅ Rastreador operacional V{VERSION}',
-              'message': message,
-              'priority': 4,
-              'tags': ['white_check_mark', 'computer'],
-          }
-          response = requests.post('https://ntfy.sh', json=payload, timeout=12)
-          response.raise_for_status()
-          try:
-              body = response.json()
-          except Exception as exc:
-              raise SystemExit(f'NTFY respondeu sem JSON válido: {exc}')
-          message_id = str(body.get('id') or '').strip()
-          if not message_id:
-              raise SystemExit('NTFY aceitou HTTP mas não devolveu id de mensagem')
-          print(f'NTFY servidor confirmou publicação | id={message_id} | status={response.status_code}')
-          PY
-
-      - name: Garantir heartbeat NTFY
-        if: success()
-        env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: |
-          APP_VERSION="$(python -c 'from version import VERSION; print(VERSION)')"
-          if python - <<'PY'
-          import json
-          from pathlib import Path
-
-          data = json.loads(Path('data/history.json').read_text(encoding='utf-8'))
-          runs = data.get('learning', {}).get('runs', [])
-          latest = runs[-1] if runs else {}
-          raise SystemExit(0 if latest.get('heartbeat_sent') else 1)
-          PY
-          then
-            echo "Heartbeat principal confirmado pelo tracker."
-          else
-            echo "Heartbeat principal não chegou; a tentar canal redundante do workflow."
-            MESSAGE="$(python - <<'PY'
-          import json
-          from pathlib import Path
-          from version import VERSION
-
-          data = json.loads(Path('data/history.json').read_text(encoding='utf-8'))
-          run = (data.get('learning', {}).get('runs', []) or [{}])[-1]
-          tiers = run.get('tiers', {})
-          print(
-              f"V{run.get('runner_version', VERSION)} operacional (heartbeat redundante)\n"
-              f"Lojas: {len(run.get('stores', {}))} | descobertos: {run.get('total_candidates', '?')} | "
-              f"avaliados: {run.get('total_evaluated', '?')} | aceites: {run.get('total_accepted', '?')}\n"
-              f"Pedidos: {run.get('access_requests', '?')} | tempo: {run.get('runtime_seconds', '?')}s\n"
-              f"D/O/P/B: {tiers.get('DIAMANTE', 0)}/{tiers.get('OURO', 0)}/{tiers.get('PRATA', 0)}/{tiers.get('BRONZE', 0)}"
-          )
-          PY
-          )"
-
-            sent=0
-            for attempt in 1 2 3 4; do
-              if curl -fsS --connect-timeout 10 --max-time 20 --retry 1 --retry-delay 2 --retry-all-errors \
-                -X POST "https://ntfy.sh/${NTFY_TOPIC}" \
-                -H "Title: 💓 Heartbeat Rastreador V${APP_VERSION}" \
-                -H "Priority: low" \
-                -H "Tags: heartbeat,computer" \
-                -d "$MESSAGE"; then
-                sent=1
-                echo "Heartbeat redundante enviado na tentativa ${attempt}."
-                break
-              fi
-              sleep $((attempt * 2))
-            done
-            test "$sent" -eq 1
-          fi
-
-      - name: Heartbeat NTFY de falha
-        if: failure()
-        env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: |
-          APP_VERSION="$(python -c 'from version import VERSION; print(VERSION)' 2>/dev/null || echo '?')"
-          if [ -n "$NTFY_TOPIC" ]; then
-            for attempt in 1 2 3 4; do
-              if curl -fsS --connect-timeout 10 --max-time 20 --retry 1 --retry-delay 2 --retry-all-errors \
-                -X POST "https://ntfy.sh/${NTFY_TOPIC}" \
-                -H "Title: ❌ Rastreador V${APP_VERSION} falhou" \
-                -H "Priority: high" \
-                -H "Tags: warning,computer" \
-                -d "GitHub Actions detetou uma falha no pipeline V${APP_VERSION}. Consulta a run para identificar o passo que falhou."; then
-                break
-              fi
-              sleep $((attempt * 2))
-            done
-          fi
 
       - name: Guardar estado, aprendizagem, histórico e matching
         if: success()
@@ -336,10 +203,3 @@ jobs:
 
           echo "Falha ao persistir estado após 3 tentativas."
           exit 1
-
-      - name: Enviar Top 3 único solicitado
-        continue-on-error: true
-        if: success()
-        env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python scripts/send_top3_summary.py --request-id pedro-v9-beta-2026-09-22

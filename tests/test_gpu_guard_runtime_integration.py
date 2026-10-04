@@ -84,7 +84,7 @@ class RealRuntimeGpuGuardTests(unittest.TestCase):
             assert result["igpu_scoring"] is not None, result
             assert result["tier_influence"], result
 
-            expected_multiplier = 0.85 + 0.15 * (float(result["gaming"]) / 100.0)
+            expected_multiplier = 1.0  # Gaming is already incorporated in unified Value
             expected_score = float(result["value"]) * expected_multiplier
             assert abs(result["tier_influence"]["raw_value"] - result["value"]) < 0.011, result
             assert abs(result["tier_influence"]["multiplier"] - expected_multiplier) < 0.00001, result

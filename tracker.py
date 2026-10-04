@@ -1680,6 +1680,11 @@ def ntfy_send(
     return False
 
 
+def finalize_run(run: dict) -> None:
+    """Hook for decision metadata, independent of notification delivery."""
+    return None
+
+
 def send_heartbeat(run: dict) -> bool:
     stores_ok = sum(1 for stats in run["stores"].values() if not stats.get("bloqueada"))
     blocked = len(run["stores"]) - stores_ok
@@ -1936,6 +1941,8 @@ def maybe_alert_cross_store(history: dict, group: dict, settings: dict) -> bool:
             "best_price": best["price"],
             "spread_eur": spread,
             "spread_pct": round(pct, 2),
+            "effective_tier": best.get("tier"),
+            "effective_value_score": best.get("value_score"),
         }
     return sent
 
@@ -2219,7 +2226,8 @@ def main() -> dict:
                     store, health["state"], health["category_outcome"], health["feed_outcome"],
                     health["store_budget_reached"])
 
-    heartbeat_enabled = bool(settings.get("heartbeat_ntfy", True))
+    finalize_run(run)
+    heartbeat_enabled = bool(settings.get("heartbeat_ntfy", False))
     run["heartbeat_sent"] = send_heartbeat(run) if heartbeat_enabled else False
     history["learning"]["runs"].append(run)
     history["learning"]["runs"] = history["learning"]["runs"][-60:]
