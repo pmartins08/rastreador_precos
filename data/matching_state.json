@@ -1,6 +1,19 @@
 {
-  "conflicting_pairs": 2,
+  "conflicting_pairs": 3,
   "conflicts": [
+    {
+      "fields": [],
+      "identifier": null,
+      "identifier_type": null,
+      "left_store": "UPTECHBOX",
+      "left_title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5050 8GB GDDR7 | 16GB DDR5 | 512GB SSD | 144Hz | Sem OS",
+      "left_url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5050-gaming-144hz",
+      "level": "NAO_FUNDIR",
+      "reason": "EAN/GTIN diferente",
+      "right_store": "FNAC",
+      "right_title": "Computador Portátil Gaming Lenovo LOQ Essential 15ARP11 | 15,6\" | GeForce RTX 5050 | AMD Ryzen™ 7 170 | 16GB | 512GB SSD",
+      "right_url": "https://www.fnac.pt/LENOVO-LOQE-15ARP11-R7-16-512-5050-Computador-Portatil-Computador-Portatil-Gaming/a14333323"
+    },
     {
       "fields": [],
       "identifier": null,
@@ -15,17 +28,19 @@
       "right_url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5060-gaming-144hz"
     },
     {
-      "fields": [],
-      "identifier": null,
-      "identifier_type": null,
-      "left_store": "FNAC",
-      "left_title": "Computador Portátil Gaming Lenovo LOQ Essential 15ARP11 | 15,6\" | GeForce RTX 5050 | AMD Ryzen™ 7 170 | 16GB | 512GB SSD",
-      "left_url": "https://www.fnac.pt/LENOVO-LOQE-15ARP11-R7-16-512-5050-Computador-Portatil-Computador-Portatil-Gaming/a14333323",
+      "fields": [
+        "cpu_modelo"
+      ],
+      "identifier": "00199276276148",
+      "identifier_type": "ean",
+      "left_store": "Globaldata",
+      "left_title": "Portátil Lenovo LOQ 15AHP9-148 15.6\" R7 7445HS 16GB DDR5 512GB RTX 3050 144Hz",
+      "left_url": "https://www.globaldata.pt/portatil-lenovo-loq-15ahp9-148-15.6-r7-7445hs-16gb-ddr5-512gb-rtx-3050-144hz/83DX00FKPG.html",
       "level": "NAO_FUNDIR",
-      "reason": "EAN/GTIN diferente",
+      "reason": "identificador forte contradiz configuração técnica",
       "right_store": "UPTECHBOX",
-      "right_title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5050 8GB GDDR7 | 16GB DDR5 | 512GB SSD | 144Hz | Sem OS",
-      "right_url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5050-gaming-144hz"
+      "right_title": "Portátil Gaming Lenovo LOQ 15AHP9 — Ryzen 7 7445HS + RTX 3050 6GB | 16GB DDR5 | 512GB SSD | 15.6\" 144Hz G-SYNC | Sem OS",
+      "right_url": "https://www.uptechbox.com/products/portatil-gaming-lenovo-loq-15ahp9-ryzen-7-7445hs-rtx-3050-6gb-16gb-ddr5-512gb-ssd-15-6-144hz-g-sync-sem-os"
     }
   ],
   "cross_store_groups": [
@@ -86,6 +101,34 @@
       ]
     },
     {
+      "best_price": 1099.9,
+      "best_store": "Globaldata",
+      "configuration_key": "ean:4711636123570",
+      "offers": [
+        {
+          "loja": "Globaldata",
+          "price": 1099.9,
+          "tier": "PRATA",
+          "titulo": "Portátil ASUS Expertbook B1 B1503 15.6\" Core 5 120U 16GB DDR5 512GB FHD W11 Pro",
+          "url": "https://www.globaldata.pt/portatil-asus-expertbook-b1-b1503-15.6-core-5-120u-16gb-ddr5-512gb-fhd-w11-pro/B1503CVA-54EHDPP2.html",
+          "value_score": 91.1
+        },
+        {
+          "loja": "UPTECHBOX",
+          "price": 1099.9,
+          "tier": "PRATA",
+          "titulo": "Portátil Asus ExpertBook B1 - Intel Core 5 120U | 16GB DDR5 | 512GB SSD | 15.6\" FHD | Windows 11 Pro",
+          "url": "https://www.uptechbox.com/products/portatil-asus-expertbook-b1",
+          "value_score": 94.3
+        }
+      ],
+      "spread_eur": 0.0,
+      "stores": [
+        "Globaldata",
+        "UPTECHBOX"
+      ]
+    },
+    {
       "best_price": 1199.0,
       "best_store": "Globaldata",
       "configuration_key": "ean:0199275936708",
@@ -142,8 +185,8 @@
       ]
     }
   ],
-  "exact_pairs": 3,
-  "generated_at": "2026-10-08T05:35:34.797544Z",
+  "exact_pairs": 4,
+  "generated_at": "2026-10-08T13:17:40.584661Z",
   "identities": [
     {
       "identity": "ean:0199275936708",
@@ -257,6 +300,43 @@
       ]
     },
     {
+      "identity": "ean:4711636123570",
+      "offers": [
+        {
+          "cpu": "core 5 120u",
+          "ean": "4711636123570",
+          "gpu": "integrada",
+          "mpn": "B1503CVA-54EHDPP2",
+          "price": 1099.9,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "Globaldata",
+          "title": "Portátil ASUS Expertbook B1 B1503 15.6\" Core 5 120U 16GB DDR5 512GB FHD W11 Pro",
+          "url": "https://www.globaldata.pt/portatil-asus-expertbook-b1-b1503-15.6-core-5-120u-16gb-ddr5-512gb-fhd-w11-pro/B1503CVA-54EHDPP2.html"
+        },
+        {
+          "cpu": "core 5 120u",
+          "ean": "4711636123570",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 1099.9,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "UPTECHBOX",
+          "title": "Portátil Asus ExpertBook B1 - Intel Core 5 120U | 16GB DDR5 | 512GB SSD | 15.6\" FHD | Windows 11 Pro",
+          "url": "https://www.uptechbox.com/products/portatil-asus-expertbook-b1"
+        }
+      ],
+      "stores": [
+        "Globaldata",
+        "UPTECHBOX"
+      ]
+    },
+    {
       "identity": "cfg:aspire go ag16-71p-97cx (16\", intel core i9 13900h, 16gb ddr5, 1tb ssd)|acer|aspire|i9-13900h|desconhecida|ram:16|ssd:1.0|res:fhd+|hz:120",
       "offers": [
         {
@@ -316,6 +396,28 @@
           "store": "MEO",
           "title": "Expertbook B3 B3605CCA-U72CHDCB1 (16\" u7 16 512GB) + Rato",
           "url": "https://loja.meo.pt/comprar/pcs/asus/expertbook-b3-b3605cca-u72chdcb1-16-u7-16-512gb"
+        }
+      ],
+      "stores": [
+        "MEO"
+      ]
+    },
+    {
+      "identity": "cfg:hp omnibook 3 16-by0008np (16\", ryzen7, 16gb, 1tb) portatil hp 16” com ryzen 7, 16gb ram e ssd 1tb. desempenho rapido, ecra amplo e autonomia para trabalho e entretenimento.|hp|omnibook|ryzen ai 5 330|radeon 820m|ram:16|ssd:1.0|res:fhd|hz:?",
+      "offers": [
+        {
+          "cpu": "ryzen ai 5 330",
+          "ean": null,
+          "gpu": "radeon 820m",
+          "mpn": null,
+          "price": 899.99,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 1.0,
+          "store": "MEO",
+          "title": "HP OmniBook 3 16-by0008np (16\", Ryzen7, 16GB, 1TB) Portátil HP 16” com Ryzen 7, 16GB RAM e SSD 1TB. Desempenho rápido, ecrã amplo e autonomia para trabalho e entretenimento.",
+          "url": "https://loja.meo.pt/comprar/pcs/hp/omnibook-3-nextgen-ai-15fn0008np-r5-16gb-1tb"
         }
       ],
       "stores": [
@@ -1203,6 +1305,28 @@
       ]
     },
     {
+      "identity": "ean:199272005919",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "199272005919",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 1099.99,
+          "ram_gb": null,
+          "refresh_hz": null,
+          "resolution": null,
+          "storage_tb": null,
+          "store": "UPTECHBOX",
+          "title": "Portátil Lenovo V15 G5 IRL",
+          "url": "https://www.uptechbox.com/products/lenovo-v15-g5"
+        }
+      ],
+      "stores": [
+        "UPTECHBOX"
+      ]
+    },
+    {
       "identity": "ean:199272916284",
       "offers": [
         {
@@ -1262,6 +1386,50 @@
           "store": "UPTECHBOX",
           "title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5050 8GB GDDR7 | 16GB DDR5 | 512GB SSD | 144Hz | Sem OS",
           "url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5050-gaming-144hz"
+        }
+      ],
+      "stores": [
+        "UPTECHBOX"
+      ]
+    },
+    {
+      "identity": "ean:199276276148",
+      "offers": [
+        {
+          "cpu": "ryzen 7 7445hs",
+          "ean": "199276276148",
+          "gpu": "rtx 3050",
+          "mpn": null,
+          "price": 899.99,
+          "ram_gb": 16,
+          "refresh_hz": 144,
+          "resolution": null,
+          "storage_tb": 0.5,
+          "store": "UPTECHBOX",
+          "title": "Portátil Gaming Lenovo LOQ 15AHP9 — Ryzen 7 7445HS + RTX 3050 6GB | 16GB DDR5 | 512GB SSD | 15.6\" 144Hz G-SYNC | Sem OS",
+          "url": "https://www.uptechbox.com/products/portatil-gaming-lenovo-loq-15ahp9-ryzen-7-7445hs-rtx-3050-6gb-16gb-ddr5-512gb-ssd-15-6-144hz-g-sync-sem-os"
+        }
+      ],
+      "stores": [
+        "UPTECHBOX"
+      ]
+    },
+    {
+      "identity": "ean:199276818348",
+      "offers": [
+        {
+          "cpu": "ryzen 7 250",
+          "ean": "199276818348",
+          "gpu": "rtx 5050",
+          "mpn": null,
+          "price": 1399.99,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "UPTECHBOX",
+          "title": "Portatil Lenovo LOQ 15AHP10 - AMD Ryzen 7 250 + RTX 5050 | 16GB DDR5 | 512GB SSD | 15.6\"FHD | S/SO",
+          "url": "https://www.uptechbox.com/products/portatil-lenovo-loq-15ahp10-amd-ryzen-7-250-rtx-5050-16gb-ddr5-512gb-ssd-15-6fhd-s-so"
         }
       ],
       "stores": [
@@ -1394,28 +1562,6 @@
           "store": "FNAC",
           "title": "Pack Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD + Mochila + Rato + Carregador USB-C",
           "url": "https://www.fnac.pt/Pack-Computador-Portatil-HP-OmniBook-3-Next-Gen-AI-14-hz0001np-14-Qualcomm-Snapdragon-X-X1-26-100-16GB-1TB-SSD-Mochila-Rato-Carregador-USB-C-Computador-Portatil-Computador-Portatil/a14627900"
-        }
-      ],
-      "stores": [
-        "FNAC"
-      ]
-    },
-    {
-      "identity": "ean:4711121843549",
-      "offers": [
-        {
-          "cpu": "core ultra 5 115u",
-          "ean": "4711121843549",
-          "gpu": "desconhecida",
-          "mpn": null,
-          "price": 799.99,
-          "ram_gb": 16,
-          "refresh_hz": 60,
-          "resolution": "fhd+",
-          "storage_tb": 1.0,
-          "store": "FNAC",
-          "title": "Computador Portátil Acer Aspire Spin 14 ASP14-52MTN-529Y | 14'' | Intel® Core™ Ultra 5 115U| 16GB | 1TB SSD + Pen",
-          "url": "https://www.fnac.pt/Computador-Portatil-Acer-Aspire-Spin-14-ASP14-52MTN-529Y-14-Intel-Core-Ultra-5-115U-16GB-1TB-SSD-Pen-Computador-Portatil-Computador-Portatil/a14003493"
         }
       ],
       "stores": [
@@ -1971,31 +2117,9 @@
       "stores": [
         "Globaldata"
       ]
-    },
-    {
-      "identity": "ean:821844152379",
-      "offers": [
-        {
-          "cpu": "ryzen 5 240",
-          "ean": "821844152379",
-          "gpu": "rtx 5050",
-          "mpn": null,
-          "price": 1249.9,
-          "ram_gb": 16,
-          "refresh_hz": 165,
-          "resolution": "fhd+",
-          "storage_tb": 0.5,
-          "store": "UPTECHBOX",
-          "title": "Portátil Gaming HP HyperX OMEN 15 — Ryzen 5 240 + RTX 5050 8GB | 16GB DDR5 | 512GB SSD | 15.3\" 2K 165Hz | Sem Sistema Operativo",
-          "url": "https://www.uptechbox.com/products/portatil-hp-hyperx-omen-15-amd-ryzen-5-240-rtx-5050-16gb-ddr5-512gb-ssd-15-3-2k"
-        }
-      ],
-      "stores": [
-        "UPTECHBOX"
-      ]
     }
   ],
-  "identity_count": 82,
+  "identity_count": 85,
   "probable_pairs": 2,
   "probable_review": [
     {
@@ -2013,7 +2137,7 @@
       "right_url": "https://loja.meo.pt/comprar/pcs/lenovo/ideapad-slim-3-15iwc11-169-15-3-core-7-350-16gb-512gb"
     }
   ],
-  "records_considered": 85,
+  "records_considered": 89,
   "schema_version": 1,
   "source": "current_run_records",
   "strong_pairs": 1,
