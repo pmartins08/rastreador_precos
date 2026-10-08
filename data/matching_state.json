@@ -1,26 +1,261 @@
 {
-  "conflicting_pairs": 1,
+  "conflicting_pairs": 2,
   "conflicts": [
     {
-      "fields": [
-        "cpu_modelo"
-      ],
-      "identifier": "00199276276148",
-      "identifier_type": "ean",
-      "left_store": "UPTECHBOX",
-      "left_title": "Portátil Gaming Lenovo LOQ 15AHP9 — Ryzen 7 7445HS + RTX 3050 6GB | 16GB DDR5 | 512GB SSD | 15.6\" 144Hz G-SYNC | Sem OS",
-      "left_url": "https://www.uptechbox.com/products/portatil-gaming-lenovo-loq-15ahp9-ryzen-7-7445hs-rtx-3050-6gb-16gb-ddr5-512gb-ssd-15-6-144hz-g-sync-sem-os",
+      "fields": [],
+      "identifier": null,
+      "identifier_type": null,
+      "left_store": "FNAC",
+      "left_title": "Computador Portátil Gaming Lenovo LOQ Essential 15ARP11 | 15,6\" | GeForce RTX 5050 | AMD Ryzen™ 7 170 | 16GB | 512GB SSD",
+      "left_url": "https://www.fnac.pt/LENOVO-LOQE-15ARP11-R7-16-512-5050-Computador-Portatil-Computador-Portatil-Gaming/a14333323",
       "level": "NAO_FUNDIR",
-      "reason": "identificador forte contradiz configuração técnica",
-      "right_store": "Globaldata",
-      "right_title": "Portátil Lenovo LOQ 15AHP9-148 15.6\" R7 7445HS 16GB DDR5 512GB RTX 3050 144Hz",
-      "right_url": "https://www.globaldata.pt/portatil-lenovo-loq-15ahp9-148-15.6-r7-7445hs-16gb-ddr5-512gb-rtx-3050-144hz/83DX00FKPG.html"
+      "reason": "EAN/GTIN diferente",
+      "right_store": "UPTECHBOX",
+      "right_title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5060 8GB GDDR7 | 16GB DDR5 | 1TB SSD | 144Hz | Sem OS",
+      "right_url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5060-gaming-144hz"
+    },
+    {
+      "fields": [],
+      "identifier": null,
+      "identifier_type": null,
+      "left_store": "FNAC",
+      "left_title": "Computador Portátil Gaming Lenovo LOQ Essential 15ARP11 | 15,6\" | GeForce RTX 5050 | AMD Ryzen™ 7 170 | 16GB | 512GB SSD",
+      "left_url": "https://www.fnac.pt/LENOVO-LOQE-15ARP11-R7-16-512-5050-Computador-Portatil-Computador-Portatil-Gaming/a14333323",
+      "level": "NAO_FUNDIR",
+      "reason": "EAN/GTIN diferente",
+      "right_store": "UPTECHBOX",
+      "right_title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5050 8GB GDDR7 | 16GB DDR5 | 512GB SSD | 144Hz | Sem OS",
+      "right_url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5050-gaming-144hz"
     }
   ],
-  "cross_store_groups": [],
-  "exact_pairs": 0,
-  "generated_at": "2026-10-07T23:06:21.901853Z",
+  "cross_store_groups": [
+    {
+      "best_price": 899.0,
+      "best_store": "Globaldata",
+      "configuration_key": "ean:0199276826169",
+      "offers": [
+        {
+          "loja": "Globaldata",
+          "price": 899.0,
+          "tier": "PRATA",
+          "titulo": "Portátil Lenovo IdeaPad Slim 3i 15IWC11-858 15.3\" Core 7 350 16GB 512GB WUXGA W11 (sem carregador)",
+          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-3i-15iwc11-858-15.3-core-7-350-16gb-512gb-wuxga-w11-sem-carregador/83RR00LYPG.html",
+          "value_score": 101.1
+        },
+        {
+          "loja": "FNAC",
+          "price": 899.99,
+          "tier": "PRATA",
+          "titulo": "Computador Portátil Lenovo \tIdeaPad Slim 3 15IWC11-169 | 15,3'' | Intel® Core™ 7 350 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-3-15IWC11-169-15-3-Intel-Core-7-350-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14603788",
+          "value_score": 100.4
+        }
+      ],
+      "spread_eur": 0.99,
+      "stores": [
+        "FNAC",
+        "Globaldata"
+      ]
+    },
+    {
+      "best_price": 999.0,
+      "best_store": "Globaldata",
+      "configuration_key": "ean:0199275936715",
+      "offers": [
+        {
+          "loja": "Globaldata",
+          "price": 999.0,
+          "tier": "PRATA",
+          "titulo": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-715 15,3” Snapdragon X2P-42-100 16GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
+          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-715-15-3-snapdragon-x2p-42-100-16gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000VPG.html",
+          "value_score": 102.5
+        },
+        {
+          "loja": "FNAC",
+          "price": 999.99,
+          "tier": "PRATA",
+          "titulo": "Computador Portátil Lenovo IdeaPad Slim 5 15Q8Y11-715 Copilot+ PC | 15.3\" | Snapdragon® X2 Plus | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-15Q8Y11-715-Copilot-PC-15-3-Snapdragon-X2-Plus-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260777",
+          "value_score": 103.7
+        }
+      ],
+      "spread_eur": 0.99,
+      "stores": [
+        "FNAC",
+        "Globaldata"
+      ]
+    },
+    {
+      "best_price": 1199.0,
+      "best_store": "Globaldata",
+      "configuration_key": "ean:0199275936708",
+      "offers": [
+        {
+          "loja": "Globaldata",
+          "price": 1199.0,
+          "tier": "PRATA",
+          "titulo": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-708 15,3” Snapdragon X2P-42-100 32GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
+          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-708-15-3-snapdragon-x2p-42-100-32gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000UPG.html",
+          "value_score": 104.3
+        },
+        {
+          "loja": "FNAC",
+          "price": 1199.99,
+          "tier": "PRATA",
+          "titulo": "Computador Portátil Lenovo IdeaPad Slim 5 15Q8Y11-708 Copilot+ PC | 15.3\" | Snapdragon® X2 Plus | 32GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-15Q8Y11-708-Copilot-PC-15-3-Snapdragon-X2-Plus-32GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260778",
+          "value_score": 105.6
+        }
+      ],
+      "spread_eur": 0.99,
+      "stores": [
+        "FNAC",
+        "Globaldata"
+      ]
+    },
+    {
+      "best_price": 1199.99,
+      "best_store": "MEO",
+      "configuration_key": "model:ANV16-42-R0E8|cpu:ryzen 7 260|gpu:rtx 5050|ram:16|ssd:0.5",
+      "offers": [
+        {
+          "loja": "MEO",
+          "price": 1199.99,
+          "tier": "PRATA",
+          "titulo": "Nitro V 16 AI Gaming ANV16-42-R0E8 (16\", Ryzen 7 260, 16GB DDR5, 512GB SSD, RTX 5050)",
+          "url": "https://loja.meo.pt/comprar/pcs/acer/nitro-v-16-ai-gaming-anv16-42-r0e8",
+          "value_score": 109.9
+        },
+        {
+          "loja": "FNAC",
+          "price": 1199.99,
+          "tier": "OURO",
+          "titulo": "Computador Portátil Gaming Acer Nitro V 16 AI ANV16-42-R0E8 | 16'' | GeForce RTX 5050 | AMD Ryzen™ 7 260 | 16GB | 512GB SSD + Controlador",
+          "url": "https://www.fnac.pt/Computador-Portatil-Gaming-Acer-Nitro-V-16-AI-ANV16-42-R0E8-16-GeForce-RTX-5050-AMD-Ryzen-7-260-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil-Gaming/a14003491",
+          "value_score": 113.5
+        }
+      ],
+      "spread_eur": 0.0,
+      "stores": [
+        "FNAC",
+        "MEO"
+      ]
+    }
+  ],
+  "exact_pairs": 3,
+  "generated_at": "2026-10-08T05:35:34.797544Z",
   "identities": [
+    {
+      "identity": "ean:0199275936708",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "0199275936708",
+          "gpu": "desconhecida",
+          "mpn": "83RL000UPG",
+          "price": 1199.0,
+          "ram_gb": 32,
+          "refresh_hz": 165,
+          "resolution": "qhd+",
+          "storage_tb": 1.0,
+          "store": "Globaldata",
+          "title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-708 15,3” Snapdragon X2P-42-100 32GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
+          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-708-15-3-snapdragon-x2p-42-100-32gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000UPG.html"
+        },
+        {
+          "cpu": null,
+          "ean": "0199275936708",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 1199.99,
+          "ram_gb": 32,
+          "refresh_hz": 165,
+          "resolution": "qhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad Slim 5 15Q8Y11-708 Copilot+ PC | 15.3\" | Snapdragon® X2 Plus | 32GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-15Q8Y11-708-Copilot-PC-15-3-Snapdragon-X2-Plus-32GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260778"
+        }
+      ],
+      "stores": [
+        "FNAC",
+        "Globaldata"
+      ]
+    },
+    {
+      "identity": "ean:0199275936715",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "0199275936715",
+          "gpu": "desconhecida",
+          "mpn": "83RL000VPG",
+          "price": 999.0,
+          "ram_gb": 16,
+          "refresh_hz": 165,
+          "resolution": "qhd+",
+          "storage_tb": 1.0,
+          "store": "Globaldata",
+          "title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-715 15,3” Snapdragon X2P-42-100 16GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
+          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-715-15-3-snapdragon-x2p-42-100-16gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000VPG.html"
+        },
+        {
+          "cpu": null,
+          "ean": "0199275936715",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 999.99,
+          "ram_gb": 16,
+          "refresh_hz": 165,
+          "resolution": "qhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad Slim 5 15Q8Y11-715 Copilot+ PC | 15.3\" | Snapdragon® X2 Plus | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-5-15Q8Y11-715-Copilot-PC-15-3-Snapdragon-X2-Plus-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14260777"
+        }
+      ],
+      "stores": [
+        "FNAC",
+        "Globaldata"
+      ]
+    },
+    {
+      "identity": "ean:0199276826169",
+      "offers": [
+        {
+          "cpu": "core 7 350",
+          "ean": "0199276826169",
+          "gpu": "desconhecida",
+          "mpn": "83RR00LYPG",
+          "price": 899.0,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "Globaldata",
+          "title": "Portátil Lenovo IdeaPad Slim 3i 15IWC11-858 15.3\" Core 7 350 16GB 512GB WUXGA W11 (sem carregador)",
+          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-3i-15iwc11-858-15.3-core-7-350-16gb-512gb-wuxga-w11-sem-carregador/83RR00LYPG.html"
+        },
+        {
+          "cpu": "core 7 350",
+          "ean": "0199276826169",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 899.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo \tIdeaPad Slim 3 15IWC11-169 | 15,3'' | Intel® Core™ 7 350 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-3-15IWC11-169-15-3-Intel-Core-7-350-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14603788"
+        }
+      ],
+      "stores": [
+        "FNAC",
+        "Globaldata"
+      ]
+    },
     {
       "identity": "cfg:aspire go ag16-71p-97cx (16\", intel core i9 13900h, 16gb ddr5, 1tb ssd)|acer|aspire|i9-13900h|desconhecida|ram:16|ssd:1.0|res:fhd+|hz:120",
       "offers": [
@@ -264,28 +499,6 @@
       ]
     },
     {
-      "identity": "cfg:portatil recondiconado hp probook 440 g7 (14\" intel i5/8/256gb)|hp|probook|core i5-10210u|desconhecida|ram:?|ssd:0.25|res:?|hz:?",
-      "offers": [
-        {
-          "cpu": "core i5-10210u",
-          "ean": null,
-          "gpu": "desconhecida",
-          "mpn": null,
-          "price": 349.99,
-          "ram_gb": null,
-          "refresh_hz": null,
-          "resolution": null,
-          "storage_tb": 0.25,
-          "store": "Auchan",
-          "title": "portátil recondiconado hp probook 440 g7 (14\" intel i5/8/256gb)",
-          "url": "https://www.auchan.pt/pt/tecnologia/informatica/computadores-portateis/portatil-recondiconado-hp-probook-440-g7-%2814-intel-i58256gb%29/4038550.html"
-        }
-      ],
-      "stores": [
-        "Auchan"
-      ]
-    },
-    {
       "identity": "cfg:victus 15-fb3054np gaming (15,6\", ryzen 5 7535hs, 16gb, 512gb ssd, rtx 3050)|hp|victus|ryzen 5 7535hs|rtx 3050|ram:16|ssd:0.5|res:fhd|hz:144",
       "offers": [
         {
@@ -330,6 +543,50 @@
       ]
     },
     {
+      "identity": "ean:0198701053002",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "0198701053002",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 1599.99,
+          "ram_gb": 32,
+          "refresh_hz": null,
+          "resolution": null,
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil HP OmniBook X 14-fe0002np | 14\" | Snapdragon® X Elite X1E-78-100 | 32GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-HP-OmniBook-X-14-fe0002np-14-Snapdragon-X-Elite-X1E-78-100-32GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a12097566"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0198701053019",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "0198701053019",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 1149.98,
+          "ram_gb": 32,
+          "refresh_hz": null,
+          "resolution": null,
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil HP OmniBook X 14-fe0003np | 14\" | Snapdragon® X Elite X1E-78-100 | 32GB | 512GB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-HP-OmniBook-X-14-fe0003np-14-Snapdragon-X-Elite-X1E-78-100-32GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a12730141"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
       "identity": "ean:0199251188008",
       "offers": [
         {
@@ -352,47 +609,157 @@
       ]
     },
     {
-      "identity": "ean:0199275936708",
+      "identity": "ean:0199251267017",
       "offers": [
         {
-          "cpu": null,
-          "ean": "0199275936708",
-          "gpu": "desconhecida",
-          "mpn": "83RL000UPG",
-          "price": 1199.0,
-          "ram_gb": 32,
-          "refresh_hz": 165,
-          "resolution": "qhd+",
+          "cpu": "i7-13620h",
+          "ean": "0199251267017",
+          "gpu": "rtx 4050",
+          "mpn": null,
+          "price": 1299.99,
+          "ram_gb": 16,
+          "refresh_hz": 144,
+          "resolution": "fhd",
           "storage_tb": 1.0,
-          "store": "Globaldata",
-          "title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-708 15,3” Snapdragon X2P-42-100 32GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
-          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-708-15-3-snapdragon-x2p-42-100-32gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000UPG.html"
+          "store": "FNAC",
+          "title": "Computador Portátil Gaming Victus by HP 15-fa2024np | 15,6'' | GeForce RTX 4050 | Intel® Core™ i7-13620H | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Gaming-Victus-by-HP-15-fa2024np-15-6-GeForce-RTX-4050-Intel-Core-i7-13620H-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil-Gaming/a13016465"
         }
       ],
       "stores": [
-        "Globaldata"
+        "FNAC"
       ]
     },
     {
-      "identity": "ean:0199275936715",
+      "identity": "ean:0199275205064",
       "offers": [
         {
           "cpu": null,
-          "ean": "0199275936715",
-          "gpu": "desconhecida",
-          "mpn": "83RL000VPG",
-          "price": 999.0,
+          "ean": "0199275205064",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 749.99,
           "ram_gb": 16,
-          "refresh_hz": 165,
-          "resolution": "qhd+",
-          "storage_tb": 1.0,
-          "store": "Globaldata",
-          "title": "Portátil Lenovo IdeaPad Slim 5x 15Q8Y11-715 15,3” Snapdragon X2P-42-100 16GB DDR5 1TB WQXGA OLED 165Hz W11 (Sem Carregador)",
-          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-5x-15q8y11-715-15-3-snapdragon-x2p-42-100-16gb-ddr5-1tb-wqxga-oled-165hz-w11-sem-carregador/83RL000VPG.html"
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad Slim 3 15Q8X10-064 | 15,3'' | Qualcomm Snapdragon X X1-26-100 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/LENOVO-IPS3X-15Q8X10-X1-16-512-SC-Computador-Portatil-Computador-Portatil/a14603783"
         }
       ],
       "stores": [
-        "Globaldata"
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0199275236556",
+      "offers": [
+        {
+          "cpu": "i5-13420h",
+          "ean": "0199275236556",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 899.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad 5 14IRH9 | 14\" | Intel Core™ i5-13420H | 16GB | 512GB SSD + Lenovo Digital Pen 2",
+          "url": "https://www.fnac.pt/LENOVO-IP5-14IRH9-I5-16-512-PEN-SC-Computador-Portatil-Computador-Portatil/a14333324"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0199275236563",
+      "offers": [
+        {
+          "cpu": "ryzen 5 230",
+          "ean": "0199275236563",
+          "gpu": "radeon 760m",
+          "mpn": null,
+          "price": 999.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Lenovo IdeaPad 5 2-in-1 14AHP11 | 14\" | AMD Ryzen™ 5 230 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/LENOVO-IP5-14AHP11-R5-16-512-PEN-SC-Computador-Portatil-Computador-Portatil/a14333328"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0199275316661",
+      "offers": [
+        {
+          "cpu": "ryzen 7 170",
+          "ean": "0199275316661",
+          "gpu": "rtx 5050",
+          "mpn": null,
+          "price": 1299.99,
+          "ram_gb": 16,
+          "refresh_hz": 144,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Gaming Lenovo LOQ Essential 15ARP11 | 15,6\" | GeForce RTX 5050 | AMD Ryzen™ 7 170 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/LENOVO-LOQE-15ARP11-R7-16-512-5050-Computador-Portatil-Computador-Portatil-Gaming/a14333323"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0199275832338",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "0199275832338",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 986.07,
+          "ram_gb": 32,
+          "refresh_hz": 120,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Consola Portátil Lenovo Legion Go S 8APU1-338 | 8\" | Ryzen™ Z1 Extreme | 32GB | 1TB SSD - Nebula Nocturne",
+          "url": "https://www.fnac.pt/Consola-Portatil-Lenovo-Legion-Go-S-8APU1-338-8-Ryzen-Z1-Extreme-32GB-1TB-SSD-Nebula-Nocturne-Computador-Portatil-Computador-Portatil-Gaming/a14260782"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0199275832369",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "0199275832369",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 917.73,
+          "ram_gb": 16,
+          "refresh_hz": 120,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Consola Portátil Lenovo Legion Go S 8APU1-369 | 8\" | Ryzen™ Z1 Extreme | 16GB | 1TB SSD - Nebula Nocturne",
+          "url": "https://www.fnac.pt/Consola-Portatil-Lenovo-Legion-Go-S-8APU1-369-8-Ryzen-Z1-Extreme-16GB-1TB-SSD-Nebula-Nocturne-Computador-Portatil-Computador-Portatil-Gaming/a14260781"
+        }
+      ],
+      "stores": [
+        "FNAC"
       ]
     },
     {
@@ -572,28 +939,6 @@
       ]
     },
     {
-      "identity": "ean:0199276826169",
-      "offers": [
-        {
-          "cpu": "core 7 350",
-          "ean": "0199276826169",
-          "gpu": "desconhecida",
-          "mpn": "83RR00LYPG",
-          "price": 899.0,
-          "ram_gb": 16,
-          "refresh_hz": 60,
-          "resolution": "fhd+",
-          "storage_tb": 0.5,
-          "store": "Globaldata",
-          "title": "Portátil Lenovo IdeaPad Slim 3i 15IWC11-858 15.3\" Core 7 350 16GB 512GB WUXGA W11 (sem carregador)",
-          "url": "https://www.globaldata.pt/portatil-lenovo-ideapad-slim-3i-15iwc11-858-15.3-core-7-350-16gb-512gb-wuxga-w11-sem-carregador/83RR00LYPG.html"
-        }
-      ],
-      "stores": [
-        "Globaldata"
-      ]
-    },
-    {
       "identity": "ean:0199276826176",
       "offers": [
         {
@@ -638,6 +983,28 @@
       ]
     },
     {
+      "identity": "ean:0821844127261",
+      "offers": [
+        {
+          "cpu": "ryzen 7 7445h",
+          "ean": "0821844127261",
+          "gpu": "rtx 4050",
+          "mpn": null,
+          "price": 1299.99,
+          "ram_gb": 16,
+          "refresh_hz": 144,
+          "resolution": "fhd",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Gaming Victus by HP 15-fb3059np | 15.6\" | NVIDIA GeForce RTX™ 4050 | AMD Ryzen™ 7 7445H | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Gaming-Victus-by-HP-15-fb3059np-15-6-NVIDIA-GeForce-RTX-4050-AMD-Ryzen-7-7445H-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil-Gaming/a14221084"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
       "identity": "ean:0821844149850",
       "offers": [
         {
@@ -657,6 +1024,50 @@
       ],
       "stores": [
         "Globaldata"
+      ]
+    },
+    {
+      "identity": "ean:0821844152362",
+      "offers": [
+        {
+          "cpu": "ryzen 5 240",
+          "ean": "0821844152362",
+          "gpu": "radeon 760m",
+          "mpn": null,
+          "price": 1599.99,
+          "ram_gb": 24,
+          "refresh_hz": 165,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Gaming HP HyperX OMEN 15-gb0014npx | 15'' | GeForce RTX™ 5050 | AMD Ryzen™ 5 240 | 24GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Gaming-HP-HyperX-OMEN-15-gb0014npx-15-GeForce-RTX-5050-AMD-Ryzen-5-240-24GB-1TB-SSD-Computador-Portatil-Computador-Portatil-Gaming/a14290768"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0821844154908",
+      "offers": [
+        {
+          "cpu": "i5-14450hx",
+          "ean": "0821844154908",
+          "gpu": "rtx 5050",
+          "mpn": null,
+          "price": 1199.99,
+          "ram_gb": 16,
+          "refresh_hz": 165,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Gaming HyperX OMEN 15-ga0005npx | 15'' | GeForce RTX™ 5050 | Intel® Core™ i5-14450HX | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/HYPERX-OMEN-15-I5-16-1-5050-Computador-Portatil-Computador-Portatil-Gaming/a14290769"
+        }
+      ],
+      "stores": [
+        "FNAC"
       ]
     },
     {
@@ -726,6 +1137,94 @@
       ]
     },
     {
+      "identity": "ean:0826581281177",
+      "offers": [
+        {
+          "cpu": "core ultra 5 225u",
+          "ean": "0826581281177",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 899.99,
+          "ram_gb": 24,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil HP AI 15-fd2004npx | 15,6'' | Intel® Core™ Ultra 5 225U | 24GB | 1TB SSD | Free DOS",
+          "url": "https://www.fnac.pt/Computador-Portatil-HP-AI-15-fd2004npx-15-6-Intel-Core-Ultra-5-225U-24GB-1TB-SSD-Free-DOS-Computador-Portatil-Computador-Portatil/a14231862"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:0826581362135",
+      "offers": [
+        {
+          "cpu": "ryzen ai 5 340",
+          "ean": "0826581362135",
+          "gpu": "radeon 840m",
+          "mpn": null,
+          "price": 999.99,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil HP OmniBook X Flip 2-in-1 Next Gen AI 14-fk0000npx | 14\" | AMD Ryzen™ AI 5 340 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-HP-OmniBook-X-Flip-2-in-1-Next-Gen-AI-14-fk0000npx-14-AMD-Ryzen-AI-5-340-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14231861"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:197531680082",
+      "offers": [
+        {
+          "cpu": "i7-14650hx",
+          "ean": "197531680082",
+          "gpu": "rtx 4060",
+          "mpn": null,
+          "price": 1299.99,
+          "ram_gb": null,
+          "refresh_hz": null,
+          "resolution": null,
+          "storage_tb": null,
+          "store": "UPTECHBOX",
+          "title": "Lenovo Legion 5 Intel i7-14650HX RTX 4060 16IRX9-082",
+          "url": "https://www.uptechbox.com/products/lenovo-legion-5-16irx9-082-16-25k-165hz-i7-14650hx-16gb-512gb-ssd-rtx4060-8gb"
+        }
+      ],
+      "stores": [
+        "UPTECHBOX"
+      ]
+    },
+    {
+      "identity": "ean:199272916284",
+      "offers": [
+        {
+          "cpu": "core i7-13650hx",
+          "ean": "199272916284",
+          "gpu": "rtx 5050",
+          "mpn": null,
+          "price": 999.99,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": null,
+          "storage_tb": null,
+          "store": "UPTECHBOX",
+          "title": "Portátil Gaming Lenovo LOQ Essential 15IRX11 — Core i7-13650HX + RTX 5050 8GB | 16GB DDR5 | Sem OS",
+          "url": "https://www.uptechbox.com/products/lenovo-loq-15irx11-284"
+        }
+      ],
+      "stores": [
+        "UPTECHBOX"
+      ]
+    },
+    {
       "identity": "ean:199275234675",
       "offers": [
         {
@@ -748,25 +1247,179 @@
       ]
     },
     {
-      "identity": "ean:199276276148",
+      "identity": "ean:199275830136",
       "offers": [
         {
-          "cpu": "ryzen 7 7445hs",
-          "ean": "199276276148",
-          "gpu": "rtx 3050",
+          "cpu": "ryzen 7 170",
+          "ean": "199275830136",
+          "gpu": "rtx 5050",
           "mpn": null,
-          "price": 899.99,
+          "price": 1099.99,
           "ram_gb": 16,
           "refresh_hz": 144,
-          "resolution": null,
+          "resolution": "fhd",
           "storage_tb": 0.5,
           "store": "UPTECHBOX",
-          "title": "Portátil Gaming Lenovo LOQ 15AHP9 — Ryzen 7 7445HS + RTX 3050 6GB | 16GB DDR5 | 512GB SSD | 15.6\" 144Hz G-SYNC | Sem OS",
-          "url": "https://www.uptechbox.com/products/portatil-gaming-lenovo-loq-15ahp9-ryzen-7-7445hs-rtx-3050-6gb-16gb-ddr5-512gb-ssd-15-6-144hz-g-sync-sem-os"
+          "title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5050 8GB GDDR7 | 16GB DDR5 | 512GB SSD | 144Hz | Sem OS",
+          "url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5050-gaming-144hz"
         }
       ],
       "stores": [
         "UPTECHBOX"
+      ]
+    },
+    {
+      "identity": "ean:2200028118826",
+      "offers": [
+        {
+          "cpu": "core ultra 5 225u",
+          "ean": "2200028118826",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 899.0,
+          "ram_gb": 24,
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Pack Fnac Computador Portátil HP OmniBook 3 16-bu0021np | 16\" | Intel® Core™ Ultra 5 225U | 24GB | 512GB SSD + Mochila + Rato + Carregador USB-C",
+          "url": "https://www.fnac.pt/Pack-Fnac-Computador-Portatil-HP-OmniBook-3-16-bu0021np-16-Intel-Core-Ultra-5-225U-24GB-512GB-SSD-Mochila-Rato-Carregador-USB-C-Computador-Portatil-Computador-Portatil/a14444626"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028118833",
+      "offers": [
+        {
+          "cpu": "core ultra 5 322",
+          "ean": "2200028118833",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 999.0,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Pack Fnac Computador Portátil Lenovo IdeaPad 5 2-em-1 14IPH11-213 | 14\" | Intel Core™ Ultra 5 322 | 16GB | 512GB SSD + Mochila + Rato + Pen",
+          "url": "https://www.fnac.pt/Pack-Fnac-Computador-Portatil-Lenovo-IdeaPad-5-2-em-1-14IPH11-213-14-Intel-Core-Ultra-5-322-16GB-512GB-SSD-Mochila-Rato-Pen-Computador-Portatil-Computador-Portatil/a14444621"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028118840",
+      "offers": [
+        {
+          "cpu": "core ultra 7 256v",
+          "ean": "2200028118840",
+          "gpu": "intel arc graphics 140v",
+          "mpn": null,
+          "price": 1199.0,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Pack Fnac Computador Portátil HP OmniBook X Flip 2-in-1 Next Gen AI 14-fm0002npx | OLED 14\" | Intel® Core™ Ultra 7 256V | 16GB | 1TB SSD + Mochila + Rato + Carregador USB-C",
+          "url": "https://www.fnac.pt/Pack-Fnac-Computador-Portatil-HP-OmniBook-X-Flip-2-in-1-Next-Gen-AI-14-fm0002npx-OLED-14-Intel-Core-Ultra-7-256V-16GB-1TB-SSD-Mochila-Rato-Carregador-USB-C-Computador-Portatil-Computador-Portatil/a14444614"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028129327",
+      "offers": [
+        {
+          "cpu": "core ultra 5 226v",
+          "ean": "2200028129327",
+          "gpu": "intel arc graphics 130v",
+          "mpn": null,
+          "price": 849.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Asus S14 S5406SAL-U52AOHDSB01 Copilot+ PC | 14\" OLED | Intel Core Ultra 5 226V | 16GB | 512GB SSD + Mochila + Rato",
+          "url": "https://www.fnac.pt/Computador-Portatil-Asus-S14-S5406SAL-U52AOHDSB01-Copilot-PC-14-OLED-Intel-Core-Ultra-5-226V-16GB-512GB-SSD-Mochila-Rato-Computador-Portatil-Computador-Portatil/a14480809"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028129334",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "2200028129334",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 899.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Asus Zenbook A14 UX3407QA-X1PCOHDGB1 | 14\" | Snapdragon® X X1-26-100 | 16GB | 512GB SSD + Mala + Rato",
+          "url": "https://www.fnac.pt/Computador-Portatil-Asus-Zenbook-A14-UX3407QA-X1PCOHDGB1-14-Snapdragon-X-X1-26-100-16GB-512GB-SSD-Mala-Rato-Computador-Portatil-Computador-Portatil/a14480810"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:2200028174396",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "2200028174396",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 944.96,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Pack Computador Portátil HP OmniBook 3 Next Gen AI 14-hz0001np | 14\" | Qualcomm® Snapdragon® X X1-26-100 | 16GB | 1TB SSD + Mochila + Rato + Carregador USB-C",
+          "url": "https://www.fnac.pt/Pack-Computador-Portatil-HP-OmniBook-3-Next-Gen-AI-14-hz0001np-14-Qualcomm-Snapdragon-X-X1-26-100-16GB-1TB-SSD-Mochila-Rato-Carregador-USB-C-Computador-Portatil-Computador-Portatil/a14627900"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:4711121843549",
+      "offers": [
+        {
+          "cpu": "core ultra 5 115u",
+          "ean": "4711121843549",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 799.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Acer Aspire Spin 14 ASP14-52MTN-529Y | 14'' | Intel® Core™ Ultra 5 115U| 16GB | 1TB SSD + Pen",
+          "url": "https://www.fnac.pt/Computador-Portatil-Acer-Aspire-Spin-14-ASP14-52MTN-529Y-14-Intel-Core-Ultra-5-115U-16GB-1TB-SSD-Pen-Computador-Portatil-Computador-Portatil/a14003493"
+        }
+      ],
+      "stores": [
+        "FNAC"
       ]
     },
     {
@@ -814,25 +1467,113 @@
       ]
     },
     {
-      "identity": "ean:4711474901408",
+      "identity": "ean:4711387967997",
       "offers": [
         {
-          "cpu": "core i9-13900h",
-          "ean": "4711474901408",
-          "gpu": "desconhecida",
+          "cpu": "core i7-13620h",
+          "ean": "4711387967997",
+          "gpu": "rtx 4050",
           "mpn": null,
-          "price": 999.99,
+          "price": 1199.99,
           "ram_gb": 32,
-          "refresh_hz": null,
-          "resolution": null,
-          "storage_tb": 1.0,
+          "refresh_hz": 144,
+          "resolution": "fhd+",
+          "storage_tb": null,
           "store": "UPTECHBOX",
-          "title": "Portátil Acer Aspire Go 16 — Core i9-13900H | 32GB DDR5 | 1TB SSD | Win 11 Home",
-          "url": "https://www.uptechbox.com/products/portatil-acer-aspire-go-16-nx-js9eb-009"
+          "title": "Portátil Gaming Asus TUF F16 FX607VU — Core i7-13620H + RTX 4050 6GB | 32GB DDR5 | WUXGA 144Hz | Sem OS",
+          "url": "https://www.uptechbox.com/products/asus-tuf-gaming-f16-fx607vu-intel-core-i7-13620h32-gb-ramnvidia-rtx-40501tb-ssd16-144hz"
         }
       ],
       "stores": [
         "UPTECHBOX"
+      ]
+    },
+    {
+      "identity": "ean:4711474912886",
+      "offers": [
+        {
+          "cpu": "ryzen 7 260",
+          "ean": "4711474912886",
+          "gpu": "rtx 5050",
+          "mpn": null,
+          "price": 1199.99,
+          "ram_gb": 16,
+          "refresh_hz": 180,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Gaming Acer Nitro V 16 AI ANV16-42-R0E8 | 16'' | GeForce RTX 5050 | AMD Ryzen™ 7 260 | 16GB | 512GB SSD + Controlador",
+          "url": "https://www.fnac.pt/Computador-Portatil-Gaming-Acer-Nitro-V-16-AI-ANV16-42-R0E8-16-GeForce-RTX-5050-AMD-Ryzen-7-260-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil-Gaming/a14003491"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:4711474953940",
+      "offers": [
+        {
+          "cpu": "core ultra 5 115u",
+          "ean": "4711474953940",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 649.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Acer Aspire Lite 15 AL15-54P-54RB | 15,6'' |  Intel® Core™ Ultra 5 115U | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Acer-Aspire-Lite-15-AL15-54P-54RB-15-6-Intel-Core-Ultra-5-115U-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14604166"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:4711474953988",
+      "offers": [
+        {
+          "cpu": "core ultra 7 155u",
+          "ean": "4711474953988",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 749.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Acer Aspire Lite 15 AL15-54P-7311 | 15,6'' | Intel Core™ Ultra 7 155U | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Acer-Aspire-Lite-15-AL15-54P-7311-15-6-Intel-Core-Ultra-7-155U-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14604170"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
+      "identity": "ean:4711474985385",
+      "offers": [
+        {
+          "cpu": "i9-13900h",
+          "ean": "4711474985385",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 879.99,
+          "ram_gb": 16,
+          "refresh_hz": 120,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Acer Aspire Go 16 AG16-71P-995R | 16'' | Intel® Core™ i9-13900H | 16GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Acer-Aspire-Go-16-AG16-71P-995R-16-Intel-Core-i9-13900H-16GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14604169"
+        }
+      ],
+      "stores": [
+        "FNAC"
       ]
     },
     {
@@ -924,6 +1665,28 @@
       ]
     },
     {
+      "identity": "ean:4711636401203",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "4711636401203",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 1099.99,
+          "ram_gb": 24,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 1.0,
+          "store": "FNAC",
+          "title": "Computador Portátil Asus Vivobook 16 F1605VA‑94CLHDPB1 | 16\" | Intel® Core™ 9-270H | 24GB | 1TB SSD",
+          "url": "https://www.fnac.pt/Computador-Portatil-Asus-Vivobook-16-F1605VA-94CLHDPB1-16-Intel-Core-9-270H-24GB-1TB-SSD-Computador-Portatil-Computador-Portatil/a14009918"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
       "identity": "ean:4711636514255",
       "offers": [
         {
@@ -987,6 +1750,28 @@
       ],
       "stores": [
         "Globaldata"
+      ]
+    },
+    {
+      "identity": "ean:4711636573887",
+      "offers": [
+        {
+          "cpu": "i7-14650hx",
+          "ean": "4711636573887",
+          "gpu": "desconhecida",
+          "mpn": null,
+          "price": 1399.99,
+          "ram_gb": 16,
+          "refresh_hz": 144,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Gaming Asus TUF F16 FX608JHI-74A55CB2 | 16\" | NVIDIA® GeForce RTX™  5050 | Intel® Core™ i7-14650HX | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/ASUS-TUF-F16-FX608-I7-16-512-5050-E-Computador-Portatil-Computador-Portatil-Gaming/a14737530"
+        }
+      ],
+      "stores": [
+        "FNAC"
       ]
     },
     {
@@ -1186,14 +1971,51 @@
       "stores": [
         "Globaldata"
       ]
+    },
+    {
+      "identity": "ean:821844152379",
+      "offers": [
+        {
+          "cpu": "ryzen 5 240",
+          "ean": "821844152379",
+          "gpu": "rtx 5050",
+          "mpn": null,
+          "price": 1249.9,
+          "ram_gb": 16,
+          "refresh_hz": 165,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "UPTECHBOX",
+          "title": "Portátil Gaming HP HyperX OMEN 15 — Ryzen 5 240 + RTX 5050 8GB | 16GB DDR5 | 512GB SSD | 15.3\" 2K 165Hz | Sem Sistema Operativo",
+          "url": "https://www.uptechbox.com/products/portatil-hp-hyperx-omen-15-amd-ryzen-5-240-rtx-5050-16gb-ddr5-512gb-ssd-15-3-2k"
+        }
+      ],
+      "stores": [
+        "UPTECHBOX"
+      ]
     }
   ],
-  "identity_count": 53,
-  "probable_pairs": 0,
-  "probable_review": [],
-  "records_considered": 53,
+  "identity_count": 82,
+  "probable_pairs": 2,
+  "probable_review": [
+    {
+      "left_store": "MEO",
+      "left_url": "https://loja.meo.pt/comprar/pcs/acer/aspire-lite-al15-54p-54rb",
+      "reason": "model code coincide mas faltam campos para fusão automática",
+      "right_store": "FNAC",
+      "right_url": "https://www.fnac.pt/Computador-Portatil-Acer-Aspire-Lite-15-AL15-54P-54RB-15-6-Intel-Core-Ultra-5-115U-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14604166"
+    },
+    {
+      "left_store": "FNAC",
+      "left_url": "https://www.fnac.pt/Computador-Portatil-Lenovo-IdeaPad-Slim-3-15IWC11-169-15-3-Intel-Core-7-350-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14603788",
+      "reason": "model code coincide mas faltam campos para fusão automática",
+      "right_store": "MEO",
+      "right_url": "https://loja.meo.pt/comprar/pcs/lenovo/ideapad-slim-3-15iwc11-169-15-3-core-7-350-16gb-512gb"
+    }
+  ],
+  "records_considered": 85,
   "schema_version": 1,
   "source": "current_run_records",
-  "strong_pairs": 0,
+  "strong_pairs": 1,
   "tracker_version": "9.0.0-beta.12"
 }
