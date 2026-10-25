@@ -1,19 +1,6 @@
 {
-  "conflicting_pairs": 10,
+  "conflicting_pairs": 11,
   "conflicts": [
-    {
-      "fields": [],
-      "identifier": null,
-      "identifier_type": null,
-      "left_store": "UPTECHBOX",
-      "left_title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5050 8GB GDDR7 | 16GB DDR5 | 512GB SSD | 144Hz | Sem OS",
-      "left_url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5050-gaming-144hz",
-      "level": "NAO_FUNDIR",
-      "reason": "EAN/GTIN diferente",
-      "right_store": "FNAC",
-      "right_title": "Computador Portátil Gaming Lenovo LOQ Essential 15ARP11 | 15,6\" | GeForce RTX 5050 | AMD Ryzen™ 7 170 | 16GB | 512GB SSD",
-      "right_url": "https://www.fnac.pt/LENOVO-LOQE-15ARP11-R7-16-512-5050-Computador-Portatil-Computador-Portatil-Gaming/a14333323"
-    },
     {
       "fields": [],
       "identifier": null,
@@ -26,6 +13,19 @@
       "right_store": "UPTECHBOX",
       "right_title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5060 8GB GDDR7 | 16GB DDR5 | 1TB SSD | 144Hz | Sem OS",
       "right_url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5060-gaming-144hz"
+    },
+    {
+      "fields": [],
+      "identifier": null,
+      "identifier_type": null,
+      "left_store": "FNAC",
+      "left_title": "Computador Portátil Gaming Lenovo LOQ Essential 15ARP11 | 15,6\" | GeForce RTX 5050 | AMD Ryzen™ 7 170 | 16GB | 512GB SSD",
+      "left_url": "https://www.fnac.pt/LENOVO-LOQE-15ARP11-R7-16-512-5050-Computador-Portatil-Computador-Portatil-Gaming/a14333323",
+      "level": "NAO_FUNDIR",
+      "reason": "EAN/GTIN diferente",
+      "right_store": "UPTECHBOX",
+      "right_title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5050 8GB GDDR7 | 16GB DDR5 | 512GB SSD | 144Hz | Sem OS",
+      "right_url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5050-gaming-144hz"
     },
     {
       "fields": [],
@@ -119,6 +119,21 @@
       "right_url": "https://www.uptechbox.com/products/portatil-gaming-asus-tuf-gaming-16-intel-core-i7-14650hx-rtx-5060-8gb-16gb-ddr5-512gb-ssd-16fhd1920x1080-s-so"
     },
     {
+      "fields": [
+        "ecra_hz"
+      ],
+      "identifier": "04711636686594",
+      "identifier_type": "ean",
+      "left_store": "Globaldata",
+      "left_title": "Portátil ASUS TUF 16 FX610JH-74B55CS1 16\" i7-14650HX 16GB DDR5 512GB RTX 5050 144Hz",
+      "left_url": "https://www.globaldata.pt/portatil-asus-tuf-16-fx610jh-74b55cs1-16-i7-14650hx-16gb-ddr5-512gb-rtx-5050-144hz/90NR0QS1-M00130.html",
+      "level": "NAO_FUNDIR",
+      "reason": "identificador forte contradiz configuração técnica",
+      "right_store": "Novo Atalho",
+      "right_title": "Portátil Asus TUF Gaming 16 FX610JH-74B55CS1 16\" i7 16GB SSD 512GB RTX 5050 Cinza Escuro",
+      "right_url": "https://www.novoatalho.pt/port%C3%A1til-asus-tuf-gaming-16-fx610jh-74b55cs1-16-i7-16gb-ssd-512gb-rtx-5050-cinza-escuro-4711636686594-90nr0qs1-m00130"
+    },
+    {
       "fields": [],
       "identifier": null,
       "identifier_type": null,
@@ -159,34 +174,6 @@
       "stores": [
         "FNAC",
         "Globaldata"
-      ]
-    },
-    {
-      "best_price": 899.0,
-      "best_store": "Globaldata",
-      "configuration_key": "ean:4711636123570",
-      "offers": [
-        {
-          "loja": "Globaldata",
-          "price": 899.0,
-          "tier": "PRATA",
-          "titulo": "Portátil ASUS Expertbook B1 B1503 15.6\" Core 5 120U 16GB DDR5 512GB FHD W11 Pro",
-          "url": "https://www.globaldata.pt/portatil-asus-expertbook-b1-b1503-15.6-core-5-120u-16gb-ddr5-512gb-fhd-w11-pro/B1503CVA-54EHDPP2.html",
-          "value_score": 94.1
-        },
-        {
-          "loja": "UPTECHBOX",
-          "price": 899.99,
-          "tier": "PRATA",
-          "titulo": "Portátil Asus ExpertBook B1 - Intel Core 5 120U | 16GB DDR5 | 512GB SSD | 15.6\" FHD | Windows 11 Pro",
-          "url": "https://www.uptechbox.com/products/portatil-asus-expertbook-b1",
-          "value_score": 97.3
-        }
-      ],
-      "spread_eur": 0.99,
-      "stores": [
-        "Globaldata",
-        "UPTECHBOX"
       ]
     },
     {
@@ -246,8 +233,8 @@
       ]
     }
   ],
-  "exact_pairs": 4,
-  "generated_at": "2026-10-25T04:13:28.465850Z",
+  "exact_pairs": 3,
+  "generated_at": "2026-10-25T11:10:00.713868Z",
   "identities": [
     {
       "identity": "ean:0199275936708",
@@ -324,43 +311,6 @@
       ]
     },
     {
-      "identity": "ean:4711636123570",
-      "offers": [
-        {
-          "cpu": "core 5 120u",
-          "ean": "4711636123570",
-          "gpu": "integrada",
-          "mpn": "B1503CVA-54EHDPP2",
-          "price": 899.0,
-          "ram_gb": 16,
-          "refresh_hz": null,
-          "resolution": "fhd",
-          "storage_tb": 0.5,
-          "store": "Globaldata",
-          "title": "Portátil ASUS Expertbook B1 B1503 15.6\" Core 5 120U 16GB DDR5 512GB FHD W11 Pro",
-          "url": "https://www.globaldata.pt/portatil-asus-expertbook-b1-b1503-15.6-core-5-120u-16gb-ddr5-512gb-fhd-w11-pro/B1503CVA-54EHDPP2.html"
-        },
-        {
-          "cpu": "core 5 120u",
-          "ean": "4711636123570",
-          "gpu": "desconhecida",
-          "mpn": null,
-          "price": 899.99,
-          "ram_gb": 16,
-          "refresh_hz": null,
-          "resolution": "fhd",
-          "storage_tb": 0.5,
-          "store": "UPTECHBOX",
-          "title": "Portátil Asus ExpertBook B1 - Intel Core 5 120U | 16GB DDR5 | 512GB SSD | 15.6\" FHD | Windows 11 Pro",
-          "url": "https://www.uptechbox.com/products/portatil-asus-expertbook-b1"
-        }
-      ],
-      "stores": [
-        "Globaldata",
-        "UPTECHBOX"
-      ]
-    },
-    {
       "identity": "ean:4711636672511",
       "offers": [
         {
@@ -395,6 +345,43 @@
       "stores": [
         "Globaldata",
         "UPTECHBOX"
+      ]
+    },
+    {
+      "identity": "ean:4711636686594",
+      "offers": [
+        {
+          "cpu": "i7-14650hx",
+          "ean": "4711636686594",
+          "gpu": "rtx 5050",
+          "mpn": "90NR0QS1-M00130",
+          "price": 1199.0,
+          "ram_gb": 16,
+          "refresh_hz": 144,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "Globaldata",
+          "title": "Portátil ASUS TUF 16 FX610JH-74B55CS1 16\" i7-14650HX 16GB DDR5 512GB RTX 5050 144Hz",
+          "url": "https://www.globaldata.pt/portatil-asus-tuf-16-fx610jh-74b55cs1-16-i7-14650hx-16gb-ddr5-512gb-rtx-5050-144hz/90NR0QS1-M00130.html"
+        },
+        {
+          "cpu": "i7-14650hx",
+          "ean": "4711636686594",
+          "gpu": "rtx 5050",
+          "mpn": "90NR0QS1-M00130",
+          "price": 1199.9,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "Novo Atalho",
+          "title": "Portátil Asus TUF Gaming 16 FX610JH-74B55CS1 16\" i7 16GB SSD 512GB RTX 5050 Cinza Escuro",
+          "url": "https://www.novoatalho.pt/port%C3%A1til-asus-tuf-gaming-16-fx610jh-74b55cs1-16-i7-16gb-ssd-512gb-rtx-5050-cinza-escuro-4711636686594-90nr0qs1-m00130"
+        }
+      ],
+      "stores": [
+        "Globaldata",
+        "Novo Atalho"
       ]
     },
     {
@@ -615,28 +602,6 @@
       ],
       "stores": [
         "MEO"
-      ]
-    },
-    {
-      "identity": "cfg:portatil hp omnibook 3 15-fn0008np (15.6\" ryzen ai 5 ram:16gb 1tb)|hp|omnibook|ryzen ai 5 330|radeon 820m|ram:16|ssd:1.0|res:?|hz:?",
-      "offers": [
-        {
-          "cpu": "ryzen ai 5 330",
-          "ean": null,
-          "gpu": "radeon 820m",
-          "mpn": null,
-          "price": 799.99,
-          "ram_gb": 16,
-          "refresh_hz": null,
-          "resolution": null,
-          "storage_tb": 1.0,
-          "store": "Auchan",
-          "title": "portátil hp omnibook 3 15-fn0008np (15.6\" ryzen ai 5 ram:16gb 1tb)",
-          "url": "https://www.auchan.pt/pt/tecnologia/informatica/computadores-portateis/portatil-hp-omnibook-3-15-fn0008np-%2815.6-ryzen-ai-5-ram16gb-1tb%29/4014265.html"
-        }
-      ],
-      "stores": [
-        "Auchan"
       ]
     },
     {
@@ -1410,28 +1375,6 @@
       ]
     },
     {
-      "identity": "ean:0826581362135",
-      "offers": [
-        {
-          "cpu": "ryzen ai 5 340",
-          "ean": "0826581362135",
-          "gpu": "radeon 840m",
-          "mpn": null,
-          "price": 999.99,
-          "ram_gb": 16,
-          "refresh_hz": null,
-          "resolution": "fhd+",
-          "storage_tb": 0.5,
-          "store": "FNAC",
-          "title": "Computador Portátil HP OmniBook X Flip 2-in-1 Next Gen AI 14-fk0000npx | 14\" | AMD Ryzen™ AI 5 340 | 16GB | 512GB SSD",
-          "url": "https://www.fnac.pt/Computador-Portatil-HP-OmniBook-X-Flip-2-in-1-Next-Gen-AI-14-fk0000npx-14-AMD-Ryzen-AI-5-340-16GB-512GB-SSD-Computador-Portatil-Computador-Portatil/a14231861"
-        }
-      ],
-      "stores": [
-        "FNAC"
-      ]
-    },
-    {
       "identity": "ean:0828132836157",
       "offers": [
         {
@@ -1451,50 +1394,6 @@
       ],
       "stores": [
         "FNAC"
-      ]
-    },
-    {
-      "identity": "ean:196803654271",
-      "offers": [
-        {
-          "cpu": "ryzen 5 7520u",
-          "ean": "196803654271",
-          "gpu": "desconhecida",
-          "mpn": null,
-          "price": 829.99,
-          "ram_gb": 16,
-          "refresh_hz": null,
-          "resolution": "fhd",
-          "storage_tb": 0.5,
-          "store": "UPTECHBOX",
-          "title": "Portátil Lenovo V15 G4 AMN — AMD Ryzen 5 7520U | 16GB LPDDR5 | 512GB SSD | 15.6\"FHD | Windows 11 Pro",
-          "url": "https://www.uptechbox.com/products/portatil-lenovo-v15-g4-amn-amd-ryzen-5-7520u-16gb-lpddr5-512gb-ssd-15-6fhd-windows-11-pro"
-        }
-      ],
-      "stores": [
-        "UPTECHBOX"
-      ]
-    },
-    {
-      "identity": "ean:199272005919",
-      "offers": [
-        {
-          "cpu": null,
-          "ean": "199272005919",
-          "gpu": "desconhecida",
-          "mpn": null,
-          "price": 1029.9,
-          "ram_gb": null,
-          "refresh_hz": null,
-          "resolution": null,
-          "storage_tb": null,
-          "store": "UPTECHBOX",
-          "title": "Portátil Lenovo V15 G5 IRL",
-          "url": "https://www.uptechbox.com/products/lenovo-v15-g5"
-        }
-      ],
-      "stores": [
-        "UPTECHBOX"
       ]
     },
     {
@@ -1894,6 +1793,28 @@
       ]
     },
     {
+      "identity": "ean:4711636123570",
+      "offers": [
+        {
+          "cpu": "core 5 120u",
+          "ean": "4711636123570",
+          "gpu": "integrada",
+          "mpn": "B1503CVA-54EHDPP2",
+          "price": 899.0,
+          "ram_gb": 16,
+          "refresh_hz": null,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "Globaldata",
+          "title": "Portátil ASUS Expertbook B1 B1503 15.6\" Core 5 120U 16GB DDR5 512GB FHD W11 Pro",
+          "url": "https://www.globaldata.pt/portatil-asus-expertbook-b1-b1503-15.6-core-5-120u-16gb-ddr5-512gb-fhd-w11-pro/B1503CVA-54EHDPP2.html"
+        }
+      ],
+      "stores": [
+        "Globaldata"
+      ]
+    },
+    {
       "identity": "ean:4711636203623",
       "offers": [
         {
@@ -2268,6 +2189,28 @@
       ]
     },
     {
+      "identity": "ean:4711636620840",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "4711636620840",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 999.99,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "FNAC",
+          "title": "Computador Portátil Asus Vivobook 15 F1504MA-C53ALHDAB01 | 15,6'' | Intel® Core™ 5 320 | 16GB | 512GB SSD",
+          "url": "https://www.fnac.pt/ASUS-VB15-F1504MA-C5-16-512-SC-Computador-Portatil-Computador-Portatil/a14840277"
+        }
+      ],
+      "stores": [
+        "FNAC"
+      ]
+    },
+    {
       "identity": "ean:4711636629720",
       "offers": [
         {
@@ -2305,28 +2248,6 @@
           "store": "Globaldata",
           "title": "Portátil ASUS VivoBook F1607CA-U73BLHDAS02 16\"Ultra 7 255H 32GB 512GB FHD+ Intel Graphics (sem carregador)",
           "url": "https://www.globaldata.pt/portatil-asus-vivobook-f1607ca-u73blhdas02-16-ultra-7-255h-32gb-512gb-fhd-intel-graphics-sem-carregador/90NB15A1-M00SS0.html"
-        }
-      ],
-      "stores": [
-        "Globaldata"
-      ]
-    },
-    {
-      "identity": "ean:4711636686594",
-      "offers": [
-        {
-          "cpu": "i7-14650hx",
-          "ean": "4711636686594",
-          "gpu": "rtx 5050",
-          "mpn": "90NR0QS1-M00130",
-          "price": 1199.0,
-          "ram_gb": 16,
-          "refresh_hz": 144,
-          "resolution": "fhd+",
-          "storage_tb": 0.5,
-          "store": "Globaldata",
-          "title": "Portátil ASUS TUF 16 FX610JH-74B55CS1 16\" i7-14650HX 16GB DDR5 512GB RTX 5050 144Hz",
-          "url": "https://www.globaldata.pt/portatil-asus-tuf-16-fx610jh-74b55cs1-16-i7-14650hx-16gb-ddr5-512gb-rtx-5050-144hz/90NR0QS1-M00130.html"
         }
       ],
       "stores": [
@@ -2422,7 +2343,7 @@
       ]
     }
   ],
-  "identity_count": 96,
+  "identity_count": 93,
   "probable_pairs": 2,
   "probable_review": [
     {
@@ -2440,7 +2361,7 @@
       "right_url": "https://loja.meo.pt/comprar/pcs/lenovo/ideapad-slim-3-15iwc11-169-15-3-core-7-350-16gb-512gb"
     }
   ],
-  "records_considered": 100,
+  "records_considered": 97,
   "schema_version": 1,
   "source": "current_run_records",
   "strong_pairs": 0,
