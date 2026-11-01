@@ -1,5 +1,5 @@
 {
-  "conflicting_pairs": 9,
+  "conflicting_pairs": 10,
   "conflicts": [
     {
       "fields": [],
@@ -55,18 +55,18 @@
     },
     {
       "fields": [
-        "ecra_hz"
+        "cpu_modelo"
       ],
-      "identifier": "04711636686594",
+      "identifier": "00199276276148",
       "identifier_type": "ean",
-      "left_store": "Novo Atalho",
-      "left_title": "Portátil Asus TUF Gaming 16 FX610JH-74B55CS1 16\" i7 16GB SSD 512GB RTX 5050 Cinza Escuro",
-      "left_url": "https://www.novoatalho.pt/port%C3%A1til-asus-tuf-gaming-16-fx610jh-74b55cs1-16-i7-16gb-ssd-512gb-rtx-5050-cinza-escuro-4711636686594-90nr0qs1-m00130",
+      "left_store": "Globaldata",
+      "left_title": "Portátil Lenovo LOQ 15AHP9-148 15.6\" R7 7445HS 16GB DDR5 512GB RTX 3050 144Hz",
+      "left_url": "https://www.globaldata.pt/portatil-lenovo-loq-15ahp9-148-15.6-r7-7445hs-16gb-ddr5-512gb-rtx-3050-144hz/83DX00FKPG.html",
       "level": "NAO_FUNDIR",
       "reason": "identificador forte contradiz configuração técnica",
-      "right_store": "Globaldata",
-      "right_title": "Portátil ASUS TUF 16 FX610JH-74B55CS1 16\" i7-14650HX 16GB DDR5 512GB RTX 5050 144Hz",
-      "right_url": "https://www.globaldata.pt/portatil-asus-tuf-16-fx610jh-74b55cs1-16-i7-14650hx-16gb-ddr5-512gb-rtx-5050-144hz/90NR0QS1-M00130.html"
+      "right_store": "UPTECHBOX",
+      "right_title": "Portátil Gaming Lenovo LOQ 15AHP9 — Ryzen 7 7445HS + RTX 3050 6GB | 16GB DDR5 | 512GB SSD | 15.6\" 144Hz G-SYNC | Sem OS",
+      "right_url": "https://www.uptechbox.com/products/portatil-gaming-lenovo-loq-15ahp9-ryzen-7-7445hs-rtx-3050-6gb-16gb-ddr5-512gb-ssd-15-6-144hz-g-sync-sem-os"
     },
     {
       "fields": [],
@@ -119,9 +119,61 @@
       "right_store": "Globaldata",
       "right_title": "Portátil ASUS TUF F16 FX610JM-74B56CS1 16\" i7-14650HX 16GB DDR5 512GB RTX 5060 144Hz",
       "right_url": "https://www.globaldata.pt/portatil-asus-tuf-f16-fx610jm-74b56cs1-16-i7-14650hx-16gb-ddr5-512gb-rtx-5060-144hz/90NR0QT1-M000U0.html"
+    },
+    {
+      "fields": [
+        "ecra_hz"
+      ],
+      "identifier": "04711636686594",
+      "identifier_type": "ean",
+      "left_store": "Globaldata",
+      "left_title": "Portátil ASUS TUF 16 FX610JH-74B55CS1 16\" i7-14650HX 16GB DDR5 512GB RTX 5050 144Hz",
+      "left_url": "https://www.globaldata.pt/portatil-asus-tuf-16-fx610jh-74b55cs1-16-i7-14650hx-16gb-ddr5-512gb-rtx-5050-144hz/90NR0QS1-M00130.html",
+      "level": "NAO_FUNDIR",
+      "reason": "identificador forte contradiz configuração técnica",
+      "right_store": "Novo Atalho",
+      "right_title": "Portátil Asus TUF Gaming 16 FX610JH-74B55CS1 16\" i7 16GB SSD 512GB RTX 5050 Cinza Escuro",
+      "right_url": "https://www.novoatalho.pt/port%C3%A1til-asus-tuf-gaming-16-fx610jh-74b55cs1-16-i7-16gb-ssd-512gb-rtx-5050-cinza-escuro-4711636686594-90nr0qs1-m00130"
     }
   ],
   "cross_store_groups": [
+    {
+      "best_price": 1299.0,
+      "best_store": "Globaldata",
+      "configuration_key": "mpn:83jg00h2pg",
+      "offers": [
+        {
+          "loja": "Globaldata",
+          "price": 1299.0,
+          "tier": "PRATA",
+          "titulo": "Portátil Lenovo LOQ 15AHP10-348 15.6\" R7 250 16GB DDR5 512GB RTX 5050 FHD 144Hz",
+          "url": "https://www.globaldata.pt/83JG00H2PG.html",
+          "value_score": 96.6
+        },
+        {
+          "loja": "Novo Atalho",
+          "price": 1299.9,
+          "tier": "OURO",
+          "titulo": "Portátil Lenovo LOQ Gaming 15AHP10-348 15.6\" R7 16GB SSD 512GB RTX 5050 Cinza",
+          "url": "https://www.novoatalho.pt/port%C3%A1til-lenovo-loq-gaming-15ahp10-348-156-r7-16gb-ssd-512gb-rtx-5050-cinza-0199276818348-83jg00h2pg",
+          "value_score": 113.0
+        },
+        {
+          "loja": "UPTECHBOX",
+          "price": 1299.99,
+          "tier": "OURO",
+          "titulo": "Portatil Lenovo LOQ 15AHP10 - AMD Ryzen 7 250 + RTX 5050 | 16GB DDR5 | 512GB SSD | 15.6\"FHD | S/SO",
+          "url": "https://www.uptechbox.com/products/portatil-lenovo-loq-15ahp10-amd-ryzen-7-250-rtx-5050-16gb-ddr5-512gb-ssd-15-6fhd-s-so",
+          "value_score": 110.6
+        }
+      ],
+      "spread_eur": 0.99,
+      "stores": [
+        "Globaldata",
+        "Novo Atalho",
+        "UPTECHBOX"
+      ]
+    },
     {
       "best_price": 1399.0,
       "best_store": "Globaldata",
@@ -300,8 +352,8 @@
       ]
     }
   ],
-  "exact_pairs": 8,
-  "generated_at": "2026-10-31T21:23:28.490993Z",
+  "exact_pairs": 10,
+  "generated_at": "2026-11-01T05:31:49.566623Z",
   "identities": [
     {
       "identity": "ean:0199275936708",
@@ -385,20 +437,6 @@
           "ean": "0199276826244",
           "gpu": "rtx 5060",
           "mpn": "83JE01KTPG",
-          "price": 1399.9,
-          "ram_gb": 16,
-          "refresh_hz": 144,
-          "resolution": "fhd",
-          "storage_tb": 0.5,
-          "store": "Novo Atalho",
-          "title": "Portátil Lenovo LOQ Gaming 15IRX10-244 15.6\" i7 16GB SSD 512GB RTX 5060 Cinza",
-          "url": "https://www.novoatalho.pt/port%C3%A1til-lenovo-loq-gaming-15irx10-244-156-i7-16gb-ssd-512gb-rtx-5060-cinza-0199276826244-83je01ktpg"
-        },
-        {
-          "cpu": "i7-13645hx",
-          "ean": "0199276826244",
-          "gpu": "rtx 5060",
-          "mpn": "83JE01KTPG",
           "price": 1399.0,
           "ram_gb": 16,
           "refresh_hz": 144,
@@ -407,6 +445,20 @@
           "store": "Globaldata",
           "title": "Portátil Lenovo LOQ 15IRX10-244 15.6\" i7-13645HX 16GB DDR5 512GB RTX 5060 144Hz",
           "url": "https://www.globaldata.pt/portatil-lenovo-loq-15irx10-244-15.6-i7-13645hx-16gb-ddr5-512gb-rtx-5060-144hz/83JE01KTPG.html"
+        },
+        {
+          "cpu": "i7-13645hx",
+          "ean": "0199276826244",
+          "gpu": "rtx 5060",
+          "mpn": "83JE01KTPG",
+          "price": 1399.9,
+          "ram_gb": 16,
+          "refresh_hz": 144,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "Novo Atalho",
+          "title": "Portátil Lenovo LOQ Gaming 15IRX10-244 15.6\" i7 16GB SSD 512GB RTX 5060 Cinza",
+          "url": "https://www.novoatalho.pt/port%C3%A1til-lenovo-loq-gaming-15irx10-244-156-i7-16gb-ssd-512gb-rtx-5060-cinza-0199276826244-83je01ktpg"
         }
       ],
       "stores": [
@@ -533,20 +585,6 @@
           "ean": "4711636686594",
           "gpu": "rtx 5050",
           "mpn": "90NR0QS1-M00130",
-          "price": 1199.9,
-          "ram_gb": 16,
-          "refresh_hz": 60,
-          "resolution": "fhd+",
-          "storage_tb": 0.5,
-          "store": "Novo Atalho",
-          "title": "Portátil Asus TUF Gaming 16 FX610JH-74B55CS1 16\" i7 16GB SSD 512GB RTX 5050 Cinza Escuro",
-          "url": "https://www.novoatalho.pt/port%C3%A1til-asus-tuf-gaming-16-fx610jh-74b55cs1-16-i7-16gb-ssd-512gb-rtx-5050-cinza-escuro-4711636686594-90nr0qs1-m00130"
-        },
-        {
-          "cpu": "i7-14650hx",
-          "ean": "4711636686594",
-          "gpu": "rtx 5050",
-          "mpn": "90NR0QS1-M00130",
           "price": 1199.0,
           "ram_gb": 16,
           "refresh_hz": 144,
@@ -555,6 +593,20 @@
           "store": "Globaldata",
           "title": "Portátil ASUS TUF 16 FX610JH-74B55CS1 16\" i7-14650HX 16GB DDR5 512GB RTX 5050 144Hz",
           "url": "https://www.globaldata.pt/portatil-asus-tuf-16-fx610jh-74b55cs1-16-i7-14650hx-16gb-ddr5-512gb-rtx-5050-144hz/90NR0QS1-M00130.html"
+        },
+        {
+          "cpu": "i7-14650hx",
+          "ean": "4711636686594",
+          "gpu": "rtx 5050",
+          "mpn": "90NR0QS1-M00130",
+          "price": 1199.9,
+          "ram_gb": 16,
+          "refresh_hz": 60,
+          "resolution": "fhd+",
+          "storage_tb": 0.5,
+          "store": "Novo Atalho",
+          "title": "Portátil Asus TUF Gaming 16 FX610JH-74B55CS1 16\" i7 16GB SSD 512GB RTX 5050 Cinza Escuro",
+          "url": "https://www.novoatalho.pt/port%C3%A1til-asus-tuf-gaming-16-fx610jh-74b55cs1-16-i7-16gb-ssd-512gb-rtx-5050-cinza-escuro-4711636686594-90nr0qs1-m00130"
         }
       ],
       "stores": [
@@ -1157,6 +1209,28 @@
       ]
     },
     {
+      "identity": "ean:0199276818348",
+      "offers": [
+        {
+          "cpu": "ryzen 7 250",
+          "ean": "0199276818348",
+          "gpu": "rtx 5050",
+          "mpn": "83JG00H2PG",
+          "price": 1299.9,
+          "ram_gb": 16,
+          "refresh_hz": 144,
+          "resolution": "fhd",
+          "storage_tb": 0.5,
+          "store": "Novo Atalho",
+          "title": "Portátil Lenovo LOQ Gaming 15AHP10-348 15.6\" R7 16GB SSD 512GB RTX 5050 Cinza",
+          "url": "https://www.novoatalho.pt/port%C3%A1til-lenovo-loq-gaming-15ahp10-348-156-r7-16gb-ssd-512gb-rtx-5050-cinza-0199276818348-83jg00h2pg"
+        }
+      ],
+      "stores": [
+        "Novo Atalho"
+      ]
+    },
+    {
       "identity": "ean:0199276819635",
       "offers": [
         {
@@ -1546,6 +1620,28 @@
           "store": "UPTECHBOX",
           "title": "Portátil Gaming Lenovo LOQ Essential 15ARP11 — Ryzen 7 170 + RTX 5050 8GB GDDR7 | 16GB DDR5 | 512GB SSD | 144Hz | Sem OS",
           "url": "https://www.uptechbox.com/products/lenovo-loq-essential-15arp11-ryzen-7-170-rtx-5050-gaming-144hz"
+        }
+      ],
+      "stores": [
+        "UPTECHBOX"
+      ]
+    },
+    {
+      "identity": "ean:199276276148",
+      "offers": [
+        {
+          "cpu": "ryzen 7 7445hs",
+          "ean": "199276276148",
+          "gpu": "rtx 3050",
+          "mpn": null,
+          "price": 1199.99,
+          "ram_gb": 16,
+          "refresh_hz": 144,
+          "resolution": null,
+          "storage_tb": 0.5,
+          "store": "UPTECHBOX",
+          "title": "Portátil Gaming Lenovo LOQ 15AHP9 — Ryzen 7 7445HS + RTX 3050 6GB | 16GB DDR5 | 512GB SSD | 15.6\" 144Hz G-SYNC | Sem OS",
+          "url": "https://www.uptechbox.com/products/portatil-gaming-lenovo-loq-15ahp9-ryzen-7-7445hs-rtx-3050-6gb-16gb-ddr5-512gb-ssd-15-6-144hz-g-sync-sem-os"
         }
       ],
       "stores": [
@@ -2345,6 +2441,50 @@
       ]
     },
     {
+      "identity": "ean:4711721112298",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "4711721112298",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 449.99,
+          "ram_gb": 128,
+          "refresh_hz": null,
+          "resolution": null,
+          "storage_tb": 0.12,
+          "store": "Radio Popular",
+          "title": "PC PORTÁTIL ACER CB514-3HR5L5-298 (AMD Ryzen 5, 128 GB, 8 GB, AMD Radeon Graphics, Chrome OS)",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-acer-cb514-3hr5l5-298"
+        }
+      ],
+      "stores": [
+        "Radio Popular"
+      ]
+    },
+    {
+      "identity": "ean:4711721112304",
+      "offers": [
+        {
+          "cpu": null,
+          "ean": "4711721112304",
+          "gpu": "integrada",
+          "mpn": null,
+          "price": 349.99,
+          "ram_gb": 128,
+          "refresh_hz": null,
+          "resolution": null,
+          "storage_tb": 0.12,
+          "store": "Radio Popular",
+          "title": "PC PORTÁTIL ACER CB315-7H-C9MK-304 (Intel Serie N, 128 GB, 8 GB, Intel UHD Graphics, Chrome OS)",
+          "url": "https://www.radiopopular.pt/produto/pc-portatil-acer-cb315-7h-c9mk-304"
+        }
+      ],
+      "stores": [
+        "Radio Popular"
+      ]
+    },
+    {
       "identity": "ean:4719331764500",
       "offers": [
         {
@@ -2433,7 +2573,7 @@
       ]
     }
   ],
-  "identity_count": 92,
+  "identity_count": 96,
   "probable_pairs": 4,
   "probable_review": [
     {
@@ -2465,7 +2605,7 @@
       "right_url": "https://loja.meo.pt/comprar/pcs/lenovo/ideapad-slim-3-15iwc11-169-15-3-core-7-350-16gb-512gb"
     }
   ],
-  "records_considered": 99,
+  "records_considered": 103,
   "schema_version": 1,
   "source": "current_run_records",
   "strong_pairs": 0,
