@@ -9,7 +9,6 @@ from version import STATE_EPOCH, VERSION
 
 ROOT = Path(__file__).resolve().parent.parent
 PRICE_HISTORY_PATH = ROOT / "data" / "price_history.json"
-TOP5_PATH = ROOT / "data" / "top5_current.json"
 EPOCH_PATH = ROOT / "data" / "state_epoch.json"
 _REFRESH_ACTIVE = False
 
@@ -39,21 +38,6 @@ def _reset_price_history() -> None:
     _save(
         PRICE_HISTORY_PATH,
         {"schema_version": 1, "updated_at": None, "identities": {}},
-    )
-
-
-def _reset_top5() -> None:
-    _save(
-        TOP5_PATH,
-        {
-            "schema_version": 1,
-            "state_epoch": STATE_EPOCH,
-            "tracker_version": VERSION,
-            "generated_at": None,
-            "ttl_hours": None,
-            "items": [],
-            "notification_campaigns": {},
-        },
     )
 
 
@@ -137,8 +121,7 @@ def install(tracker_module) -> None:
                 history, item, spec, assessment, tier, previous, alert_key, settings
             )
         # Durante refresh não enviamos a cascata de "primeira oportunidade". O
-        # estado fica semeado para as runs seguintes e o Top5 Guard envia apenas
-        # as notificações configuradas para a campanha atual.
+        # estado fica semeado para as runs seguintes.
         if (
             tier
             and item.get("stock") is not False
@@ -180,7 +163,6 @@ def install(tracker_module) -> None:
                 STATE_EPOCH,
             )
             _reset_price_history()
-            _reset_top5()
             _REFRESH_ACTIVE = True
         try:
             run = base_main()

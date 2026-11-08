@@ -61,9 +61,9 @@ Aprendizagem por loja/método/perfil: tentativas, sucessos, bloqueios, erros e r
 
 Histórico diário compacto a 90 dias por EAN/MPN ou URL local quando falta identidade forte.
 
-### `data/top5_current.json`
+### `data/matching_state.json`
 
-Snapshot agregado das melhores configurações atuais ainda frescas.
+Estado derivado do matching cross-store da última execução.
 
 ### `data/state_epoch.json`
 

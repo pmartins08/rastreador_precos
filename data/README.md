@@ -22,10 +22,6 @@ Estado **derivado** do matching da run atual. Guarda as identidades observadas, 
 
 Um EAN/MPN repetido não pode fundir nem confirmar preços entre ofertas quando CPU, GPU, RAM, armazenamento, resolução ou refresh conhecidos se contradizem.
 
-### `top5_current.json`
-
-Snapshot agregado das cinco melhores configurações atuais conhecidas dentro do TTL configurado, deduplicadas por identidade/configuração.
-
 ### `state_epoch.json`
 
 Identifica a geração do estado persistente. Só muda quando existe uma migração/refresh deliberado; uma simples atualização de versão ou reorganização de código não deve reiniciar o histórico.

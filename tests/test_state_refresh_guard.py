@@ -17,11 +17,9 @@ class StateRefreshGuardTests(unittest.TestCase):
             root = Path(temp)
             old_paths = (
                 state_refresh_guard.PRICE_HISTORY_PATH,
-                state_refresh_guard.TOP5_PATH,
                 state_refresh_guard.EPOCH_PATH,
             )
             state_refresh_guard.PRICE_HISTORY_PATH = root / "price_history.json"
-            state_refresh_guard.TOP5_PATH = root / "top5_current.json"
             state_refresh_guard.EPOCH_PATH = root / "state_epoch.json"
             try:
                 history_path = root / "history.json"
@@ -110,7 +108,6 @@ class StateRefreshGuardTests(unittest.TestCase):
             finally:
                 (
                     state_refresh_guard.PRICE_HISTORY_PATH,
-                    state_refresh_guard.TOP5_PATH,
                     state_refresh_guard.EPOCH_PATH,
                 ) = old_paths
 

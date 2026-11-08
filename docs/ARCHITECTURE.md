@@ -21,7 +21,7 @@ scoring técnico + Value
         ↓
 tier + matching cross-store
         ↓
-histórico / Top 5
+histórico
         ↓
 ntfy + persistência
 ```
@@ -90,7 +90,6 @@ Fonte única da versão pública e da compatibilidade de estado. `VERSION` pode 
 ### Estado e observabilidade
 
 - `state_refresh_guard.py` — separa gerações de estado persistente quando o `STATE_EPOCH` muda.
-- `top5_guard.py` — mantém o Top 5 atual agregado a partir de observações frescas.
 - `rejection_guard.py` — classifica motivos de rejeição para telemetria.
 - `version_guard.py` — compatibilidade temporária entre os labels históricos ainda existentes no tracker base e a versão pública única definida em `version.py`.
 
@@ -109,8 +108,7 @@ A ordem em `runner.py` é intencional. Em termos funcionais:
 9. estado e descoberta complementar;
 10. cobertura e estratégia de sitemap;
 11. prioridade de mudanças de preço;
-12. telemetria de rejeições;
-13. Top 5.
+12. telemetria de rejeições e disponibilidade.
 
 Mudar esta ordem pode alterar os wrappers instalados por uma camada e deve ser tratado como mudança arquitetural.
 
@@ -130,7 +128,7 @@ Confirmação de preço cross-store exige identidade forte. Sem essa evidência,
 - `data/history.json` — ofertas, specs, alertas e runs recentes;
 - `data/access_learning.json` — aprendizagem de acesso e rendimento;
 - `data/price_history.json` — histórico diário compacto;
-- `data/top5_current.json` — snapshot agregado das melhores configurações atuais;
+- `data/matching_state.json` — estado derivado do matching cross-store;
 - `data/state_epoch.json` — geração do estado persistente.
 
 Os módulos movidos para `src/` resolvem estes caminhos a partir da raiz do projeto, para a reorganização não alterar o estado nem criar ficheiros duplicados.

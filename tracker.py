@@ -730,14 +730,6 @@ def jsonld_primary_product(soup: BeautifulSoup, page_url: str = "", title_hint: 
     return next((product for product in products if product.get("preco") is not None), products[0])
 
 
-def jsonld_price_title(soup: BeautifulSoup) -> tuple[float | None, str | None]:
-    product = jsonld_primary_product(soup)
-    if not product:
-        return None, None
-    price = product.get("preco")
-    return (float(price) if price is not None else None), product.get("titulo")
-
-
 def gtin_valid(value: object) -> bool:
     digits = re.sub(r"\D", "", str(value or ""))
     if len(digits) not in {8, 12, 13, 14}:
