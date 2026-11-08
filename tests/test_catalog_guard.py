@@ -365,6 +365,24 @@ class CatalogGuardTests(unittest.TestCase):
         self.assertGreater(module.candidate_priority(row, {}, {}), 20.0)
         self.assertTrue(module.needs_price_refresh({}, row, {}))
 
+    def test_strong_catalog_candidate_beats_global_price_change_refresh_priority(self):
+        module = self._module({"products": [{
+            "title": "Portátil Gaming Lenovo LOQ RTX 5060 8GB | 32GB DDR5 | 1TB SSD",
+            "handle": "loq-15irx10-309",
+            "variants": [{"price": "1299.99", "available": True}],
+        }]})
+        # O refresh de preço global pode acrescentar +500, e o fallback
+        # histórico mais +250. Esta oportunidade precisa de um lugar entre
+        # apenas 12 confirmações, mesmo quando há muitas mudanças noutras lojas.
+        module.candidate_priority = lambda item, weights, settings: 300.0
+        module.score_allow_unknown = lambda spec, price, weights, settings: {
+            "status": "ACEITE", "value_score": 110.0,
+        }
+        catalog_guard.install(module)
+        rows, _ = module.scan_store(self._cat(catalog_json_below=1), {"weights": {}}, {})
+        self.assertGreater(module.candidate_priority(rows[0], {}, {}), 850.0)
+        self.assertTrue(module.needs_price_refresh({}, rows[0], {}))
+
     def test_fresh_catalog_confirmation_does_not_reenter_refresh(self):
         module = self._module({})
         module.reusable_price_evidence = Mock(side_effect=AssertionError("recursive callback"))
