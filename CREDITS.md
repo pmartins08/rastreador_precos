@@ -17,12 +17,10 @@ Co-desenvolvimento técnico assistido ao longo da evolução do projeto, incluin
 - análise de GitHub Actions, logs e métricas;
 - calibração de Value/tiers e validação das oportunidades;
 - documentação técnica e história do projeto;
-- comparação final dos candidatos e apoio à decisão do Lenovo Legion 5.
+- comparação final dos candidatos e apoio à decisão de compra do ASUS TUF A16.
 
 ## Resultado
 
-A primeira grande etapa do **LapIntel PT** foi concluída em setembro de 2026 na linha **V8.8.9**.
-
-A run final validada passou 325 testes, descobriu 356 candidatos, avaliou 300 e aceitou 230. Entre as oportunidades finais surgiram três Diamantes, tendo sido escolhido o **Lenovo Legion 5 15AHP-682** com Value 123,6.
+O ciclo principal do **LapIntel PT** começou com o fecho da linha **V8.8.9** (onde o motor destacou três candidatos Diamante entre o Lenovo Legion 5 e duas variantes do ASUS TUF A16) e culminou em outubro de 2026 na **V9.0.0-beta.12** com a compra real do **ASUS TUF A16 na Worten**, passando depois para manutenção silenciosa.
 
 > Um projeto construído em conjunto, iterado contra dados reais e concluído com uma decisão real.

@@ -278,7 +278,7 @@ O nome **LapIntel PT — Laptop Market Intelligence Engine** representa melhor a
 - aprende a observar melhor;
 - explica decisões.
 
-O repositório nasceu como `rastreador_precos`; a identidade do produto passa a ser **LapIntel PT**.
+O repositório nasceu como `rastreador_precos` e passou a `lapintel`; a identidade do produto é **LapIntel PT**.
 
 ## 15. V9 — o próximo capítulo, não uma condição de sucesso
 
@@ -311,4 +311,4 @@ Co-desenvolvimento técnico assistido: arquitetura, implementação, debugging, 
 
 ## Fecho real — outubro de 2026
 
-A beta.12 consolidou as pendências de Value, custo total e notificações. O desenvolvimento ativo fica em pausa, com histórico preservado e monitorização apenas para Diamantes. Detalhes em [CLOSEOUT.md](CLOSEOUT.md).
+Enquanto a análise da V8.8.9 destacou o Lenovo Legion 5 e duas variantes do ASUS TUF A16 na Rádio Popular, o desfecho real da compra concretizou-se na V9 com o **ASUS TUF A16 adquirido na Worten**. A beta.12 consolidou as pendências de Value, custo total e notificações, deixando o desenvolvimento ativo em pausa, o histórico preservado e a monitorização limitada a oportunidades Diamante. Detalhes em [CLOSEOUT.md](CLOSEOUT.md).

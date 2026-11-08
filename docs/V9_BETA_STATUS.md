@@ -14,7 +14,7 @@ Versão desta revisão: **9.0.0-beta.11**. Preserva os pesos das quatro dimensõ
 
 ## Validação beta.11
 
-PR [#65](https://github.com/pmartins08/rastreador_precos/pull/65) integrada no commit `827ff76a`. CI: **421 testes**, sintaxe, configuração e auditorias passaram. Run [36842551276](https://github.com/pmartins08/rastreador_precos/actions/runs/36842551276), concluída com sucesso: 358 candidatos, 300 avaliações, 130 aceites no pipeline, 161 requests, 60 detalhes e 213,45 segundos. E2E passou; a publicação e heartbeat NTFY foram confirmados.
+PR [#65](https://github.com/pmartins08/lapintel/pull/65) integrada no commit `827ff76a`. CI: **421 testes**, sintaxe, configuração e auditorias passaram. Run [36842551276](https://github.com/pmartins08/lapintel/actions/runs/36842551276), concluída com sucesso: 358 candidatos, 300 avaliações, 130 aceites no pipeline, 161 requests, 60 detalhes e 213,45 segundos. E2E passou; a publicação e heartbeat NTFY foram confirmados.
 
 Darty: 65 candidatos, 47 avaliações, **zero aceites**; as 47 rejeições registam `availability_not_eligible`. O Acer ANV15-52-923W não aparece no ranking nem no snapshot de oportunidades desta run, nem recebeu nova notificação. Isto não declara todo o catálogo sem stock: a ficha pública não confirmou disponibilidade elegível, e o stock agregado não substitui essa confirmação. Onze probes persistiram sete estados por confirmar e quatro sem stock; o Acer ficou por confirmar, sem nova prova de entrega.
 
@@ -24,7 +24,7 @@ Orçamento soft 1.400 € / hard 1.600 €, integrado pela PR #61. A PR #62 acre
 
 ## Validação live da expansão
 
-Run [36836800757](https://github.com/pmartins08/rastreador_precos/actions/runs/36836800757), commit `e8767bb9`, concluída com sucesso em 01/10/2026. Consulta: 518,14 s; 334 candidatos, 300 avaliados, 194 aceites, 254 requests, 137 detalhes live e 165 reutilizações de cache. E2E passou. Distribuição: 1 Diamante, 9 Ouros, 124 Pratas e 59 Bronzes; um aceite ficou sem tier, produzindo aviso de contagem (194 vs. 193), que não deve ser confundido com falha de execução.
+Run [36836800757](https://github.com/pmartins08/lapintel/actions/runs/36836800757), commit `e8767bb9`, concluída com sucesso em 01/10/2026. Consulta: 518,14 s; 334 candidatos, 300 avaliados, 194 aceites, 254 requests, 137 detalhes live e 165 reutilizações de cache. E2E passou. Distribuição: 1 Diamante, 9 Ouros, 124 Pratas e 59 Bronzes; um aceite ficou sem tier, produzindo aviso de contagem (194 vs. 193), que não deve ser confundido com falha de execução.
 
 | Nova loja | Candidatos | Avaliados | Aceites | Estado nesta run |
 |---|---:|---:|---:|---|

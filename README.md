@@ -2,8 +2,8 @@
 
 **Inteligência de mercado para escolher um portátil em Portugal.**
 
-[![CI](https://github.com/pmartins08/rastreador_precos/actions/workflows/ci.yml/badge.svg)](https://github.com/pmartins08/rastreador_precos/actions/workflows/ci.yml)
-[![Monitorização](https://github.com/pmartins08/rastreador_precos/actions/workflows/tracker.yml/badge.svg)](https://github.com/pmartins08/rastreador_precos/actions/workflows/tracker.yml)
+[![CI](https://github.com/pmartins08/lapintel/actions/workflows/ci.yml/badge.svg)](https://github.com/pmartins08/lapintel/actions/workflows/ci.yml)
+[![Monitorização](https://github.com/pmartins08/lapintel/actions/workflows/tracker.yml/badge.svg)](https://github.com/pmartins08/lapintel/actions/workflows/tracker.yml)
 
 Descobre ofertas, confirma preço e disponibilidade, identifica configurações entre lojas e calcula um Value adaptado a universidade, engenharia e gaming.
 
