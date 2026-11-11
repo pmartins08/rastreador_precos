@@ -534,9 +534,7 @@ class TrackerTests(unittest.TestCase):
         self.assertFalse(tracker.needs_identity_refresh({"url": "x", "ean": "4711636176743"}))
         self.assertFalse(tracker.needs_identity_refresh({"url": "x", "identity_checked_at": "2026-09-08T00:00:00Z"}))
 
-    def test_identity_refresh_triggers_when_core_specs_incomplete(self):
-        incomplete_specs = {"specs": {"cpu_modelo": "i7-13620H"}}
-        self.assertTrue(tracker.needs_identity_refresh(incomplete_specs))
+    def test_identity_refresh_reopens_missing_os_status(self):
         missing_os = {
             "ean": "4711636176743",
             "specs": {"cpu_modelo": "i7", "ram_gb": 16, "armazenamento_tb": 1.0},

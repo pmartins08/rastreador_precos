@@ -1565,12 +1565,8 @@ def needs_identity_refresh(previous_meta: dict | None) -> bool:
     if not isinstance(previous_meta, dict) or not previous_meta:
         return False
     specs = previous_meta.get("specs")
-    if isinstance(specs, dict) and specs:
-        if "os_status" not in specs:
-            return True
-        core_fields = ("cpu_modelo", "ram_gb", "armazenamento_tb")
-        if sum(1 for field in core_fields if specs.get(field)) < 2:
-            return True
+    if isinstance(specs, dict) and specs and "os_status" not in specs:
+        return True
     if previous_meta.get("ean") or previous_meta.get("mpn"):
         return False
     return not bool(previous_meta.get("identity_checked_at"))
