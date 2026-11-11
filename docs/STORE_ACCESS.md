@@ -2,18 +2,26 @@
 
 ## Estado verificado
 
-Base: `3ca7fbd`, V8.8.9. A run de produção #198 passou 187 testes.
-Darty: 86 candidatos, 41 aceites, 60 pedidos (limite por loja).
-CHIP7, PcComponentes e Worten: zero candidatos, HTTP 403.
+Base: `9.0.0-beta.12` / preparação para versão final estável `9.0.0`.
+Lojas ativas com recolha live e cache operacional:
+- `FNAC`, `Globaldata`, `MEO`, `UPTECHBOX`, `Tek4life`, `Auchan`, `Clickfiel`, `Radio Popular` e `Darty`.
 
-O diagnóstico #34656935468 voltou a verificar as lojas no GitHub Actions.
-CHIP7 e PcComponentes recusaram categoria e robots com 403. Worten recusou
-a categoria, mas disponibilizou robots. O diagnóstico #34657188358 confirmou
-também 403 nas homepages CHIP7/PcComponentes; o índice e um sitemap Worten
-responderam 200. Um sitemap dá URLs, não confirmação atual de preços/stock.
+Lojas bloqueadas por WAF/Cloudflare no GitHub Actions:
+- `PCDiga`, `PcComponentes`, `CHIP7`, `Worten` e `You Get` (esta última com 100% de bloqueio Cloudflare na categoria e paginação).
 
-A integração Awin existente reporta `not_configured` nas lojas bloqueadas.
-Não confundir a existência do código com um feed autorizado operacional.
+O suporte a feeds de afiliados Awin permanece implementado e preparado para ativação automática assim que a variável de ambiente `AWIN_DATAFEED_API_KEY` for fornecida.
+
+### Resolução de gargalos de disponibilidade e cache (9.0.0)
+
+1. **TTL de Disponibilidade (6h) vs. Cache de Hardware (24h)**:
+   - Em lojas onde os cartões de listagem não trazem texto explícito de stock (`Auchan`, `Clickfiel`, `Radio Popular`) e em `Darty`, a expiração de 6h do registo de disponibilidade em `access_learning.json` causava a rejeição por `availability_not_eligible` de ofertas servidas da cache de hardware.
+   - O `availability_guard.py` passou a forçar revalidação live quando a disponibilidade de 6h expira para estas lojas, sem consumir slots desnecessários em lojas que já trazem stock explícito no cartão (`FNAC`, `Globaldata`).
+2. **Quota de Refreshes de Preço**:
+   - `max_price_refreshes_per_run` aumentado de 12 para 48 em `config/config.json`, permitindo refrescar até 48 ofertas voláteis em cada run e desbloqueando ofertas que exigiam confirmação de preço live em `Tek4life` e `UPTECHBOX`.
+3. **Reabertura Gradual de Fichas sem `os_status`**:
+   - `needs_identity_refresh` reabre gradualmente entradas da cache anteriores a `9.0.0-beta.12` que ainda não tenham `os_status` verificado, usando a quota existente de refreshes de identidade (`12`/run).
+4. **Enriquecimento Oficial de Fabricante**:
+   - Ativado o enriquecimento oficial via `Lenovo PSREF` e `HP Support` (`manufacturer_enrichment_enabled: true`, máx. 8/run, máx. 4/marca) para preencher metadados técnicos de hardware com base em identificadores exatos (EAN/MPN).
 
 ## Darty
 

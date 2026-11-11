@@ -96,3 +96,16 @@ assert scraper.tier_from_value(120,settings)=='DIAMANTE'
         settings = json.loads(Path('config/config.json').read_text())['settings']
         self.assertFalse(settings['heartbeat_ntfy'])
         self.assertEqual(settings['alerta_min_tier'], 'DIAMANTE')
+
+    def test_needs_identity_refresh_reopens_legacy_cache_missing_os_status(self):
+        import tracker
+        entry = {
+            "tracker_version": "9.0.0-beta.11",
+            "ean": "1234567890128",
+            "identity_checked_at": "2026-10-01T00:00:00Z",
+            "specs": {"ram_gb": 16},
+        }
+        self.assertTrue(tracker.needs_identity_refresh(entry))
+        self.assertFalse(tracker.needs_identity_refresh({**entry, "specs": {"ram_gb": 16, "os_status": "windows"}}))
+        self.assertFalse(tracker.needs_identity_refresh({**entry, "specs": {"ram_gb": 16, "os_status": "unknown"}}))
+

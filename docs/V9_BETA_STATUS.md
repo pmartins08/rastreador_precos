@@ -1,8 +1,15 @@
-# Estado atual — beta.12 em manutenção silenciosa
+# Estado atual — ciclo beta.12 e preparação para 9.0.0 estável
 
-Ciclo de desenvolvimento concluído. NTFY apenas Diamante; heartbeat desligado. Monitorização a cada seis horas. Ver [fecho e pendências](CLOSEOUT.md) para mudanças e limitações desta revisão.
+Ciclo de desenvolvimento concluído. Manutenção de qualidade de dados, sincronização de cache/disponibilidade e preparação para a versão estável 9.0.0. NTFY apenas Diamante; heartbeat desligado. Monitorização a cada seis horas. Ver [fecho e pendências](CLOSEOUT.md) para mudanças e limitações desta revisão.
 
 As métricas abaixo são **referências históricas**, não resultados da beta.12 nem prova de stock atual.
+
+### Melhorias chave introduzidas na fase de fecho:
+- **Disponibilidade e Refresh sincronizados**: `availability_guard` agenda live refresh assim que o TTL de disponibilidade (6h) expira em lojas sem stock explícito em cartão (`Auchan`, `Clickfiel`, `Radio Popular`, `Darty`), eliminando as falsas rejeições de `availability_not_eligible`.
+- **Refreshes de Preço alargados**: Quota de revalidação de preço live por execução aumentada de 12 para 48 em `config/config.json`.
+- **Revalidação gradual de OS**: Fichas históricas sem `os_status` em cache são gradualmente reabertas via `needs_identity_refresh`.
+- **Enriquecimento oficial ativo**: `Lenovo PSREF` e `HP Support` ativados com quota controlada (8/run) para complementar especificações oficiais com identificadores fortes.
+- **Transição V10**: Especificada arquitetura multi-agente em [FUTURE_V10_ROADMAP.md](FUTURE_V10_ROADMAP.md) e protótipo executável com Google Antigravity SDK em `scripts/v10_agent_prototype.py`.
 
 ---
 

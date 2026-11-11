@@ -70,10 +70,11 @@ def install(tracker):
     def select_offers(items, spec_cache, limit, weights, settings):
         selected = select(items, spec_cache, limit, weights, settings)
         reserved = 0
+        probe_limit = int(settings.get('darty_availability_probe_limit', 16))
         # Darty's aggregate available=true includes collection in distant stores.
         # Probe before trusting it; preserve a bounded route for cached products.
         for item in selected:
-            if item.get('loja') == 'Darty' and not fresh(cached(item), settings) and item.get('url') in spec_cache and reserved < 6:
+            if item.get('loja') == 'Darty' and not fresh(cached(item), settings) and item.get('url') in spec_cache and reserved < probe_limit:
                 spec_cache.pop(item['url'], None)
                 item.pop('specs', None)
                 reserved += 1
@@ -111,7 +112,13 @@ def install(tracker):
         return previous, key
 
     def needs_refresh(previous, item, settings, **kwargs):
-        return (item.get('loja') == 'Darty' and not fresh(cached(item), settings)) or needs(previous, item, settings, **kwargs)
+        needs_avail = bool(
+            item.get('url')
+            and item.get('stock') is not False
+            and (item.get('loja') == 'Darty' or item.get('stock') is not True)
+            and not fresh(cached(item), settings)
+        )
+        return needs_avail or needs(previous, item, settings, **kwargs)
 
     tracker.adaptive_fetch, tracker.enrich = adaptive_fetch, enrich_offer
     tracker.select_with_cache, tracker.apply_exact_market_price_evidence = select_offers, apply_market

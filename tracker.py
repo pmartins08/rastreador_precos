@@ -1561,9 +1561,12 @@ def latest_offer_by_url(history: dict) -> dict[str, dict]:
 
 
 def needs_identity_refresh(previous_meta: dict | None) -> bool:
-    """Uma ficha cached só é reaberta se ainda não tiver ID forte nem tiver sido verificada para identidade."""
+    """Uma ficha cached só é reaberta se ainda não tiver ID forte/OS nem tiver sido verificada para identidade."""
     if not isinstance(previous_meta, dict) or not previous_meta:
         return False
+    specs = previous_meta.get("specs")
+    if isinstance(specs, dict) and specs and "os_status" not in specs:
+        return True
     if previous_meta.get("ean") or previous_meta.get("mpn"):
         return False
     return not bool(previous_meta.get("identity_checked_at"))

@@ -1,10 +1,11 @@
 import subprocess
 import sys
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 import unicodedata
-from availability_guard import availability
+from availability_guard import availability, install
 
 
 class AvailabilityTests(unittest.TestCase):
@@ -64,3 +65,34 @@ assert scores[1].get('brain_policy'),scores
 '''
         result = subprocess.run([sys.executable,'-c',code], cwd=Path(__file__).resolve().parents[1], capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+    def test_needs_price_refresh_triggers_for_any_store_when_availability_stale(self):
+        buckets = {}
+        fake_tracker = SimpleNamespace(
+            adaptive_fetch=lambda *a, **k: (None, None, None),
+            enrich=lambda item, cfg: (item, {}),
+            select_with_cache=lambda items, *a: items,
+            apply_exact_market_price_evidence=lambda records, settings: records,
+            score_allow_unknown=lambda spec, *a: {'status': 'ACEITE'},
+            record_offer=lambda history, *a: (None, 'k'),
+            needs_price_refresh=lambda prev, item, settings, **k: False,
+            bucket=lambda store: buckets.setdefault(store, {}),
+        )
+        install(fake_tracker)
+        now = datetime.now(timezone.utc)
+        fresh_ts = (now - timedelta(hours=1)).isoformat()
+        stale_ts = (now - timedelta(hours=8)).isoformat()
+        settings = {'availability_ttl_hours': 6}
+        for store in ('Auchan', 'Clickfiel', 'Darty'):
+            url = f'https://example.com/{store.lower()}/1'
+            stock_val = True if store == 'Darty' else None
+            item = {'loja': store, 'url': url, 'stock': stock_val}
+            self.assertTrue(fake_tracker.needs_price_refresh(None, item, settings))
+            buckets[store] = {'availability_by_url': {url: {'checked_at': stale_ts, 'eligible': True}}}
+            self.assertTrue(fake_tracker.needs_price_refresh(None, item, settings))
+            buckets[store] = {'availability_by_url': {url: {'checked_at': fresh_ts, 'eligible': True}}}
+            self.assertFalse(fake_tracker.needs_price_refresh(None, item, settings))
+            buckets[store] = {'availability_by_url': {url: {'checked_at': stale_ts, 'eligible': False}}}
+            self.assertFalse(fake_tracker.needs_price_refresh(None, {'loja': store, 'url': url, 'stock': False}, settings))
+        # Stores whose listing card already confirms stock=True do not burn refresh slots unnecessarily
+        self.assertFalse(fake_tracker.needs_price_refresh(None, {'loja': 'FNAC', 'url': 'https://example.com/fnac/1', 'stock': True}, settings))

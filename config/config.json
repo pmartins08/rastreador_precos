@@ -34,15 +34,16 @@
     "exceptional_deal_bonus_max": 0.0,
     "price_confirmation_tolerance_eur": 5.0,
     "price_confirmation_tolerance_pct": 1.5,
-    "max_price_refreshes_per_run": 12,
+    "max_price_refreshes_per_run": 48,
     "price_confirmation_ttl_hours": 24,
     "promotion_candidate_priority_bonus": 6.0,
     "promotion_economic_priority_bonus_max": 18.0,
     "promotion_alert_min_eur": 25.0,
     "max_promotion_alerts_per_run": 5,
     "coverage_force_refresh_priority_bonus": 250.0,
-    "manufacturer_enrichment_enabled": false,
-    "manufacturer_enrichment_max_per_run": 0
+    "manufacturer_enrichment_enabled": true,
+    "manufacturer_enrichment_max_per_run": 8,
+    "manufacturer_enrichment_max_per_brand": 4
   },
   "weights": {
     "gpu_base": {
