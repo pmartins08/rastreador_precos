@@ -1565,8 +1565,12 @@ def needs_identity_refresh(previous_meta: dict | None) -> bool:
     if not isinstance(previous_meta, dict) or not previous_meta:
         return False
     specs = previous_meta.get("specs")
-    if isinstance(specs, dict) and specs and "os_status" not in specs:
-        return True
+    if isinstance(specs, dict) and specs:
+        if "os_status" not in specs:
+            return True
+        core_fields = ("cpu_modelo", "ram_gb", "armazenamento_tb")
+        if sum(1 for field in core_fields if specs.get(field)) < 2:
+            return True
     if previous_meta.get("ean") or previous_meta.get("mpn"):
         return False
     return not bool(previous_meta.get("identity_checked_at"))
@@ -2044,16 +2048,25 @@ def main() -> dict:
 
         cached = spec_cache.get(item["url"])
         if cached:
-            cached_item = dict(item)
-            cached_item["specs"] = cached
-            cached_item["detail_source"] = "history_cache"
             previous_meta = offer_cache.get(item["url"], {})
-            cached_item["specs"].update(reusable_price_evidence(previous_meta, item, settings))
-            for field in ("ean", "mpn", "sku", "identity_checked_at"):
-                if previous_meta.get(field) and not cached_item.get(field):
-                    cached_item[field] = previous_meta[field]
-            cached_pending.append((item, cached_item, previous_meta))
-            continue
+            cached_ean = previous_meta.get("ean")
+            cached_mpn = previous_meta.get("mpn")
+            current_ean = item.get("ean")
+            current_mpn = item.get("mpn")
+            variant_conflict = bool(
+                (current_ean and cached_ean and current_ean != cached_ean)
+                or (current_mpn and cached_mpn and current_mpn != cached_mpn)
+            )
+            if not variant_conflict:
+                cached_item = dict(item)
+                cached_item["specs"] = cached
+                cached_item["detail_source"] = "history_cache"
+                cached_item["specs"].update(reusable_price_evidence(previous_meta, item, settings))
+                for field in ("ean", "mpn", "sku", "identity_checked_at"):
+                    if previous_meta.get(field) and not cached_item.get(field):
+                        cached_item[field] = previous_meta[field]
+                cached_pending.append((item, cached_item, previous_meta))
+                continue
 
         if reserve_detail_slot():
             to_fetch.append(item)

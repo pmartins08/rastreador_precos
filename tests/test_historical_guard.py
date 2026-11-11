@@ -210,6 +210,50 @@ class HistoricalGuardTests(unittest.TestCase):
             twice["identities"][key]["days"]["2026-09-08"]["sum"],
         )
 
+    def test_observe_computes_daily_average_and_tracks_promo_discount(self):
+        state = {"schema_version": 1, "identities": {}}
+        item = {
+            "ean": "4711636047258",
+            "url": "https://tek4life.pt/item",
+            "loja": "Tek4life",
+            "promotion_price_live_confirmed": True,
+        }
+        historical_guard.observe(state, item, 1000.0, observed_at="2026-11-11T10:00:00Z")
+        historical_guard.observe(state, item, 1200.0, observed_at="2026-11-11T14:00:00Z")
+        key = historical_guard.identity_key(item)[0]
+        day = state["identities"][key]["days"]["2026-11-11"]
+        self.assertEqual(day["min"], 1000.0)
+        self.assertEqual(day["max"], 1200.0)
+        self.assertEqual(day["samples"], 2)
+        self.assertEqual(day["sum"], 2200.0)
+        self.assertEqual(day["avg"], 1100.0)
+        self.assertTrue(day["has_promo_discount"])
+
+    def test_merge_alias_day_preserves_average_and_promo_discount(self):
+        left = {
+            "min": 1000.0,
+            "max": 1000.0,
+            "last": 1000.0,
+            "sum": 1000.0,
+            "samples": 1,
+            "stores": ["FNAC"],
+            "has_promo_discount": True,
+        }
+        right = {
+            "min": 1100.0,
+            "max": 1100.0,
+            "last": 1100.0,
+            "sum": 1100.0,
+            "samples": 1,
+            "stores": ["Darty"],
+        }
+        merged = historical_guard._merge_alias_day(left, right)
+        self.assertEqual(merged["samples"], 2)
+        self.assertEqual(merged["sum"], 2100.0)
+        self.assertEqual(merged["avg"], 1050.0)
+        self.assertTrue(merged["has_promo_discount"])
+        self.assertEqual(merged["stores"], ["Darty", "FNAC"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -117,7 +117,7 @@ def _merge_alias_day(left: dict, right: dict) -> dict:
         samples = max(int(left.get("samples", 0)), int(right.get("samples", 0)))
         total = max(float(left.get("sum", 0.0)), float(right.get("sum", 0.0)))
     latest = right if right else left
-    return {
+    out = {
         "min": round(min(minima), 2) if minima else None,
         "max": round(max(maxima), 2) if maxima else None,
         "last": latest.get("last"),
@@ -125,6 +125,11 @@ def _merge_alias_day(left: dict, right: dict) -> dict:
         "samples": samples,
         "stores": sorted(left_stores | right_stores),
     }
+    if samples > 0:
+        out["avg"] = round(total / samples, 2)
+    if left.get("has_promo_discount") or right.get("has_promo_discount"):
+        out["has_promo_discount"] = True
+    return out
 
 
 def _merge_alias_entries(left: dict, right: dict, canonical: str | None) -> dict:
@@ -319,6 +324,10 @@ def observe(
     stats["last"] = round(value, 2)
     stats["sum"] = round(float(stats.get("sum", 0.0)) + value, 2)
     stats["samples"] = int(stats.get("samples", 0)) + 1
+    if stats["samples"] > 0:
+        stats["avg"] = round(stats["sum"] / stats["samples"], 2)
+    if item.get("promotion_price_live_confirmed") or item.get("has_cart_discount"):
+        stats["has_promo_discount"] = True
     store = str(item.get("loja") or "").strip()
     if store:
         stores = set(stats.get("stores") or [])
@@ -372,14 +381,21 @@ def _merge_day(left: dict, right: dict) -> dict:
     minima = [float(row["min"]) for row in values if row.get("min") is not None]
     maxima = [float(row["max"]) for row in values if row.get("max") is not None]
     latest = right if isinstance(right, dict) and right else left
-    return {
+    total = round(max(float(left.get("sum", 0.0)), float(right.get("sum", 0.0))), 2)
+    samples = max(int(left.get("samples", 0)), int(right.get("samples", 0)))
+    out = {
         "min": round(min(minima), 2) if minima else None,
         "max": round(max(maxima), 2) if maxima else None,
         "last": latest.get("last"),
-        "sum": round(max(float(left.get("sum", 0.0)), float(right.get("sum", 0.0))), 2),
-        "samples": max(int(left.get("samples", 0)), int(right.get("samples", 0))),
+        "sum": total,
+        "samples": samples,
         "stores": sorted(set(left.get("stores") or []) | set(right.get("stores") or [])),
     }
+    if samples > 0:
+        out["avg"] = round(total / samples, 2)
+    if left.get("has_promo_discount") or right.get("has_promo_discount"):
+        out["has_promo_discount"] = True
+    return out
 
 
 def merge_price_history(current: dict, run_state: dict) -> dict:
