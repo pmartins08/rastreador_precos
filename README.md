@@ -7,11 +7,11 @@
 
 Descobre ofertas, confirma preço e disponibilidade, identifica configurações entre lojas e calcula um Value adaptado a universidade, engenharia e gaming.
 
-**Objetivo de compra concluído · 9.0.0-beta.12 · manutenção silenciosa**
+**Objetivo de compra concluído · 9.0.0 Estável · manutenção silenciosa**
 
-O objetivo inicial desta fase está concluído. O projeto fica preparado para manutenção e futura retoma; resultados históricos não constituem recomendações ou promoções atuais.
+O objetivo inicial desta fase está concluído com a release estável `9.0.0`. O projeto fica preparado para manutenção e futura retoma; resultados históricos não constituem recomendações ou promoções atuais.
 
-A monitorização continua **a cada seis horas**, com notificações **apenas Diamante**. Heartbeats, avisos de deploy/falha no NTFY e resumos extraordinários estão desligados/removidos. Falhas continuam visíveis no GitHub Actions. O desenvolvimento ativo fica em pausa; as limitações de cobertura mantêm a designação beta.
+A monitorização continua **a cada seis horas**, com notificações **apenas Diamante**. Heartbeats, avisos de deploy/falha no NTFY e resumos extraordinários estão desligados/removidos. Falhas continuam visíveis no GitHub Actions. A arquitetura futura LapIntel V10 com Google Antigravity SDK encontra-se documentada em `docs/FUTURE_V10_ROADMAP.md` e prototipada em `scripts/v10_agent_prototype.py`.
 
 ## Como decide
 

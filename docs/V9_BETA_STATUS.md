@@ -1,6 +1,6 @@
-# Estado atual — ciclo beta.12 e preparação para 9.0.0 estável
+# Estado atual — 9.0.0 estável em manutenção silenciosa
 
-Ciclo de desenvolvimento concluído. Manutenção de qualidade de dados, sincronização de cache/disponibilidade e preparação para a versão estável 9.0.0. NTFY apenas Diamante; heartbeat desligado. Monitorização a cada seis horas. Ver [fecho e pendências](CLOSEOUT.md) para mudanças e limitações desta revisão.
+Ciclo de desenvolvimento concluído e versão estável 9.0.0 publicada. Manutenção de qualidade de dados, sincronização de cache/disponibilidade e monitorização silenciosa a cada seis horas. NTFY apenas Diamante; heartbeat desligado. Ver [fecho e pendências](CLOSEOUT.md) para mudanças e limitações desta revisão.
 
 As métricas abaixo são **referências históricas**, não resultados da beta.12 nem prova de stock atual.
 

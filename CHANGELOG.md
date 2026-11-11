@@ -2,6 +2,14 @@
 
 Este ficheiro concentra o histórico funcional e arquitetural relevante. Detalhes de implementação continuam preservados no histórico Git e nas métricas das runs; relatórios temporários de validação não são mantidos indefinidamente no repositório.
 
+## 9.0.0 — Release estável
+
+- **Disponibilidade e Cache sincronizados**: `availability_guard` força refresh live quando o TTL de 6h expira em lojas sem stock explícito em listagem (`Auchan`, `Clickfiel`, `Radio Popular`, `Darty`), eliminando falsas rejeições de `availability_not_eligible`.
+- **Refreshes alargados de preço e identidade**: Quota de refreshes de preço live aumentada de 12 para 48 por execução em `config.json`; reabertura progressiva de fichas históricas sem `os_status` em cache via `needs_identity_refresh`.
+- **Enriquecimento oficial de especificações**: Ativado `manufacturer_enrichment_enabled` para Lenovo PSREF e HP Support em `config.json` sem alterar preços ou scores.
+- **Validação de produção**: Execuções de produção registam subida de 94 para 137 ofertas aceites (+45.7%), com reativação de candidatos em Novo Atalho, Radio Popular, Tek4life e UPTECHBOX (36 aceites).
+- **Transição V10**: Especificação do motor multi-agente autónomo em `docs/FUTURE_V10_ROADMAP.md` e protótipo executável com Google Antigravity SDK (`scripts/v10_agent_prototype.py`) coberto por testes unitários dedicados.
+
 ## 9.0.0-beta.12 — Fecho da compra e manutenção silenciosa
 
 - Ciclo de desenvolvimento concluído; README, roadmap e operação atualizados, sem declarar cobertura total ou release estável.
