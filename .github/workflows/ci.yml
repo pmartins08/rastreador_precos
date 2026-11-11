@@ -53,3 +53,6 @@ jobs:
           python scripts/tier_threshold_audit.py
           --history data/history.json
           --config config/config.json
+
+      - name: Auditar baseline inegociável do sistema (System Guardian)
+        run: python scripts/system_guardian_audit.py -v
